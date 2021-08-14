@@ -9,7 +9,7 @@ with open(os.path.join(ROOT, "README.md"), "r") as f:
     README = f.read()
 
 setup(
-    name="strong_typing",
+    name="json_strong_typing",
     version="0.1.0",
     description="Auxiliary services for working with Python type annotations",
     long_description=README,
