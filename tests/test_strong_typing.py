@@ -4,7 +4,7 @@ import datetime
 import enum
 import unittest
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, NamedTuple
 
 from strong_typing import (
     JsonSchemaGenerator,
@@ -37,19 +37,33 @@ class BinaryValueExample:
     value: bytes
 
 
+class SimpleNamedTuple(NamedTuple):
+    int_value: int
+    str_value: str
+
+
 @dataclass
 class SimpleObjectExample:
     bool_value: bool = True
     int_value: int = 23
     float_value: float = 4.5
     str_value: str = "string"
+    date_value: datetime.date = datetime.date(1970, 1, 1)
+    time_value: datetime.time = datetime.time(6, 15, 30)
     datetime_value: datetime.datetime = datetime.datetime(1989, 10, 23, 1, 45, 50)
 
 
 @dataclass
-class ObjectExample(SimpleObjectExample):
+class CompositeObjectExample:
     list_value: List[str] = field(default_factory=list)
     dict_value: Dict[str, int] = field(default_factory=dict)
+    tuple_value: SimpleNamedTuple = SimpleNamedTuple(1, "second")
+
+
+@dataclass
+class InheritanceExample(SimpleObjectExample, CompositeObjectExample):
+    extra_int_value: int = 0
+    extra_str_value: str = "zero"
 
 
 @dataclass
@@ -59,13 +73,13 @@ class ValueExample:
 
 
 @dataclass
-class CompositeExample:
-    obj_value: ObjectExample
+class NestedObjectExample:
+    obj_value: CompositeObjectExample
     list_value: List[ValueExample]
     dict_value: Dict[str, ValueExample]
 
     def __init__(self):
-        self.obj_value = ObjectExample(
+        self.obj_value = CompositeObjectExample(
             list_value=["a", "b", "c"], dict_value={"key": 42}
         )
         self.list_value = [ValueExample(value=1), ValueExample(value=2)]
@@ -86,8 +100,14 @@ async def test_async_function():
 
 class TestStrongTyping(unittest.TestCase):
     def test_composite_object(self):
-        json_dict = object_to_json(CompositeExample())
-        validate_object(CompositeExample, json_dict)
+        json_dict = object_to_json(SimpleObjectExample())
+        validate_object(SimpleObjectExample, json_dict)
+
+        json_dict = object_to_json(CompositeObjectExample())
+        validate_object(CompositeObjectExample, json_dict)
+
+        json_dict = object_to_json(NestedObjectExample())
+        validate_object(NestedObjectExample, json_dict)
 
     def test_schema(self):
         generator = JsonSchemaGenerator(use_descriptions=False)
@@ -120,6 +140,18 @@ class TestStrongTyping(unittest.TestCase):
                 "properties": {"value": {"type": "integer", "default": 23}},
                 "additionalProperties": False,
                 "required": ["value"],
+            },
+        )
+        self.assertEqual(
+            generator.type_to_schema(SimpleNamedTuple),
+            {
+                "type": "object",
+                "properties": {
+                    "int_value": {"type": "integer"},
+                    "str_value": {"type": "string"},
+                },
+                "additionalProperties": False,
+                "required": ["int_value", "str_value"],
             },
         )
         self.assertEqual(
@@ -160,18 +192,59 @@ class TestStrongTyping(unittest.TestCase):
     def test_object_serialization(self):
         """Test composition and inheritance with object serialization."""
 
-        json_dict = object_to_json(CompositeExample())
+        json_dict = object_to_json(SimpleObjectExample())
+        self.assertDictEqual(
+            json_dict,
+            {
+                "bool_value": True,
+                "int_value": 23,
+                "float_value": 4.5,
+                "str_value": "string",
+                "date_value": "1970-01-01",
+                "time_value": "06:15:30",
+                "datetime_value": "1989-10-23T01:45:50",
+            },
+        )
+
+        json_dict = object_to_json(
+            CompositeObjectExample(list_value=["a", "b", "c"], dict_value={"key": 42})
+        )
+        self.assertDictEqual(
+            json_dict,
+            {
+                "list_value": ["a", "b", "c"],
+                "dict_value": {"key": 42},
+                "tuple_value": {"int_value": 1, "str_value": "second"},
+            },
+        )
+
+        json_dict = object_to_json(InheritanceExample())
+        self.assertDictEqual(
+            json_dict,
+            {
+                "bool_value": True,
+                "int_value": 23,
+                "float_value": 4.5,
+                "str_value": "string",
+                "date_value": "1970-01-01",
+                "time_value": "06:15:30",
+                "datetime_value": "1989-10-23T01:45:50",
+                "list_value": [],
+                "dict_value": {},
+                "tuple_value": {"int_value": 1, "str_value": "second"},
+                "extra_int_value": 0,
+                "extra_str_value": "zero",
+            },
+        )
+
+        json_dict = object_to_json(NestedObjectExample())
         self.assertDictEqual(
             json_dict,
             {
                 "obj_value": {
-                    "bool_value": True,
-                    "int_value": 23,
-                    "float_value": 4.5,
-                    "str_value": "string",
                     "list_value": ["a", "b", "c"],
                     "dict_value": {"key": 42},
-                    "datetime_value": "1989-10-23T01:45:50",
+                    "tuple_value": {"int_value": 1, "str_value": "second"},
                 },
                 "list_value": [{"value": 1}, {"value": 2}],
                 "dict_value": {
@@ -185,9 +258,9 @@ class TestStrongTyping(unittest.TestCase):
     def test_object_deserialization(self):
         """Test composition and inheritance with object de-serialization."""
 
-        json_dict = object_to_json(CompositeExample())
-        obj = json_to_object(CompositeExample, json_dict)
-        self.assertEqual(obj, CompositeExample())
+        json_dict = object_to_json(NestedObjectExample())
+        obj = json_to_object(NestedObjectExample, json_dict)
+        self.assertEqual(obj, NestedObjectExample())
 
 
 if __name__ == "__main__":

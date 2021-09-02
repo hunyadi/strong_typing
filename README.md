@@ -110,6 +110,7 @@ The following table shows the conversion types the package employs:
 | Dict[K, V] | object | stores element recursively, keys are coerced into string |
 | Dict[Enum, V] | object | stores elements recursively, keys are of enumeration value type |
 | dataclass | object | iterates over fields of dataclass |
+| named tuple | object | iterates over fields of named tuple |
 | Any | object | iterates over `dir(obj)` |
 
 ## Custom serialization and de-serialization

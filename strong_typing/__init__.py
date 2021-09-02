@@ -9,7 +9,19 @@ import json
 import keyword
 import re
 import typing
-from typing import Any, ClassVar, Dict, Iterable, List, Set, Tuple, Type, TypeVar, Union
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import jsonschema
 from jsonschema.exceptions import ValidationError
@@ -18,18 +30,52 @@ from jsonschema.exceptions import ValidationError
 # schema with explicitly listed properties (rather than employing a pattern constraint on property names)
 OBJECT_ENUM_EXPANSION_LIMIT = 4
 
-Schema = Dict[str, Any]
-T = TypeVar("T")  # declare type variable
+JsonType = Union[None, bool, int, float, str, Dict[str, "JsonType"], List["JsonType"]]
+Schema = JsonType
+T = TypeVar("T")
 
 
-def is_dataclass_instance(obj):
-    return dataclasses.is_dataclass(obj) and not isinstance(obj, type)
+def is_dataclass_type(typ) -> bool:
+    "True if the argument corresponds to a data class type (but not an instance)."
+
+    return isinstance(typ, type) and dataclasses.is_dataclass(typ)
+
+
+def is_dataclass_instance(obj) -> bool:
+    "True if the argument corresponds to a data class instance (but not a type)."
+
+    return not isinstance(obj, type) and dataclasses.is_dataclass(obj)
+
+
+def is_named_tuple_instance(obj) -> bool:
+    "True if the argument corresponds to a named tuple instance."
+
+    return is_named_tuple_type(type(obj))
+
+
+def is_named_tuple_type(typ) -> bool:
+    """
+    True if the argument corresponds to a named tuple type.
+
+    Calling the function `collections.namedtuple` gives a new type that is a subclass of `tuple` (and no other classes)
+    with a member named `_fields` that is a tuple whose items are all strings.
+    """
+
+    b = typ.__bases__
+    if len(b) != 1 or b[0] != tuple:
+        return False
+
+    f = getattr(typ, "_fields", None)
+    if not isinstance(f, tuple):
+        return False
+
+    return all(type(n) == str for n in f)
 
 
 def get_class_properties(typ: Type) -> Iterable[Tuple[str, Type]]:
     resolved_hints = typing.get_type_hints(typ)
 
-    if dataclasses.is_dataclass(typ):
+    if is_dataclass_type(typ):
         return (
             (field.name, resolved_hints[field.name])
             for field in dataclasses.fields(typ)
@@ -54,7 +100,7 @@ def python_id_to_json_field(python_id: str) -> str:
     return python_id
 
 
-def object_to_json(obj: Any) -> Any:
+def object_to_json(obj: Any) -> JsonType:
     """
     Convert an object to a representation that can be exported to JSON.
     Fundamental types (e.g. numeric types) are left as is. Objects with properties are converted
@@ -97,6 +143,15 @@ def object_to_json(obj: Any) -> Any:
             object_dict[python_id_to_json_field(field.name)] = object_to_json(value)
         return object_dict
 
+    if is_named_tuple_instance(obj):
+        object_dict = {}
+        for field in type(obj)._fields:
+            value = getattr(obj, field)
+            if value is None:
+                continue
+            object_dict[python_id_to_json_field(field)] = object_to_json(value)
+        return object_dict
+
     # fail early if caller passes an object with an exotic type
     if (
         inspect.isfunction(obj)
@@ -130,7 +185,7 @@ def object_to_json(obj: Any) -> Any:
     return object_dict
 
 
-def json_to_object(typ: Type, data: Any) -> Any:
+def json_to_object(typ: Type[T], data: JsonType) -> T:
     """
     Create an object from a representation that has been de-serialized from JSON.
     Fundamental types (e.g. numeric types) are left as is. Objects with properties are populated
@@ -168,6 +223,13 @@ def json_to_object(typ: Type, data: Any) -> Any:
 
         raise KeyError(f"type `{typ}` could not be instantiated from: {data}")
 
+    if is_named_tuple_type(typ):
+        object_dict = {
+            field_name: json_to_object(field_type, data[field_name])
+            for field_name, field_type in typ.__annotations__.items()
+        }
+        return typ(**object_dict)
+
     if not inspect.isclass(typ):
         raise TypeError(f"unable to de-serialize unrecognized type `{typ}`")
 
@@ -200,8 +262,8 @@ def json_to_object(typ: Type, data: Any) -> Any:
     return obj
 
 
-def json_dump_string(json_object: Any) -> str:
-    """Dump an object as a JSON string with a compact representation."""
+def json_dump_string(json_object: JsonType) -> str:
+    "Dump an object as a JSON string with a compact representation."
 
     return json.dumps(
         json_object, ensure_ascii=False, check_circular=False, separators=(",", ":")
@@ -209,7 +271,7 @@ def json_dump_string(json_object: Any) -> str:
 
 
 def is_type_optional(typ: Type) -> bool:
-    """True if the type annotation corresponds to an optional type (e.g. Optional[T] or Union[T1,T2,None])."""
+    "True if the type annotation corresponds to an optional type (e.g. Optional[T] or Union[T1,T2,None])."
 
     if typing.get_origin(typ) is Union:  # Optional[T] is represented as Union[T, None]
         return type(None) in typing.get_args(typ)
@@ -217,10 +279,12 @@ def is_type_optional(typ: Type) -> bool:
     return False
 
 
-def unwrap_optional_type(typ: Type) -> Type:
+def unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
+    "Extracts the type qualified as optional (e.g. returns T for Optional[T])."
+
     # Optional[T] is represented internally as Union[T, None]
     if typing.get_origin(typ) is not Union:
-        raise ValueError("optional type must have un-subscripted type of Union")
+        raise TypeError("optional type must have un-subscripted type of Union")
 
     # will automatically unwrap Union[T] into T
     return Union[
@@ -457,7 +521,7 @@ def classdef_to_schema(typ: Type) -> Schema:
     return schema
 
 
-def validate_object(object_type: Type, json_dict: Any):
+def validate_object(object_type: Type, json_dict: JsonType) -> None:
     """Validates if the JSON dictionary object conforms to the expected type.
 
     :param object_type: The type to match against
@@ -471,7 +535,7 @@ def validate_object(object_type: Type, json_dict: Any):
     )
 
 
-def print_schema(typ: Type):
+def print_schema(typ: Type) -> None:
     """Pretty-prints the JSON schema corresponding to the type."""
 
     s = classdef_to_schema(typ)
