@@ -106,12 +106,46 @@ The following table shows the conversion types the package employs:
 | date | string | constrained to match ISO 8601 format `2018-11-13` |
 | time | string | constrained to match ISO 8601 format `20:20:39+00:00` |
 | Enum | *value type* | stores the enumeration value type (typically integer or string) |
-| List[T] | array | stores elements recursively |
-| Dict[K, V] | object | stores element recursively, keys are coerced into string |
-| Dict[Enum, V] | object | stores elements recursively, keys are of enumeration value type |
-| dataclass | object | iterates over fields of dataclass |
+| List[T] | array | recursive in T |
+| Dict[K, V] | object | recursive in V, keys are coerced into string |
+| Dict[Enum, V] | object | recursive in V, keys are of enumeration value type |
+| Set[T] | array | recursive in T, container has uniqueness constraint |
+| Tuple[T1, T2, ...] | array | array has fixed length, each element has specific type |
+| data class | object | iterates over fields of data class |
 | named tuple | object | iterates over fields of named tuple |
 | Any | object | iterates over `dir(obj)` |
+
+## JSON schema examples
+
+Simple types:
+
+| Python type | JSON schema |
+| -- | -- |
+| bool | `{"type": "boolean"}` |
+| int | `{"type": "integer"}` |
+| float | `{"type": "number"}` |
+| str | `{"type": "string"}` |
+| bytes | `{"type": "string", "contentEncoding": "base64"}` |
+
+Enumeration types:
+
+```python
+class Side(enum.Enum):
+    LEFT = "L"
+    RIGHT = "R"
+```
+```json
+{"enum": ["L", "R"], "type": "string"}
+```
+
+Container types:
+
+| Python type | JSON schema |
+| -- | -- |
+| List[int] | `{"type": "array", "items": {"type": "integer"}}` |
+| Dict[str, int] | `{"type": "object", "additionalProperties": {"type": "integer"}}` |
+| Set[int] | `{"type": "array", "items": {"type": "integer"}, "uniqueItems": True}}` |
+| Tuple[int, str] | `{"type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{"type": "integer"}, {"type": "string"}]}` |
 
 ## Custom serialization and de-serialization
 
