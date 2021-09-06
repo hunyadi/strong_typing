@@ -4,7 +4,7 @@ import datetime
 import enum
 import unittest
 from dataclasses import dataclass, field
-from typing import Dict, List, NamedTuple
+from typing import Dict, List, NamedTuple, Set, Tuple
 
 from strong_typing import (
     JsonSchemaGenerator,
@@ -57,7 +57,9 @@ class SimpleObjectExample:
 class CompositeObjectExample:
     list_value: List[str] = field(default_factory=list)
     dict_value: Dict[str, int] = field(default_factory=dict)
-    tuple_value: SimpleNamedTuple = SimpleNamedTuple(1, "second")
+    set_value: Set[int] = field(default_factory=set)
+    tuple_value: Tuple[bool, int, str] = (True, 2, "three")
+    named_tuple_value: SimpleNamedTuple = SimpleNamedTuple(1, "second")
 
 
 @dataclass
@@ -134,6 +136,23 @@ class TestStrongTyping(unittest.TestCase):
             {"type": "object", "additionalProperties": {"type": "integer"}},
         )
         self.assertEqual(
+            generator.type_to_schema(Set[int]),
+            {"type": "array", "items": {"type": "integer"}, "uniqueItems": True},
+        )
+        self.assertEqual(
+            generator.type_to_schema(Tuple[bool, int, str]),
+            {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "prefixItems": [
+                    {"type": "boolean"},
+                    {"type": "integer"},
+                    {"type": "string"},
+                ],
+            },
+        )
+        self.assertEqual(
             generator.type_to_schema(SimpleValueExample),
             {
                 "type": "object",
@@ -207,14 +226,20 @@ class TestStrongTyping(unittest.TestCase):
         )
 
         json_dict = object_to_json(
-            CompositeObjectExample(list_value=["a", "b", "c"], dict_value={"key": 42})
+            CompositeObjectExample(
+                list_value=["a", "b", "c"],
+                dict_value={"key": 42},
+                set_value=set(i for i in range(0, 4)),
+            )
         )
         self.assertDictEqual(
             json_dict,
             {
                 "list_value": ["a", "b", "c"],
                 "dict_value": {"key": 42},
-                "tuple_value": {"int_value": 1, "str_value": "second"},
+                "set_value": [0, 1, 2, 3],
+                "tuple_value": [True, 2, "three"],
+                "named_tuple_value": {"int_value": 1, "str_value": "second"},
             },
         )
 
@@ -231,7 +256,9 @@ class TestStrongTyping(unittest.TestCase):
                 "datetime_value": "1989-10-23T01:45:50",
                 "list_value": [],
                 "dict_value": {},
-                "tuple_value": {"int_value": 1, "str_value": "second"},
+                "set_value": [],
+                "tuple_value": [True, 2, "three"],
+                "named_tuple_value": {"int_value": 1, "str_value": "second"},
                 "extra_int_value": 0,
                 "extra_str_value": "zero",
             },
@@ -244,7 +271,9 @@ class TestStrongTyping(unittest.TestCase):
                 "obj_value": {
                     "list_value": ["a", "b", "c"],
                     "dict_value": {"key": 42},
-                    "tuple_value": {"int_value": 1, "str_value": "second"},
+                    "set_value": [],
+                    "tuple_value": [True, 2, "three"],
+                    "named_tuple_value": {"int_value": 1, "str_value": "second"},
                 },
                 "list_value": [{"value": 1}, {"value": 2}],
                 "dict_value": {

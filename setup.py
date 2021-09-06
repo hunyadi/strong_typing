@@ -10,7 +10,7 @@ with open(os.path.join(ROOT, "README.md"), "r") as f:
 
 setup(
     name="json_strong_typing",
-    version="0.1.0",
+    version="0.1.1",
     description="Auxiliary services for working with Python type annotations",
     long_description=README,
     long_description_content_type="text/markdown",

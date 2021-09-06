@@ -128,6 +128,8 @@ def object_to_json(obj: Any) -> JsonType:
                 (str(key), object_to_json(value)) for key, value in obj.items()
             )
         return dict(generator)
+    elif isinstance(obj, set):
+        return [object_to_json(item) for item in obj]
 
     # check if object has custom serialization method
     convert_func = getattr(obj, "to_json", None)
@@ -143,7 +145,7 @@ def object_to_json(obj: Any) -> JsonType:
             object_dict[python_id_to_json_field(field.name)] = object_to_json(value)
         return object_dict
 
-    if is_named_tuple_instance(obj):
+    elif is_named_tuple_instance(obj):
         object_dict = {}
         for field in type(obj)._fields:
             value = getattr(obj, field)
@@ -151,6 +153,10 @@ def object_to_json(obj: Any) -> JsonType:
                 continue
             object_dict[python_id_to_json_field(field)] = object_to_json(value)
         return object_dict
+
+    elif isinstance(obj, tuple):
+        # check plain tuple after named tuple, named tuples are also instances of tuple
+        return [object_to_json(item) for item in obj]
 
     # fail early if caller passes an object with an exotic type
     if (
@@ -210,6 +216,17 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
         return dict(
             (key_type(key), json_to_object(value_type, value))
             for key, value in data.items()
+        )
+    elif origin_type is set:
+        (set_type,) = typing.get_args(typ)  # unpack single tuple element
+        return set(json_to_object(set_type, item) for item in data)
+    elif origin_type is tuple:
+        return tuple(
+            json_to_object(member_type, item)
+            for (member_type, item) in zip(
+                (member_type for member_type in typing.get_args(typ)),
+                (item for item in data),
+            )
         )
     elif origin_type is Union:
         for t in typing.get_args(typ):
@@ -376,10 +393,12 @@ class JsonSchemaGenerator:
             if self.use_descriptions:
                 enum_schema.update(docstring_to_schema(typ))
             return enum_schema
-        elif typing.get_origin(typ) is list:
+
+        origin_type = typing.get_origin(typ)
+        if origin_type is list:
             (list_type,) = typing.get_args(typ)  # unpack single tuple element
             return {"type": "array", "items": self.type_to_schema(list_type)}
-        elif typing.get_origin(typ) is dict:
+        elif origin_type is dict:
             key_type, value_type = typing.get_args(typ)
             if not (
                 key_type is str or key_type is int or issubclass(key_type, enum.Enum)
@@ -411,14 +430,32 @@ class JsonSchemaGenerator:
             schema = {"type": "object"}
             schema.update(dict_schema)
             return schema
-        elif typing.get_origin(typ) is Union:
+        elif origin_type is set:
+            (set_type,) = typing.get_args(typ)  # unpack single tuple element
+            return {
+                "type": "array",
+                "items": self.type_to_schema(set_type),
+                "uniqueItems": True,
+            }
+        elif origin_type is tuple:
+            args = typing.get_args(typ)
+            return {
+                "type": "array",
+                "minItems": len(args),
+                "maxItems": len(args),
+                "prefixItems": [
+                    self.type_to_schema(member_type) for member_type in args
+                ],
+            }
+        elif origin_type is Union:
             return {
                 "oneOf": [
                     self.type_to_schema(union_type)
                     for union_type in typing.get_args(typ)
                 ]
             }
-        elif not force_expand and typ in JsonSchemaGenerator.type_catalog:
+
+        if not force_expand and typ in JsonSchemaGenerator.type_catalog:
             # user-defined type
             self.types_used.add(typ)
             return {"$ref": f"{self.definitions_path}{typ.__name__}"}
