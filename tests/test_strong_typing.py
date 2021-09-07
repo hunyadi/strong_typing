@@ -1,5 +1,7 @@
 """Unit tests for strong typing."""
 
+from __future__ import annotations
+
 import datetime
 import enum
 import unittest
@@ -8,6 +10,8 @@ from typing import Dict, List, NamedTuple, Set, Tuple
 
 from strong_typing import (
     JsonSchemaGenerator,
+    SchemaOptions,
+    classdef_to_schema,
     json_schema_type,
     json_to_object,
     object_to_json,
@@ -35,6 +39,27 @@ class SimpleValueExample:
 @dataclass
 class BinaryValueExample:
     value: bytes
+
+
+@json_schema_type(
+    schema={
+        "type": "string",
+        "pattern": r"^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$",
+        "maxLength": 64,
+    }
+)
+@dataclass
+class UID:
+    """A unique identifier in DICOM."""
+
+    value: str
+
+    def to_json(self) -> str:
+        return self.value
+
+    @classmethod
+    def from_json(cls, value: str) -> UID:
+        return UID(value)
 
 
 class SimpleNamedTuple(NamedTuple):
@@ -112,7 +137,8 @@ class TestStrongTyping(unittest.TestCase):
         validate_object(NestedObjectExample, json_dict)
 
     def test_schema(self):
-        generator = JsonSchemaGenerator(use_descriptions=False)
+        options = SchemaOptions(use_descriptions=False)
+        generator = JsonSchemaGenerator(options)
         self.assertEqual(generator.type_to_schema(bool), {"type": "boolean"})
         self.assertEqual(generator.type_to_schema(int), {"type": "integer"})
         self.assertEqual(generator.type_to_schema(float), {"type": "number"})
@@ -177,6 +203,20 @@ class TestStrongTyping(unittest.TestCase):
             generator.type_to_schema(ValueExample),
             {"$ref": "#/definitions/ValueExample"},
         )
+        self.assertEqual(
+            classdef_to_schema(UID, options),
+            {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "definitions": {
+                    "UID": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(\\.(0|[1-9][0-9]*))*$",
+                        "maxLength": 64,
+                    }
+                },
+                "$ref": "#/definitions/UID",
+            },
+        )
 
     def test_serialization(self):
         self.assertEqual(object_to_json(True), True)
@@ -186,6 +226,7 @@ class TestStrongTyping(unittest.TestCase):
         self.assertEqual(object_to_json(bytes([65, 78])), "QU4=")
         self.assertEqual(object_to_json(Side.LEFT), "L")
         self.assertEqual(object_to_json(Suit.Diamonds), 1)
+        self.assertEqual(object_to_json(UID("1.2.3.4567.8900")), "1.2.3.4567.8900")
         self.assertEqual(
             object_to_json(BinaryValueExample(bytes([65, 78]))), {"value": "QU4="}
         )
@@ -203,6 +244,7 @@ class TestStrongTyping(unittest.TestCase):
         self.assertEqual(json_to_object(bytes, "QU4="), bytes([65, 78]))
         self.assertEqual(json_to_object(Side, "L"), Side.LEFT)
         self.assertEqual(json_to_object(Suit, 1), Suit.Diamonds)
+        self.assertEqual(json_to_object(UID, "1.2.3.4567.8900"), UID("1.2.3.4567.8900"))
         self.assertEqual(
             json_to_object(BinaryValueExample, {"value": "QU4="}),
             BinaryValueExample(bytes([65, 78])),

@@ -240,15 +240,15 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
 
         raise KeyError(f"type `{typ}` could not be instantiated from: {data}")
 
+    if not inspect.isclass(typ):
+        raise TypeError(f"unable to de-serialize unrecognized type `{typ}`")
+
     if is_named_tuple_type(typ):
         object_dict = {
             field_name: json_to_object(field_type, data[field_name])
-            for field_name, field_type in typ.__annotations__.items()
+            for field_name, field_type in typing.get_type_hints(typ).items()
         }
         return typ(**object_dict)
-
-    if not inspect.isclass(typ):
-        raise TypeError(f"unable to de-serialize unrecognized type `{typ}`")
 
     if issubclass(typ, enum.Enum):
         return typ(data)
@@ -328,18 +328,24 @@ except ImportError:
         return dict()
 
 
+@dataclasses.dataclass
+class SchemaOptions:
+    definitions_path: str = "#/definitions/"
+    use_descriptions: bool = True
+
+
 class JsonSchemaGenerator:
     """Creates a JSON schema with user-defined type definitions."""
 
     type_catalog: ClassVar[Dict[Type, Schema]] = {}
     types_used: Set[Type]
-    use_descriptions: bool = False
+    options: SchemaOptions
 
-    def __init__(self, definitions_path: str = None, use_descriptions: bool = True):
-        if not definitions_path:
-            definitions_path = "#/definitions/"
-        self.definitions_path = definitions_path
-        self.use_descriptions = use_descriptions
+    def __init__(self, options: SchemaOptions = None):
+        if options is None:
+            self.options = SchemaOptions
+        else:
+            self.options = options
         self.types_used = set()
 
     def type_to_schema(self, typ: Type, force_expand: bool = False) -> Schema:
@@ -390,7 +396,7 @@ class JsonSchemaGenerator:
                 )
 
             enum_schema = {"type": enum_schema_type, "enum": enum_values}
-            if self.use_descriptions:
+            if self.options.use_descriptions:
                 enum_schema.update(docstring_to_schema(typ))
             return enum_schema
 
@@ -455,10 +461,10 @@ class JsonSchemaGenerator:
                 ]
             }
 
-        if not force_expand and typ in JsonSchemaGenerator.type_catalog:
+        if not force_expand and typ in __class__.type_catalog:
             # user-defined type
             self.types_used.add(typ)
-            return {"$ref": f"{self.definitions_path}{typ.__name__}"}
+            return {"$ref": f"{self.options.definitions_path}{typ.__name__}"}
         else:
             # dictionary of class attributes
             members = dict(inspect.getmembers(typ, lambda a: not inspect.isroutine(a)))
@@ -500,17 +506,17 @@ class JsonSchemaGenerator:
                 schema["additionalProperties"] = False
             if len(required) > 0:
                 schema["required"] = required
-            if self.use_descriptions:
+            if self.options.use_descriptions:
                 schema.update(docstring_to_schema(typ))
             return schema
 
     def _subtype_to_schema(self, subtype: Type) -> Schema:
-        subschema = JsonSchemaGenerator.type_catalog[subtype]
+        subschema = __class__.type_catalog[subtype]
         if subschema is not None:
             type_schema = subschema.copy()
 
             # add descriptive text (if present)
-            if self.use_descriptions:
+            if self.options.use_descriptions:
                 type_schema.update(docstring_to_schema(subtype))
         else:
             type_schema = self.type_to_schema(subtype, force_expand=True)
@@ -542,14 +548,14 @@ class JsonSchemaGenerator:
         return type_schema, type_definitions
 
 
-def classdef_to_schema(typ: Type) -> Schema:
+def classdef_to_schema(typ: Type, options: SchemaOptions = None) -> Schema:
     """Returns the JSON schema corresponding to the given type.
 
     :param typ: The Python type used to generate the JSON schema
     :return: A JSON object that you can serialize to a JSON string with json.dump or json.dumps
     """
 
-    type_schema, type_definitions = JsonSchemaGenerator().classdef_to_schema(typ)
+    type_schema, type_definitions = JsonSchemaGenerator(options).classdef_to_schema(typ)
 
     schema = {"$schema": "http://json-schema.org/draft-07/schema#"}
     if type_definitions:
