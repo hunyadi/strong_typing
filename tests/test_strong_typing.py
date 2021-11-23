@@ -5,8 +5,9 @@ from __future__ import annotations
 import datetime
 import enum
 import unittest
+import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, NamedTuple, Set, Tuple
+from typing import Any, Dict, List, NamedTuple, Set, Tuple
 
 from strong_typing import (
     JsonSchemaGenerator,
@@ -76,6 +77,7 @@ class SimpleObjectExample:
     date_value: datetime.date = datetime.date(1970, 1, 1)
     time_value: datetime.time = datetime.time(6, 15, 30)
     datetime_value: datetime.datetime = datetime.datetime(1989, 10, 23, 1, 45, 50)
+    guid_value: uuid.UUID = uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
 
 
 @dataclass
@@ -154,6 +156,19 @@ class TestStrongTyping(unittest.TestCase):
             generator.type_to_schema(Suit), {"enum": [1, 2, 3, 4], "type": "integer"}
         )
         self.assertEqual(
+            generator.type_to_schema(Any),
+            {
+                "anyOf": [
+                    {"type": "null"},
+                    {"type": "boolean"},
+                    {"type": "number"},
+                    {"type": "string"},
+                    {"type": "array"},
+                    {"type": "object"},
+                ]
+            },
+        )
+        self.assertEqual(
             generator.type_to_schema(List[int]),
             {"type": "array", "items": {"type": "integer"}},
         )
@@ -230,6 +245,10 @@ class TestStrongTyping(unittest.TestCase):
         self.assertEqual(
             object_to_json(BinaryValueExample(bytes([65, 78]))), {"value": "QU4="}
         )
+        self.assertEqual(
+            object_to_json(uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")),
+            "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+        )
 
         self.assertRaises(TypeError, object_to_json, test_function)  # function
         self.assertRaises(TypeError, object_to_json, test_async_function)  # function
@@ -249,6 +268,10 @@ class TestStrongTyping(unittest.TestCase):
             json_to_object(BinaryValueExample, {"value": "QU4="}),
             BinaryValueExample(bytes([65, 78])),
         )
+        self.assertEqual(
+            json_to_object(uuid.UUID, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
+            uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
+        )
 
     def test_object_serialization(self):
         """Test composition and inheritance with object serialization."""
@@ -264,6 +287,7 @@ class TestStrongTyping(unittest.TestCase):
                 "date_value": "1970-01-01",
                 "time_value": "06:15:30",
                 "datetime_value": "1989-10-23T01:45:50",
+                "guid_value": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
             },
         )
 
@@ -296,6 +320,7 @@ class TestStrongTyping(unittest.TestCase):
                 "date_value": "1970-01-01",
                 "time_value": "06:15:30",
                 "datetime_value": "1989-10-23T01:45:50",
+                "guid_value": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
                 "list_value": [],
                 "dict_value": {},
                 "set_value": [],

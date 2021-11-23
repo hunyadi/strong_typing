@@ -9,6 +9,7 @@ import json
 import keyword
 import re
 import typing
+import uuid
 from typing import (
     Any,
     ClassVar,
@@ -114,6 +115,8 @@ def object_to_json(obj: Any) -> JsonType:
         return base64.b64encode(obj).decode("ascii")
     elif isinstance(obj, (datetime.datetime, datetime.date, datetime.time)):
         return obj.isoformat()
+    elif isinstance(obj, uuid.UUID):
+        return str(obj)
     elif isinstance(obj, enum.Enum):
         return obj.value
     elif isinstance(obj, list):
@@ -205,6 +208,8 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
         return base64.b64decode(data)
     elif typ is datetime.datetime or typ is datetime.date or typ is datetime.time:
         return typ.fromisoformat(data)
+    elif typ is uuid.UUID:
+        return uuid.UUID(data)
 
     # generic types (e.g. list, dict, set, etc.)
     origin_type = typing.get_origin(typ)
@@ -305,7 +310,7 @@ def unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
 
     # will automatically unwrap Union[T] into T
     return Union[
-        tuple(filter(lambda item: item is not type(None), typing.get_args(typ)))
+        tuple(filter(lambda item: item is not type(None), typing.get_args(typ)))  # type: ignore
     ]
 
 
@@ -349,8 +354,22 @@ class JsonSchemaGenerator:
         self.types_used = set()
 
     def type_to_schema(self, typ: Type, force_expand: bool = False) -> Schema:
+        if isinstance(typ, str):
+            raise TypeError(f"object is not a type but a string")
+
         if typ is None:
             return {"type": "null"}
+        elif typ is Any:
+            return {
+                "anyOf": [
+                    {"type": "null"},
+                    {"type": "boolean"},
+                    {"type": "number"},
+                    {"type": "string"},
+                    {"type": "array"},
+                    {"type": "object"},
+                ]
+            }
         elif typ is bool:
             return {"type": "boolean"}
         elif typ is int:
@@ -373,7 +392,15 @@ class JsonSchemaGenerator:
         elif typ is datetime.time:
             # 20:20:39+00:00
             return {"type": "string", "format": "time"}
-        elif inspect.isclass(typ) and issubclass(typ, enum.Enum):
+        elif typ is uuid.UUID:
+            # f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+            return {"type": "string", "format": "uuid"}
+
+        if isinstance(typ, typing.ForwardRef):
+            fwd: typing.ForwardRef = typ
+            typ = eval(fwd.__forward_arg__)
+
+        if inspect.isclass(typ) and issubclass(typ, enum.Enum):
             enum_values = [e.value for e in typ]
             enum_value_types = list(dict.fromkeys(type(value) for value in enum_values))
             if len(enum_value_types) != 1:
