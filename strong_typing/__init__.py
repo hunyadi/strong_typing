@@ -343,7 +343,7 @@ class JsonSchemaGenerator:
     """Creates a JSON schema with user-defined type definitions."""
 
     type_catalog: ClassVar[Dict[Type, Schema]] = {}
-    types_used: Set[Type]
+    types_used: Dict[str, Type]
     options: SchemaOptions
 
     def __init__(self, options: SchemaOptions = None):
@@ -351,7 +351,7 @@ class JsonSchemaGenerator:
             self.options = SchemaOptions
         else:
             self.options = options
-        self.types_used = set()
+        self.types_used = {}
 
     def type_to_schema(self, typ: Type, force_expand: bool = False) -> Schema:
         if isinstance(typ, str):
@@ -398,7 +398,10 @@ class JsonSchemaGenerator:
 
         if isinstance(typ, typing.ForwardRef):
             fwd: typing.ForwardRef = typ
-            typ = eval(fwd.__forward_arg__)
+            identifier = fwd.__forward_arg__
+            typ = eval(identifier)
+            self.types_used[identifier] = typ
+            return {"$ref": f"{self.options.definitions_path}{identifier}"}
 
         if inspect.isclass(typ) and issubclass(typ, enum.Enum):
             enum_values = [e.value for e in typ]
@@ -480,6 +483,9 @@ class JsonSchemaGenerator:
                     self.type_to_schema(member_type) for member_type in args
                 ],
             }
+        elif origin_type is type:
+            (concrete_type,) = typing.get_args(typ)  # unpack single tuple element
+            return {"const": self.type_to_schema(concrete_type)}
         elif origin_type is Union:
             return {
                 "oneOf": [
@@ -490,8 +496,9 @@ class JsonSchemaGenerator:
 
         if not force_expand and typ in __class__.type_catalog:
             # user-defined type
-            self.types_used.add(typ)
-            return {"$ref": f"{self.options.definitions_path}{typ.__name__}"}
+            identifier = typ.__name__
+            self.types_used[identifier] = typ
+            return {"$ref": f"{self.options.definitions_path}{identifier}"}
         else:
             # dictionary of class attributes
             members = dict(inspect.getmembers(typ, lambda a: not inspect.isroutine(a)))
@@ -551,26 +558,26 @@ class JsonSchemaGenerator:
         return type_schema
 
     def classdef_to_schema(self, typ: Type) -> Tuple[Schema, Dict[str, Schema]]:
-        self.types_used = set()
+        self.types_used = {}
         try:
             type_schema = self.type_to_schema(typ)
 
-            types_defined = set()
-            subtype_mapping = {}
+            types_defined = {}
             while len(self.types_used) > len(types_defined):
-                types_undefined = self.types_used - types_defined
-                for subtype in types_undefined:
-                    subtype_mapping[subtype] = self._subtype_to_schema(subtype)
-                types_defined.update(types_undefined)
+                # make a snapshot copy; original collection is going to be modified
+                types_undefined = {
+                    sub_name: sub_type
+                    for sub_name, sub_type in self.types_used.items()
+                    if sub_name not in types_defined
+                }
 
-            type_definitions = dict(
-                sorted(
-                    (subtype.__name__, subschema)
-                    for subtype, subschema in subtype_mapping.items()
-                )
-            )
+                # expand undefined types, which may lead to additional types to be defined
+                for sub_name, sub_type in types_undefined.items():
+                    types_defined[sub_name] = self._subtype_to_schema(sub_type)
+
+            type_definitions = dict(sorted(types_defined.items()))
         finally:
-            self.types_used = set()
+            self.types_used = {}
 
         return type_schema, type_definitions
 
@@ -612,7 +619,7 @@ def print_schema(typ: Type) -> None:
     print(json.dumps(s, indent=4))
 
 
-def _register_schema(cls, schema=None):
+def register_schema(cls, schema=None):
     JsonSchemaGenerator.type_catalog[cls] = schema
     return cls
 
@@ -621,7 +628,7 @@ def json_schema_type(cls=None, /, *, schema=None):
     """Decorator to add user-defined schema definition to a class."""
 
     def wrap(cls):
-        return _register_schema(cls, schema)
+        return register_schema(cls, schema)
 
     # see if decorator is used as @json_schema_type or @json_schema_type()
     if cls is None:
@@ -630,3 +637,6 @@ def json_schema_type(cls=None, /, *, schema=None):
     else:
         # called as @json_schema_type without parentheses
         return wrap(cls)
+
+
+register_schema(JsonType)
