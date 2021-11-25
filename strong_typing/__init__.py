@@ -318,7 +318,7 @@ try:
     import docstring_parser
 
     def docstring_to_schema(typ: Type) -> Schema:
-        docstring = docstring_parser.parse(typ.__doc__)
+        docstring: docstring_parser.Docstring = docstring_parser.parse(typ.__doc__)
         schema = dict()
         if docstring.short_description:
             schema["title"] = docstring.short_description
@@ -326,11 +326,18 @@ try:
             schema["description"] = docstring.long_description
         return schema
 
+    def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
+        docstring: docstring_parser.Docstring = docstring_parser.parse(typ.__doc__)
+        return {param.arg_name: param.description for param in docstring.params}
+
 
 except ImportError:
 
     def docstring_to_schema(typ: Type) -> Schema:
         return dict()
+
+    def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
+        return {}
 
 
 @dataclasses.dataclass
@@ -485,7 +492,7 @@ class JsonSchemaGenerator:
             }
         elif origin_type is type:
             (concrete_type,) = typing.get_args(typ)  # unpack single tuple element
-            return {"const": self.type_to_schema(concrete_type)}
+            return {"const": self.type_to_schema(concrete_type, force_expand=True)}
         elif origin_type is Union:
             return {
                 "oneOf": [
@@ -502,6 +509,8 @@ class JsonSchemaGenerator:
         else:
             # dictionary of class attributes
             members = dict(inspect.getmembers(typ, lambda a: not inspect.isroutine(a)))
+
+            property_docstrings = get_class_property_docstrings(typ)
 
             properties: Dict[str, Schema] = {}
             required: List[Schema] = []
@@ -531,6 +540,12 @@ class JsonSchemaGenerator:
                         ),
                     ):
                         property_def["default"] = object_to_json(def_value)
+
+                # add property docstring if available
+                property_doc = property_docstrings.get(property_name)
+                if property_doc:
+                    property_def["title"] = property_doc
+                    property_def.pop("description", None)
 
                 properties[property_name] = property_def
 
