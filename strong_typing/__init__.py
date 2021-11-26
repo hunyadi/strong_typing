@@ -8,6 +8,7 @@ import inspect
 import json
 import keyword
 import re
+import types
 import typing
 import uuid
 from typing import (
@@ -73,6 +74,13 @@ def is_named_tuple_type(typ) -> bool:
         return False
 
     return all(type(n) == str for n in f)
+
+
+def get_module_classes(module: types.ModuleType) -> List[Type]:
+    is_class_member = (
+        lambda member: inspect.isclass(member) and member.__module__ == module.__name__
+    )
+    return [class_type for _, class_type in inspect.getmembers(module, is_class_member)]
 
 
 def get_class_properties(typ: Type) -> Iterable[Tuple[str, Type]]:
