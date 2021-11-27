@@ -105,6 +105,7 @@ The following table shows the conversion types the package employs:
 | datetime | string | constrained to match ISO 8601 format `2018-11-13T20:20:39+00:00` |
 | date | string | constrained to match ISO 8601 format `2018-11-13` |
 | time | string | constrained to match ISO 8601 format `20:20:39+00:00` |
+| UUID | string | constrained to match UUID format `f81d4fae-7dec-11d0-a765-00a0c91e6bf6` |
 | Enum | *value type* | stores the enumeration value type (typically integer or string) |
 | List[T] | array | recursive in T |
 | Dict[K, V] | object | recursive in V, keys are coerced into string |

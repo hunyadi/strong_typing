@@ -1,4 +1,9 @@
-"""Auxiliary services for working with Python type annotations."""
+"""
+Type-safe data interchange for Python data classes.
+
+Provides auxiliary services for working with Python type annotations, converting typed data to and from JSON,
+and generating a JSON schema for a complex type.
+"""
 
 import base64
 import dataclasses
@@ -356,14 +361,9 @@ def unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
 try:
     import docstring_parser
 
-    def docstring_to_schema(typ: Type) -> Schema:
+    def get_class_docstrings(typ: Type) -> Tuple[Optional[str], Optional[str]]:
         docstring: docstring_parser.Docstring = docstring_parser.parse(typ.__doc__)
-        schema = dict()
-        if docstring.short_description:
-            schema["title"] = docstring.short_description
-        if docstring.long_description:
-            schema["description"] = docstring.long_description
-        return schema
+        return docstring.short_description, docstring.long_description
 
     def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
         docstring: docstring_parser.Docstring = docstring_parser.parse(typ.__doc__)
@@ -372,11 +372,21 @@ try:
 
 except ImportError:
 
-    def docstring_to_schema(typ: Type) -> Schema:
-        return dict()
-
     def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
         return {}
+
+    def get_class_docstrings(typ: Type) -> Tuple[Optional[str], Optional[str]]:
+        return None, None
+
+
+def docstring_to_schema(typ: Type) -> Schema:
+    short_description, long_description = get_class_docstrings(typ)
+    schema = dict()
+    if short_description:
+        schema["title"] = short_description
+    if long_description:
+        schema["description"] = long_description
+    return schema
 
 
 @dataclasses.dataclass
@@ -449,7 +459,7 @@ class JsonSchemaGenerator:
             self.types_used[identifier] = typ
             return {"$ref": f"{self.options.definitions_path}{identifier}"}
 
-        if inspect.isclass(typ) and issubclass(typ, enum.Enum):
+        if is_type_enum(typ):
             enum_values = [e.value for e in typ]
             enum_value_types = list(dict.fromkeys(type(value) for value in enum_values))
             if len(enum_value_types) != 1:
@@ -482,9 +492,7 @@ class JsonSchemaGenerator:
             return {"type": "array", "items": self.type_to_schema(list_type)}
         elif origin_type is dict:
             key_type, value_type = typing.get_args(typ)
-            if not (
-                key_type is str or key_type is int or issubclass(key_type, enum.Enum)
-            ):
+            if not (key_type is str or key_type is int or is_type_enum(key_type)):
                 raise ValueError(
                     "`dict` with key type not coercible to `str` is not supported"
                 )

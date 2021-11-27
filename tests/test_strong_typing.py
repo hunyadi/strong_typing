@@ -7,25 +7,35 @@ import enum
 import unittest
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, NamedTuple, Set, Tuple
+from typing import Any, Dict, List, NamedTuple, Set, Tuple, Type
 
 from strong_typing import (
     JsonSchemaGenerator,
     SchemaOptions,
     classdef_to_schema,
+    get_class_docstrings,
+    is_generic_dict,
+    is_generic_list,
+    is_type_enum,
     json_schema_type,
     json_to_object,
     object_to_json,
+    unwrap_generic_dict,
+    unwrap_generic_list,
     validate_object,
 )
 
 
 class Side(enum.Enum):
+    "An enumeration with string values."
+
     LEFT = "L"
     RIGHT = "R"
 
 
 class Suit(enum.Enum):
+    "An enumeration with numeric values."
+
     Diamonds = 1
     Hearts = 2
     Clubs = 3
@@ -70,6 +80,8 @@ class SimpleNamedTuple(NamedTuple):
 
 @dataclass
 class SimpleObjectExample:
+    "A simple data class with multiple properties."
+
     bool_value: bool = True
     int_value: int = 23
     float_value: float = 4.5
@@ -98,6 +110,8 @@ class InheritanceExample(SimpleObjectExample, CompositeObjectExample):
 @dataclass
 @json_schema_type
 class ValueExample:
+    "A value of a fundamental type wrapped into an object."
+
     value: int = 0
 
 
@@ -128,6 +142,39 @@ async def test_async_function():
 
 
 class TestStrongTyping(unittest.TestCase):
+    def test_introspection(self):
+        self.assertTrue(is_type_enum(Side))
+        self.assertTrue(is_type_enum(Suit))
+        self.assertFalse(is_type_enum(Side.LEFT))
+        self.assertFalse(is_type_enum(Suit.Diamonds))
+        self.assertFalse(is_type_enum(int))
+        self.assertFalse(is_type_enum(str))
+        self.assertFalse(is_type_enum(ValueExample))
+
+        self.assertTrue(is_generic_list(List[int]))
+        self.assertTrue(is_generic_list(List[str]))
+        self.assertTrue(is_generic_list(List[ValueExample]))
+        self.assertFalse(is_generic_list(list))
+        self.assertFalse(is_generic_list([]))
+
+        self.assertTrue(is_generic_dict(Dict[int, str]))
+        self.assertTrue(is_generic_dict(Dict[str, ValueExample]))
+        self.assertFalse(is_generic_dict(dict))
+        self.assertFalse(is_generic_dict({}))
+
+        self.assertEqual(unwrap_generic_list(List[int]), int)
+        self.assertEqual(unwrap_generic_list(List[str]), str)
+        self.assertEqual(unwrap_generic_list(List[List[str]]), List[str])
+
+        self.assertEqual(unwrap_generic_dict(Dict[int, str]), (int, str))
+        self.assertEqual(
+            unwrap_generic_dict(Dict[str, ValueExample]), (str, ValueExample)
+        )
+        self.assertEqual(
+            unwrap_generic_dict(Dict[str, List[ValueExample]]),
+            (str, List[ValueExample]),
+        )
+
     def test_composite_object(self):
         json_dict = object_to_json(SimpleObjectExample())
         validate_object(SimpleObjectExample, json_dict)
@@ -232,6 +279,45 @@ class TestStrongTyping(unittest.TestCase):
                 "$ref": "#/definitions/UID",
             },
         )
+
+    def _assert_docstring_equal(self, generator: JsonSchemaGenerator, typ: Type):
+        "Checks if the Python class docstring matches the title and description strings in the generated JSON schema."
+
+        short_description, long_description = get_class_docstrings(typ)
+        self.assertEqual(
+            generator.type_to_schema(typ).get("title"),
+            short_description,
+        )
+        self.assertEqual(
+            generator.type_to_schema(typ).get("description"),
+            long_description,
+        )
+
+    def test_docstring(self):
+        self.maxDiff = None
+        options = SchemaOptions(use_descriptions=True)
+        generator = JsonSchemaGenerator(options)
+
+        # never extract docstring simple types
+        self.assertEqual(generator.type_to_schema(bool), {"type": "boolean"})
+        self.assertEqual(generator.type_to_schema(int), {"type": "integer"})
+        self.assertEqual(generator.type_to_schema(float), {"type": "number"})
+        self.assertEqual(generator.type_to_schema(str), {"type": "string"})
+        self.assertEqual(
+            generator.type_to_schema(datetime.date),
+            {"type": "string", "format": "date"},
+        )
+        self.assertEqual(
+            generator.type_to_schema(datetime.time),
+            {"type": "string", "format": "time"},
+        )
+        self.assertEqual(
+            generator.type_to_schema(uuid.UUID), {"type": "string", "format": "uuid"}
+        )
+
+        # parse docstring for complex types
+        self._assert_docstring_equal(generator, Suit)
+        self._assert_docstring_equal(generator, SimpleObjectExample)
 
     def test_serialization(self):
         self.assertEqual(object_to_json(True), True)
