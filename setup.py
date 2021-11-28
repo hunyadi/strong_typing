@@ -27,5 +27,5 @@ setup(
     ],
     packages=find_packages(exclude=("tests",)),
     include_package_data=True,
-    install_requires=["jsonschema"],
+    install_requires=["jsonschema", 'typing_extensions;python_version<"3.9"'],
 )
