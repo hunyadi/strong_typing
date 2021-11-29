@@ -12,7 +12,13 @@ from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
 import jsonschema
 from jsonschema.exceptions import ValidationError
 
-from .auxiliary import IntegerRange, MaxLength, MinLength, Precision
+from .auxiliary import (
+    IntegerRange,
+    MaxLength,
+    MinLength,
+    Precision,
+    python_type_to_name,
+)
 from .core import JsonType, Schema
 from .inspection import (
     get_class_properties,
@@ -57,6 +63,40 @@ def docstring_to_schema(typ: Type) -> Schema:
     return schema
 
 
+class _TypeCatalogAuto:
+    "Marker object for a type whose schema is automatically generated on the fly."
+
+
+_TypeCatalogSchema = Union[Schema, _TypeCatalogAuto]
+
+
+class TypeCatalog:
+    AUTO = _TypeCatalogAuto()
+
+    type_to_schema: Dict[Type, _TypeCatalogSchema]
+    type_to_identifier: Dict[Type, str]
+
+    def __init__(self):
+        self.type_to_schema = {}
+        self.type_to_identifier = {}
+
+    def __contains__(self, typ: Type) -> bool:
+        return typ in self.type_to_schema
+
+    def add(self, typ: Type, schema: _TypeCatalogSchema, identifier: str) -> None:
+        if typ in self.type_to_schema:
+            raise ValueError(f"type {typ} is already registered in the catalog")
+
+        self.type_to_schema[typ] = schema
+        self.type_to_identifier[typ] = identifier
+
+    def get_schema(self, typ: Type) -> _TypeCatalogSchema:
+        return self.type_to_schema[typ]
+
+    def get_identifier(self, typ: Type) -> str:
+        return self.type_to_identifier[typ]
+
+
 @dataclasses.dataclass
 class SchemaOptions:
     definitions_path: str = "#/definitions/"
@@ -66,7 +106,7 @@ class SchemaOptions:
 class JsonSchemaGenerator:
     """Creates a JSON schema with user-defined type definitions."""
 
-    type_catalog: ClassVar[Dict[Type, Schema]] = {}
+    type_catalog: ClassVar[TypeCatalog] = TypeCatalog()
     types_used: Dict[str, Type]
     options: SchemaOptions
 
@@ -110,28 +150,19 @@ class JsonSchemaGenerator:
                 type_schema.update(self.metadata_to_schema(m))
         return type_schema
 
-    def type_to_schema(self, data_type: Type, force_expand: bool = False) -> Schema:
-        if isinstance(data_type, str):
-            raise TypeError(f"object is not a type but a string")
-
-        metadata = getattr(data_type, "__metadata__", None)
-        if metadata is not None:
-            # type is Annotated[T, ...]
-            typ = typing.get_args(data_type)[0]
-        else:
-            # type is a regular type
-            typ = data_type
+    def simple_type_to_schema(self, typ: Type) -> Schema:
+        "Returns the JSON schema associated with a simple, unrestricted type."
 
         if typ is None:
             return {"type": "null"}
         elif typ is bool:
             return {"type": "boolean"}
         elif typ is int:
-            return self._with_metadata({"type": "integer"}, metadata)
+            return {"type": "integer"}
         elif typ is float:
-            return self._with_metadata({"type": "number"}, metadata)
+            return {"type": "number"}
         elif typ is str:
-            return self._with_metadata({"type": "string"}, metadata)
+            return {"type": "string"}
         elif typ is bytes:
             return {"type": "string", "contentEncoding": "base64"}
         elif typ is datetime.datetime:
@@ -147,7 +178,7 @@ class JsonSchemaGenerator:
             # 20:20:39+00:00
             return {"type": "string", "format": "time"}
         elif typ is decimal.Decimal:
-            return self._with_metadata({"type": "number"}, metadata)
+            return {"type": "number"}
         elif typ is uuid.UUID:
             # f81d4fae-7dec-11d0-a765-00a0c91e6bf6
             return {"type": "string", "format": "uuid"}
@@ -162,6 +193,40 @@ class JsonSchemaGenerator:
                     {"type": "object"},
                 ]
             }
+        else:
+            # not a simple type
+            return None
+
+    def type_to_schema(self, data_type: Type, force_expand: bool = False) -> Schema:
+        # short-circuit for common simple types
+        schema = self.simple_type_to_schema(data_type)
+        if schema is not None:
+            return schema
+
+        # short-circuit with an error message when passing invalid data
+        if isinstance(data_type, str):
+            raise TypeError(f"object is not a type but a string")
+
+        # types registered in the type catalog of well-known types
+        if not force_expand and data_type in __class__.type_catalog:
+            # user-defined type
+            identifier = __class__.type_catalog.get_identifier(data_type)
+            self.types_used[identifier] = data_type
+            return {"$ref": f"{self.options.definitions_path}{identifier}"}
+
+        # unwrap annotated types
+        metadata = getattr(data_type, "__metadata__", None)
+        if metadata is not None:
+            # type is Annotated[T, ...]
+            typ = typing.get_args(data_type)[0]
+
+            schema = self.simple_type_to_schema(typ)
+            if schema is not None:
+                return self._with_metadata(schema, metadata)
+
+        else:
+            # type is a regular type
+            typ = data_type
 
         if isinstance(typ, typing.ForwardRef):
             fwd: typing.ForwardRef = typ
@@ -171,7 +236,8 @@ class JsonSchemaGenerator:
             return {"$ref": f"{self.options.definitions_path}{identifier}"}
 
         if is_type_enum(typ):
-            enum_values = [e.value for e in typ]
+            enum_type: Type[enum.Enum] = typ
+            enum_values = [e.value for e in enum_type]
             enum_value_types = list(dict.fromkeys(type(value) for value in enum_values))
             if len(enum_value_types) != 1:
                 raise ValueError(
@@ -259,74 +325,68 @@ class JsonSchemaGenerator:
                 ]
             }
 
-        if not force_expand and typ in __class__.type_catalog:
-            # user-defined type
-            identifier = typ.__name__
-            self.types_used[identifier] = typ
-            return {"$ref": f"{self.options.definitions_path}{identifier}"}
-        else:
-            # dictionary of class attributes
-            members = dict(inspect.getmembers(typ, lambda a: not inspect.isroutine(a)))
+        # dictionary of class attributes
+        members = dict(inspect.getmembers(typ, lambda a: not inspect.isroutine(a)))
 
-            property_docstrings = get_class_property_docstrings(typ)
+        property_docstrings = get_class_property_docstrings(typ)
 
-            properties: Dict[str, Schema] = {}
-            required: List[Schema] = []
-            for property_name, property_type in get_class_properties(typ):
-                if is_type_optional(property_type):
-                    optional_type = unwrap_optional_type(property_type)
-                    property_def = self.type_to_schema(optional_type)
-                else:
-                    property_def = self.type_to_schema(property_type)
-                    required.append(property_name)
+        properties: Dict[str, Schema] = {}
+        required: List[Schema] = []
+        for property_name, property_type in get_class_properties(typ):
+            if is_type_optional(property_type):
+                optional_type = unwrap_optional_type(property_type)
+                property_def = self.type_to_schema(optional_type)
+            else:
+                property_def = self.type_to_schema(property_type)
+                required.append(property_name)
 
-                # check if attribute has a default value initializer
-                if members.get(property_name) is not None:
-                    def_value = members[property_name]
-                    # check if value can be directly represented in JSON
-                    if isinstance(
-                        def_value,
-                        (
-                            bool,
-                            int,
-                            float,
-                            str,
-                            enum.Enum,
-                            datetime.datetime,
-                            datetime.date,
-                            datetime.time,
-                        ),
-                    ):
-                        property_def["default"] = object_to_json(def_value)
+            # check if attribute has a default value initializer
+            if members.get(property_name) is not None:
+                def_value = members[property_name]
+                # check if value can be directly represented in JSON
+                if isinstance(
+                    def_value,
+                    (
+                        bool,
+                        int,
+                        float,
+                        str,
+                        enum.Enum,
+                        datetime.datetime,
+                        datetime.date,
+                        datetime.time,
+                    ),
+                ):
+                    property_def["default"] = object_to_json(def_value)
 
-                # add property docstring if available
-                property_doc = property_docstrings.get(property_name)
-                if property_doc:
-                    property_def["title"] = property_doc
-                    property_def.pop("description", None)
+            # add property docstring if available
+            property_doc = property_docstrings.get(property_name)
+            if property_doc:
+                property_def["title"] = property_doc
+                property_def.pop("description", None)
 
-                properties[property_name] = property_def
+            properties[property_name] = property_def
 
-            schema = {"type": "object"}
-            if len(properties) > 0:
-                schema["properties"] = properties
-                schema["additionalProperties"] = False
-            if len(required) > 0:
-                schema["required"] = required
-            if self.options.use_descriptions:
-                schema.update(docstring_to_schema(typ))
-            return schema
+        schema = {"type": "object"}
+        if len(properties) > 0:
+            schema["properties"] = properties
+            schema["additionalProperties"] = False
+        if len(required) > 0:
+            schema["required"] = required
+        if self.options.use_descriptions:
+            schema.update(docstring_to_schema(typ))
+        return schema
 
     def _subtype_to_schema(self, subtype: Type) -> Schema:
-        subschema = __class__.type_catalog[subtype]
-        if subschema is not None:
+        subschema = __class__.type_catalog.get_schema(subtype)
+        if subschema is _TypeCatalogAuto:
+            type_schema = self.type_to_schema(subtype, force_expand=True)
+        else:
             type_schema = subschema.copy()
 
             # add descriptive text (if present)
             if self.options.use_descriptions:
                 type_schema.update(docstring_to_schema(subtype))
-        else:
-            type_schema = self.type_to_schema(subtype, force_expand=True)
 
         return type_schema
 
@@ -392,9 +452,13 @@ def print_schema(typ: Type) -> None:
     print(json.dumps(s, indent=4))
 
 
-def register_schema(cls, schema=None):
-    JsonSchemaGenerator.type_catalog[cls] = schema
-    return cls
+def register_schema(typ: Type, schema: Schema = None, name: str = None):
+    JsonSchemaGenerator.type_catalog.add(
+        typ,
+        schema if schema is not None else _TypeCatalogAuto,
+        name if name is not None else python_type_to_name(typ),
+    )
+    return typ
 
 
 def json_schema_type(cls=None, /, *, schema=None):
@@ -412,4 +476,4 @@ def json_schema_type(cls=None, /, *, schema=None):
         return wrap(cls)
 
 
-register_schema(JsonType)
+register_schema(JsonType, name="JsonType")

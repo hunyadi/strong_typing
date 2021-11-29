@@ -122,3 +122,20 @@ def python_type_to_str(data_type: type) -> str:
     else:
         # type is a regular type
         return _python_type_to_str(data_type)
+
+
+def python_type_to_name(data_type: type) -> str:
+    "Returns the short name of a Python type."
+
+    # use compact name for alias types
+    name = _auxiliary_types.get(data_type)
+    if name is not None:
+        return name
+
+    metadata = getattr(data_type, "__metadata__", None)
+    if metadata is not None:
+        # type is Annotated[T, ...]
+        arg = typing.get_args(data_type)[0]
+        return arg.__name__
+    else:
+        return data_type.__name__
