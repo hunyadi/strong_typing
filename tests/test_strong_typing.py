@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 import enum
 import unittest
 import uuid
@@ -10,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, NamedTuple, Set, Tuple, Type
 
 from strong_typing import (
+    Annotated,
     JsonSchemaGenerator,
     SchemaOptions,
     classdef_to_schema,
@@ -24,6 +26,7 @@ from strong_typing import (
     unwrap_generic_list,
     validate_object,
 )
+from strong_typing.auxiliary import IntegerRange, Precision
 
 
 class Side(enum.Enum):
@@ -277,6 +280,24 @@ class TestStrongTyping(unittest.TestCase):
                     }
                 },
                 "$ref": "#/definitions/UID",
+            },
+        )
+
+        self.assertEqual(
+            generator.type_to_schema(Annotated[int, IntegerRange(23, 82)]),
+            {
+                "type": "integer",
+                "minimum": 23,
+                "maximum": 82,
+            },
+        )
+        self.assertEqual(
+            generator.type_to_schema(Annotated[float, Precision(9, 6)]),
+            {
+                "type": "number",
+                "multipleOf": 0.000001,
+                "exclusiveMinimum": -1000,
+                "exclusiveMaximum": 1000,
             },
         )
 

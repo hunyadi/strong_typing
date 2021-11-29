@@ -21,17 +21,6 @@ class CompactDataClass:
 
 
 @dataclass(frozen=True, repr=False)
-class MaxLength(CompactDataClass):
-    value: int
-
-
-@dataclass(frozen=True, repr=False)
-class Precision(CompactDataClass):
-    significant_digits: int
-    decimal_digits: Optional[int] = 0
-
-
-@dataclass(frozen=True, repr=False)
 class Signed(CompactDataClass):
     is_signed: bool
 
@@ -41,15 +30,48 @@ class Storage(CompactDataClass):
     bytes: int
 
 
-int8 = Annotated[int, Signed(True), Storage(1)]
-int16 = Annotated[int, Signed(True), Storage(2)]
-int32 = Annotated[int, Signed(True), Storage(4)]
-int64 = Annotated[int, Signed(True), Storage(8)]
+@dataclass(frozen=True, repr=False)
+class IntegerRange(CompactDataClass):
+    minimum: int
+    maximum: int
 
-uint8 = Annotated[int, Signed(False), Storage(1)]
-uint16 = Annotated[int, Signed(False), Storage(2)]
-uint32 = Annotated[int, Signed(False), Storage(4)]
-uint64 = Annotated[int, Signed(False), Storage(8)]
+
+@dataclass(frozen=True, repr=False)
+class Precision(CompactDataClass):
+    significant_digits: int
+    decimal_digits: Optional[int] = 0
+
+    @property
+    def integer_digits(self):
+        return self.significant_digits - self.decimal_digits
+
+
+@dataclass(frozen=True, repr=False)
+class MinLength(CompactDataClass):
+    value: int
+
+
+@dataclass(frozen=True, repr=False)
+class MaxLength(CompactDataClass):
+    value: int
+
+
+int8 = Annotated[int, Signed(True), Storage(1), IntegerRange(-128, 127)]
+int16 = Annotated[int, Signed(True), Storage(2), IntegerRange(-32768, 32767)]
+int32 = Annotated[int, Signed(True), Storage(4), IntegerRange(-2147483648, 2147483647)]
+int64 = Annotated[
+    int,
+    Signed(True),
+    Storage(8),
+    IntegerRange(-9223372036854775808, 9223372036854775807),
+]
+
+uint8 = Annotated[int, Signed(False), Storage(1), IntegerRange(0, 255)]
+uint16 = Annotated[int, Signed(False), Storage(2), IntegerRange(0, 65535)]
+uint32 = Annotated[int, Signed(False), Storage(4), IntegerRange(0, 4294967295)]
+uint64 = Annotated[
+    int, Signed(False), Storage(8), IntegerRange(0, 18446744073709551615)
+]
 
 # maps globals of type Annotation[T, ...] defined in this module to their string names
 _auxiliary_types = {}
@@ -92,7 +114,7 @@ def python_type_to_str(data_type: type) -> str:
 
     metadata = getattr(data_type, "__metadata__", None)
     if metadata is not None:
-        # type is Annotation[T, ...]
+        # type is Annotated[T, ...]
         arg = typing.get_args(data_type)[0]
         s = _python_type_to_str(arg)
         args = ", ".join(repr(m) for m in metadata)

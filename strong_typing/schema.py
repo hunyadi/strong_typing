@@ -1,6 +1,8 @@
 import dataclasses
 import datetime
+import decimal
 import enum
+import functools
 import inspect
 import json
 import typing
@@ -10,6 +12,7 @@ from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
 import jsonschema
 from jsonschema.exceptions import ValidationError
 
+from .auxiliary import IntegerRange, MaxLength, MinLength, Precision
 from .core import JsonType, Schema
 from .inspection import (
     get_class_properties,
@@ -74,31 +77,61 @@ class JsonSchemaGenerator:
             self.options = options
         self.types_used = {}
 
-    def type_to_schema(self, typ: Type, force_expand: bool = False) -> Schema:
-        if isinstance(typ, str):
+    @functools.singledispatchmethod
+    def metadata_to_schema(self, arg) -> Schema:
+        # unrecognized annotation
+        return {}
+
+    @metadata_to_schema.register
+    def _(self, arg: IntegerRange) -> Schema:
+        return {"minimum": arg.minimum, "maximum": arg.maximum}
+
+    @metadata_to_schema.register
+    def _(self, arg: Precision) -> Schema:
+        return {
+            "multipleOf": 10 ** (-arg.decimal_digits),
+            "exclusiveMinimum": -(10 ** arg.integer_digits),
+            "exclusiveMaximum": (10 ** arg.integer_digits),
+        }
+
+    @metadata_to_schema.register
+    def _(self, arg: MinLength) -> Schema:
+        return {"minLength": arg.value}
+
+    @metadata_to_schema.register
+    def _(self, arg: MaxLength) -> Schema:
+        return {"maxLength": arg.value}
+
+    def _with_metadata(
+        self, type_schema: Schema, metadata: Optional[Tuple[Any, ...]]
+    ) -> Schema:
+        if metadata:
+            for m in metadata:
+                type_schema.update(self.metadata_to_schema(m))
+        return type_schema
+
+    def type_to_schema(self, data_type: Type, force_expand: bool = False) -> Schema:
+        if isinstance(data_type, str):
             raise TypeError(f"object is not a type but a string")
+
+        metadata = getattr(data_type, "__metadata__", None)
+        if metadata is not None:
+            # type is Annotated[T, ...]
+            typ = typing.get_args(data_type)[0]
+        else:
+            # type is a regular type
+            typ = data_type
 
         if typ is None:
             return {"type": "null"}
-        elif typ is Any:
-            return {
-                "anyOf": [
-                    {"type": "null"},
-                    {"type": "boolean"},
-                    {"type": "number"},
-                    {"type": "string"},
-                    {"type": "array"},
-                    {"type": "object"},
-                ]
-            }
         elif typ is bool:
             return {"type": "boolean"}
         elif typ is int:
-            return {"type": "integer"}
+            return self._with_metadata({"type": "integer"}, metadata)
         elif typ is float:
-            return {"type": "number"}
+            return self._with_metadata({"type": "number"}, metadata)
         elif typ is str:
-            return {"type": "string"}
+            return self._with_metadata({"type": "string"}, metadata)
         elif typ is bytes:
             return {"type": "string", "contentEncoding": "base64"}
         elif typ is datetime.datetime:
@@ -113,9 +146,22 @@ class JsonSchemaGenerator:
         elif typ is datetime.time:
             # 20:20:39+00:00
             return {"type": "string", "format": "time"}
+        elif typ is decimal.Decimal:
+            return self._with_metadata({"type": "number"}, metadata)
         elif typ is uuid.UUID:
             # f81d4fae-7dec-11d0-a765-00a0c91e6bf6
             return {"type": "string", "format": "uuid"}
+        elif typ is Any:
+            return {
+                "anyOf": [
+                    {"type": "null"},
+                    {"type": "boolean"},
+                    {"type": "number"},
+                    {"type": "string"},
+                    {"type": "array"},
+                    {"type": "object"},
+                ]
+            }
 
         if isinstance(typ, typing.ForwardRef):
             fwd: typing.ForwardRef = typ
