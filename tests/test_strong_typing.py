@@ -26,7 +26,7 @@ from strong_typing import (
     unwrap_generic_list,
     validate_object,
 )
-from strong_typing.auxiliary import IntegerRange, Precision
+from strong_typing.auxiliary import IntegerRange, MaxLength, Precision
 
 
 class Side(enum.Enum):
@@ -93,6 +93,17 @@ class SimpleObjectExample:
     time_value: datetime.time = datetime.time(6, 15, 30)
     datetime_value: datetime.datetime = datetime.datetime(1989, 10, 23, 1, 45, 50)
     guid_value: uuid.UUID = uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
+
+
+@dataclass
+class AnnotatedSimpleObjectExample:
+    "A simple data class with multiple properties."
+
+    int_value: Annotated[int, IntegerRange(19, 82)] = 23
+    float_value: Annotated[
+        float, Precision(significant_digits=6, decimal_digits=3)
+    ] = 4.5
+    str_value: Annotated[str, MaxLength(64)] = "string"
 
 
 @dataclass
@@ -181,6 +192,9 @@ class TestStrongTyping(unittest.TestCase):
     def test_composite_object(self):
         json_dict = object_to_json(SimpleObjectExample())
         validate_object(SimpleObjectExample, json_dict)
+
+        json_dict = object_to_json(AnnotatedSimpleObjectExample())
+        validate_object(AnnotatedSimpleObjectExample, json_dict)
 
         json_dict = object_to_json(CompositeObjectExample())
         validate_object(CompositeObjectExample, json_dict)
@@ -283,6 +297,9 @@ class TestStrongTyping(unittest.TestCase):
             },
         )
 
+    def test_schema_annotated(self):
+        options = SchemaOptions(use_descriptions=False)
+        generator = JsonSchemaGenerator(options)
         self.assertEqual(
             generator.type_to_schema(Annotated[int, IntegerRange(23, 82)]),
             {
@@ -298,6 +315,43 @@ class TestStrongTyping(unittest.TestCase):
                 "multipleOf": 0.000001,
                 "exclusiveMinimum": -1000,
                 "exclusiveMaximum": 1000,
+            },
+        )
+        self.assertEqual(
+            generator.type_to_schema(Annotated[decimal.Decimal, Precision(9, 6)]),
+            {
+                "type": "number",
+                "multipleOf": 0.000001,
+                "exclusiveMinimum": -1000,
+                "exclusiveMaximum": 1000,
+            },
+        )
+        self.assertEqual(
+            generator.type_to_schema(AnnotatedSimpleObjectExample),
+            {
+                "type": "object",
+                "properties": {
+                    "int_value": {
+                        "type": "integer",
+                        "default": 23,
+                        "minimum": 19,
+                        "maximum": 82,
+                    },
+                    "float_value": {
+                        "type": "number",
+                        "default": 4.5,
+                        "multipleOf": 0.001,
+                        "exclusiveMinimum": -1000,
+                        "exclusiveMaximum": 1000,
+                    },
+                    "str_value": {
+                        "type": "string",
+                        "default": "string",
+                        "maxLength": 64,
+                    },
+                },
+                "additionalProperties": False,
+                "required": ["int_value", "float_value", "str_value"],
             },
         )
 

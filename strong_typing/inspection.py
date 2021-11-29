@@ -1,6 +1,7 @@
 import dataclasses
 import enum
 import inspect
+import sys
 import types
 import typing
 from typing import Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
@@ -106,7 +107,10 @@ def get_module_classes(module: types.ModuleType) -> List[Type]:
 
 
 def get_class_properties(typ: Type) -> Iterable[Tuple[str, Type]]:
-    resolved_hints = typing.get_type_hints(typ)
+    if sys.version_info >= (3, 9):
+        resolved_hints = typing.get_type_hints(typ, include_extras=True)
+    else:
+        resolved_hints = typing.get_type_hints(typ)
 
     if is_dataclass_type(typ):
         return (
