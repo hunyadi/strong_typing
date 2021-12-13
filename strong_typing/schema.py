@@ -17,6 +17,7 @@ from .auxiliary import (
     MaxLength,
     MinLength,
     Precision,
+    get_auxiliary_format,
     python_type_to_name,
 )
 from .core import JsonType, Schema
@@ -40,8 +41,13 @@ try:
         return docstring.short_description, docstring.long_description
 
     def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
-        docstring: docstring_parser.Docstring = docstring_parser.parse(typ.__doc__)
-        return {param.arg_name: param.description for param in docstring.params}
+        result = {}
+        for base in reversed(inspect.getmro(typ)):
+            docstring: docstring_parser.Docstring = docstring_parser.parse(base.__doc__)
+            result.update(
+                {param.arg_name: param.description for param in docstring.params}
+            )
+        return result
 
 
 except ImportError:
@@ -222,7 +228,13 @@ class JsonSchemaGenerator:
 
             schema = self.simple_type_to_schema(typ)
             if schema is not None:
-                return self._with_metadata(schema, metadata)
+                # recognize well-known auxiliary types
+                fmt = get_auxiliary_format(data_type)
+                if fmt is not None:
+                    schema.update({"format": fmt})
+                    return schema
+                else:
+                    return self._with_metadata(schema, metadata)
 
         else:
             # type is a regular type

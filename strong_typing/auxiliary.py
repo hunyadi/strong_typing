@@ -83,6 +83,12 @@ for var in dir(module):
         _auxiliary_types[typ] = var
 
 
+def get_auxiliary_format(data_type: type) -> Optional[str]:
+    "Returns the JSON format string corresponding to an auxiliary type."
+
+    return _auxiliary_types.get(data_type)
+
+
 def _python_type_to_str(data_type: type) -> str:
     "Returns the string representation of a Python type without metadata."
 
