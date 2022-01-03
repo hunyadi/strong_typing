@@ -20,7 +20,7 @@ from .auxiliary import (
     get_auxiliary_format,
     python_type_to_name,
 )
-from .core import JsonType, Schema
+from .core import JsonArray, JsonObject, JsonType, Schema
 from .inspection import (
     get_class_properties,
     is_type_enum,
@@ -199,11 +199,22 @@ class JsonSchemaGenerator:
                     {"type": "object"},
                 ]
             }
+        elif typ is JsonObject:
+            return {"type": "object"}
+        elif typ is JsonArray:
+            return {"type": "array"}
         else:
             # not a simple type
             return None
 
     def type_to_schema(self, data_type: Type, force_expand: bool = False) -> Schema:
+        """
+        Returns the JSON schema associated with a type.
+
+        :param data_type: The Python type whose JSON schema to return.
+        :param force_expand: Forces a JSON schema to be returned even if the type is registered in the catalog of known types.
+        """
+
         # short-circuit for common simple types
         schema = self.simple_type_to_schema(data_type)
         if schema is not None:
@@ -389,7 +400,9 @@ class JsonSchemaGenerator:
             schema.update(docstring_to_schema(typ))
         return schema
 
-    def _subtype_to_schema(self, subtype: Type) -> Schema:
+    def _classdef_to_schema(self, subtype: Type) -> Schema:
+        "Returns the JSON schema associated with a type that may be registered in the catalog of known types."
+
         subschema = __class__.type_catalog.get_schema(subtype)
         if subschema is _TypeCatalogAuto:
             type_schema = self.type_to_schema(subtype, force_expand=True)
@@ -402,10 +415,19 @@ class JsonSchemaGenerator:
 
         return type_schema
 
-    def classdef_to_schema(self, typ: Type) -> Tuple[Schema, Dict[str, Schema]]:
+    def classdef_to_schema(
+        self, typ: Type, force_expand: bool = False
+    ) -> Tuple[Schema, Dict[str, Schema]]:
+        """
+        Returns the JSON schema associated with a type and any nested types.
+
+        :param typ: The type whose JSON schema to return.
+        :return: A tuple of the JSON schema, and a mapping between nested type names and their corresponding schema.
+        """
+
         self.types_used = {}
         try:
-            type_schema = self.type_to_schema(typ)
+            type_schema = self.type_to_schema(typ, force_expand=force_expand)
 
             types_defined = {}
             while len(self.types_used) > len(types_defined):
@@ -418,7 +440,7 @@ class JsonSchemaGenerator:
 
                 # expand undefined types, which may lead to additional types to be defined
                 for sub_name, sub_type in types_undefined.items():
-                    types_defined[sub_name] = self._subtype_to_schema(sub_type)
+                    types_defined[sub_name] = self._classdef_to_schema(sub_type)
 
             type_definitions = dict(sorted(types_defined.items()))
         finally:
@@ -428,7 +450,8 @@ class JsonSchemaGenerator:
 
 
 def classdef_to_schema(typ: Type, options: SchemaOptions = None) -> Schema:
-    """Returns the JSON schema corresponding to the given type.
+    """
+    Returns the JSON schema corresponding to the given type.
 
     :param typ: The Python type used to generate the JSON schema
     :return: A JSON object that you can serialize to a JSON string with json.dump or json.dumps
@@ -444,7 +467,8 @@ def classdef_to_schema(typ: Type, options: SchemaOptions = None) -> Schema:
 
 
 def validate_object(object_type: Type, json_dict: JsonType) -> None:
-    """Validates if the JSON dictionary object conforms to the expected type.
+    """
+    Validates if the JSON dictionary object conforms to the expected type.
 
     :param object_type: The type to match against
     :param json_dict: A JSON object obtained with json.load or json.loads
@@ -489,3 +513,5 @@ def json_schema_type(cls=None, /, *, schema=None):
 
 
 register_schema(JsonType, name="JsonType")
+register_schema(JsonObject, name="JsonObject")
+register_schema(JsonArray, name="JsonArray")
