@@ -2,7 +2,7 @@ import dataclasses
 import sys
 import typing
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 try:
     from typing import Annotated
@@ -102,10 +102,16 @@ def _python_type_to_str(data_type: type) -> str:
             origin_name = "List"
         elif origin is set:  # Set[T]
             origin_name = "Set"
+        elif origin is Union:
+            origin_name = "Union"
         else:
             origin_name = origin.__name__
 
         return f"{origin_name}[{args}]"
+
+    if isinstance(data_type, typing.ForwardRef):
+        fwd: typing.ForwardRef = data_type
+        return fwd.__forward_arg__
 
     return data_type.__name__
 
