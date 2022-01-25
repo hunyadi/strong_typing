@@ -94,7 +94,7 @@ def _python_type_to_str(data_type: type) -> str:
 
     origin = typing.get_origin(data_type)
     if origin is not None:
-        args = ", ".join(python_type_to_str(t) for t in typing.get_args(data_type))
+        data_type_args = typing.get_args(data_type)
 
         if origin is dict:  # Dict[T]
             origin_name = "Dict"
@@ -103,10 +103,16 @@ def _python_type_to_str(data_type: type) -> str:
         elif origin is set:  # Set[T]
             origin_name = "Set"
         elif origin is Union:
-            origin_name = "Union"
+            if type(None) in data_type_args:
+                # Optional[T] is represented as Union[T, None]
+                origin_name = "Optional"
+                data_type_args = tuple(t for t in data_type_args if t is not type(None))
+            else:
+                origin_name = "Union"
         else:
             origin_name = origin.__name__
 
+        args = ", ".join(python_type_to_str(t) for t in data_type_args)
         return f"{origin_name}[{args}]"
 
     if isinstance(data_type, typing.ForwardRef):
@@ -118,6 +124,9 @@ def _python_type_to_str(data_type: type) -> str:
 
 def python_type_to_str(data_type: type) -> str:
     "Returns the string representation of a Python type."
+
+    if data_type is type(None):
+        return "None"
 
     # use compact name for alias types
     name = _auxiliary_types.get(data_type)
