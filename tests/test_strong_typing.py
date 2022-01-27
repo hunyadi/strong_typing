@@ -8,7 +8,7 @@ import enum
 import unittest
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, NamedTuple, Set, Tuple, Type
+from typing import Any, Dict, List, NamedTuple, Set, Tuple, Type, Union
 
 from strong_typing import (
     Annotated,
@@ -27,6 +27,7 @@ from strong_typing import (
     validate_object,
 )
 from strong_typing.auxiliary import IntegerRange, MaxLength, Precision
+from strong_typing.schema import Validator
 
 
 class Side(enum.Enum):
@@ -245,6 +246,10 @@ class TestStrongTyping(unittest.TestCase):
             {"type": "array", "items": {"type": "integer"}, "uniqueItems": True},
         )
         self.assertEqual(
+            generator.type_to_schema(Union[int, str]),
+            {"oneOf": [{"type": "integer"}, {"type": "string"}]},
+        )
+        self.assertEqual(
             generator.type_to_schema(Tuple[bool, int, str]),
             {
                 "type": "array",
@@ -283,9 +288,23 @@ class TestStrongTyping(unittest.TestCase):
             {"$ref": "#/definitions/ValueExample"},
         )
         self.assertEqual(
-            classdef_to_schema(UID, options),
+            classdef_to_schema(UID, options, validator=Validator.Draft7),
             {
                 "$schema": "http://json-schema.org/draft-07/schema#",
+                "definitions": {
+                    "UID": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(\\.(0|[1-9][0-9]*))*$",
+                        "maxLength": 64,
+                    }
+                },
+                "$ref": "#/definitions/UID",
+            },
+        )
+        self.assertEqual(
+            classdef_to_schema(UID, options),
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "definitions": {
                     "UID": {
                         "type": "string",

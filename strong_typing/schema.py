@@ -10,7 +10,6 @@ import uuid
 from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
 
 import jsonschema
-from jsonschema.exceptions import ValidationError
 
 from .auxiliary import (
     IntegerRange,
@@ -124,15 +123,15 @@ class JsonSchemaGenerator:
         self.types_used = {}
 
     @functools.singledispatchmethod
-    def metadata_to_schema(self, arg) -> Schema:
+    def _metadata_to_schema(self, arg) -> Schema:
         # unrecognized annotation
         return {}
 
-    @metadata_to_schema.register
+    @_metadata_to_schema.register
     def _(self, arg: IntegerRange) -> Schema:
         return {"minimum": arg.minimum, "maximum": arg.maximum}
 
-    @metadata_to_schema.register
+    @_metadata_to_schema.register
     def _(self, arg: Precision) -> Schema:
         return {
             "multipleOf": 10 ** (-arg.decimal_digits),
@@ -140,11 +139,11 @@ class JsonSchemaGenerator:
             "exclusiveMaximum": (10 ** arg.integer_digits),
         }
 
-    @metadata_to_schema.register
+    @_metadata_to_schema.register
     def _(self, arg: MinLength) -> Schema:
         return {"minLength": arg.value}
 
-    @metadata_to_schema.register
+    @_metadata_to_schema.register
     def _(self, arg: MaxLength) -> Schema:
         return {"maxLength": arg.value}
 
@@ -153,10 +152,10 @@ class JsonSchemaGenerator:
     ) -> Schema:
         if metadata:
             for m in metadata:
-                type_schema.update(self.metadata_to_schema(m))
+                type_schema.update(self._metadata_to_schema(m))
         return type_schema
 
-    def simple_type_to_schema(self, typ: Type) -> Schema:
+    def _simple_type_to_schema(self, typ: Type) -> Schema:
         "Returns the JSON schema associated with a simple, unrestricted type."
 
         if typ is None:
@@ -216,7 +215,7 @@ class JsonSchemaGenerator:
         """
 
         # short-circuit for common simple types
-        schema = self.simple_type_to_schema(data_type)
+        schema = self._simple_type_to_schema(data_type)
         if schema is not None:
             return schema
 
@@ -237,7 +236,7 @@ class JsonSchemaGenerator:
             # type is Annotated[T, ...]
             typ = typing.get_args(data_type)[0]
 
-            schema = self.simple_type_to_schema(typ)
+            schema = self._simple_type_to_schema(typ)
             if schema is not None:
                 # recognize well-known auxiliary types
                 fmt = get_auxiliary_format(data_type)
@@ -400,18 +399,18 @@ class JsonSchemaGenerator:
             schema.update(docstring_to_schema(typ))
         return schema
 
-    def _classdef_to_schema(self, subtype: Type) -> Schema:
+    def _type_to_schema_with_lookup(self, data_type: Type) -> Schema:
         "Returns the JSON schema associated with a type that may be registered in the catalog of known types."
 
-        subschema = __class__.type_catalog.get_schema(subtype)
+        subschema = __class__.type_catalog.get_schema(data_type)
         if subschema is _TypeCatalogAuto:
-            type_schema = self.type_to_schema(subtype, force_expand=True)
+            type_schema = self.type_to_schema(data_type, force_expand=True)
         else:
             type_schema = subschema.copy()
 
             # add descriptive text (if present)
             if self.options.use_descriptions:
-                type_schema.update(docstring_to_schema(subtype))
+                type_schema.update(docstring_to_schema(data_type))
 
         return type_schema
 
@@ -440,7 +439,7 @@ class JsonSchemaGenerator:
 
                 # expand undefined types, which may lead to additional types to be defined
                 for sub_name, sub_type in types_undefined.items():
-                    types_defined[sub_name] = self._classdef_to_schema(sub_type)
+                    types_defined[sub_name] = self._type_to_schema_with_lookup(sub_type)
 
             type_definitions = dict(sorted(types_defined.items()))
         finally:
@@ -449,20 +448,41 @@ class JsonSchemaGenerator:
         return type_schema, type_definitions
 
 
-def classdef_to_schema(typ: Type, options: SchemaOptions = None) -> Schema:
+class Validator(enum.Enum):
+    Draft7 = jsonschema.Draft7Validator
+    Draft201909 = jsonschema.Draft201909Validator
+    Draft202012 = jsonschema.Draft202012Validator
+    Latest = jsonschema.Draft202012Validator
+
+
+def classdef_to_schema(
+    typ: Type, options: SchemaOptions = None, validator: Validator = Validator.Latest
+) -> Schema:
     """
     Returns the JSON schema corresponding to the given type.
 
     :param typ: The Python type used to generate the JSON schema
     :return: A JSON object that you can serialize to a JSON string with json.dump or json.dumps
+    :raises TypeError: Indicates that the generated JSON schema does not validate against the desired meta-schema.
     """
 
     type_schema, type_definitions = JsonSchemaGenerator(options).classdef_to_schema(typ)
 
-    schema = {"$schema": "http://json-schema.org/draft-07/schema#"}
+    class_schema = {}
     if type_definitions:
-        schema["definitions"] = type_definitions
-    schema.update(type_schema)
+        class_schema["definitions"] = type_definitions
+    class_schema.update(type_schema)
+
+    validator_id = validator.value.META_SCHEMA["$id"]
+    try:
+        validator.value.check_schema(class_schema)
+    except jsonschema.exceptions.SchemaError:
+        raise TypeError(
+            f"schema does not validate against meta-schema <{validator_id}>"
+        )
+
+    schema = {"$schema": validator_id}
+    schema.update(class_schema)
     return schema
 
 
@@ -472,7 +492,7 @@ def validate_object(object_type: Type, json_dict: JsonType) -> None:
 
     :param object_type: The type to match against
     :param json_dict: A JSON object obtained with json.load or json.loads
-    :raises ValidationError: Indicates that the JSON object cannot represent the type.
+    :raises jsonschema.exceptions.ValidationError: Indicates that the JSON object cannot represent the type.
     """
 
     schema_dict = classdef_to_schema(object_type)
