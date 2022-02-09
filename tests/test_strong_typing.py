@@ -48,6 +48,8 @@ class Suit(enum.Enum):
 
 @dataclass
 class SimpleValueExample:
+    "A simple data class with a single property."
+
     value: int = 23
 
 
@@ -78,6 +80,8 @@ class UID:
 
 
 class SimpleNamedTuple(NamedTuple):
+    "A simple named tuple."
+
     int_value: int
     str_value: str
 
@@ -204,7 +208,7 @@ class TestStrongTyping(unittest.TestCase):
         validate_object(NestedObjectExample, json_dict)
 
     def test_schema(self):
-        options = SchemaOptions(use_descriptions=False)
+        options = SchemaOptions(use_descriptions=True)
         generator = JsonSchemaGenerator(options)
         self.assertEqual(generator.type_to_schema(bool), {"type": "boolean"})
         self.assertEqual(generator.type_to_schema(int), {"type": "integer"})
@@ -215,10 +219,20 @@ class TestStrongTyping(unittest.TestCase):
             {"type": "string", "contentEncoding": "base64"},
         )
         self.assertEqual(
-            generator.type_to_schema(Side), {"enum": ["L", "R"], "type": "string"}
+            generator.type_to_schema(Side),
+            {
+                "enum": ["L", "R"],
+                "type": "string",
+                "title": "An enumeration with string values.",
+            },
         )
         self.assertEqual(
-            generator.type_to_schema(Suit), {"enum": [1, 2, 3, 4], "type": "integer"}
+            generator.type_to_schema(Suit),
+            {
+                "enum": [1, 2, 3, 4],
+                "type": "integer",
+                "title": "An enumeration with numeric values.",
+            },
         )
         self.assertEqual(
             generator.type_to_schema(Any),
@@ -269,6 +283,7 @@ class TestStrongTyping(unittest.TestCase):
                 "properties": {"value": {"type": "integer", "default": 23}},
                 "additionalProperties": False,
                 "required": ["value"],
+                "title": "A simple data class with a single property.",
             },
         )
         self.assertEqual(
@@ -281,6 +296,7 @@ class TestStrongTyping(unittest.TestCase):
                 },
                 "additionalProperties": False,
                 "required": ["int_value", "str_value"],
+                "title": "A simple named tuple.",
             },
         )
         self.assertEqual(
@@ -296,6 +312,7 @@ class TestStrongTyping(unittest.TestCase):
                         "type": "string",
                         "pattern": "^(0|[1-9][0-9]*)(\\.(0|[1-9][0-9]*))*$",
                         "maxLength": 64,
+                        "title": "A unique identifier in DICOM.",
                     }
                 },
                 "$ref": "#/definitions/UID",
@@ -310,6 +327,7 @@ class TestStrongTyping(unittest.TestCase):
                         "type": "string",
                         "pattern": "^(0|[1-9][0-9]*)(\\.(0|[1-9][0-9]*))*$",
                         "maxLength": 64,
+                        "title": "A unique identifier in DICOM.",
                     }
                 },
                 "$ref": "#/definitions/UID",

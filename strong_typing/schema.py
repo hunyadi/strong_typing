@@ -5,12 +5,14 @@ import enum
 import functools
 import inspect
 import json
+import re
 import typing
 import uuid
 from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
 
 import jsonschema
 
+from . import docstring
 from .auxiliary import (
     IntegerRange,
     MaxLength,
@@ -22,6 +24,7 @@ from .auxiliary import (
 from .core import JsonArray, JsonObject, JsonType, Schema
 from .inspection import (
     get_class_properties,
+    is_dataclass_type,
     is_type_enum,
     is_type_optional,
     unwrap_optional_type,
@@ -32,30 +35,27 @@ from .serialization import object_to_json
 # schema with explicitly listed properties (rather than employing a pattern constraint on property names)
 OBJECT_ENUM_EXPANSION_LIMIT = 4
 
-try:
-    import docstring_parser
 
-    def get_class_docstrings(typ: Type) -> Tuple[Optional[str], Optional[str]]:
-        docstring: docstring_parser.Docstring = docstring_parser.parse(typ.__doc__)
-        return docstring.short_description, docstring.long_description
+def get_class_docstrings(typ: Type) -> Tuple[Optional[str], Optional[str]]:
+    docstr = docstring.parse_type(typ)
 
-    def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
-        result = {}
-        for base in reversed(inspect.getmro(typ)):
-            docstring: docstring_parser.Docstring = docstring_parser.parse(base.__doc__)
-            result.update(
-                {param.arg_name: param.description for param in docstring.params}
-            )
-        return result
-
-
-except ImportError:
-
-    def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
-        return {}
-
-    def get_class_docstrings(typ: Type) -> Tuple[Optional[str], Optional[str]]:
+    # check if class has a doc-string other than the auto-generated string assigned by @dataclass
+    if is_dataclass_type(typ) and re.match(
+        f"^{re.escape(typ.__name__)}[(].*[)]$", typ.__doc__
+    ):
         return None, None
+
+    return docstr.short_description, docstr.long_description
+
+
+def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
+    result = {}
+    for base in reversed(inspect.getmro(typ)):
+        docstr = docstring.parse_type(base)
+        result.update(
+            {param.name: param.description for param in docstr.params.values()}
+        )
+    return result
 
 
 def docstring_to_schema(typ: Type) -> Schema:
