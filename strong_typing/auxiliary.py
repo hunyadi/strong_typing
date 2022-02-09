@@ -1,7 +1,6 @@
 import dataclasses
 import sys
 import typing
-from dataclasses import dataclass
 from typing import Optional, Union
 
 try:
@@ -10,34 +9,62 @@ except ImportError:
     from typing_extensions import Annotated
 
 
+def _compact_dataclass_repr(obj) -> str:
+    arglist = ", ".join(
+        repr(getattr(obj, field.name)) for field in dataclasses.fields(obj)
+    )
+    return f"{obj.__class__.__name__}({arglist})"
+
+
 class CompactDataClass:
     "A data class whose repr() uses positional rather than keyword arguments."
 
     def __repr__(self) -> str:
-        arglist = ", ".join(
-            repr(getattr(self, field.name)) for field in dataclasses.fields(self)
-        )
-        return f"{self.__class__.__name__}({arglist})"
+        return _compact_dataclass_repr(self)
 
 
-@dataclass(frozen=True, repr=False)
-class Signed(CompactDataClass):
+def typeannotation(cls=None, /, *, eq=True, order=False):
+    "Returns the same class as was passed in, with dunder methods added based on the fields defined in the class."
+
+    data_cls = dataclasses.dataclass(
+        cls,
+        init=True,
+        repr=True,
+        eq=eq,
+        order=order,
+        unsafe_hash=False,
+        frozen=True,
+    )
+    data_cls.__repr__ = _compact_dataclass_repr
+    return data_cls
+
+
+@typeannotation
+class Signed:
+    "Signedness of an integer type."
+
     is_signed: bool
 
 
-@dataclass(frozen=True, repr=False)
-class Storage(CompactDataClass):
+@typeannotation
+class Storage:
+    "Number of bytes the binary representation of an integer type takes, e.g. 4 bytes for an int32."
+
     bytes: int
 
 
-@dataclass(frozen=True, repr=False)
-class IntegerRange(CompactDataClass):
+@typeannotation
+class IntegerRange:
+    "Minimum and maximum value of an integer. The range is inclusive."
+
     minimum: int
     maximum: int
 
 
-@dataclass(frozen=True, repr=False)
-class Precision(CompactDataClass):
+@typeannotation
+class Precision:
+    "Precision of a floating-point value."
+
     significant_digits: int
     decimal_digits: Optional[int] = 0
 
@@ -46,14 +73,23 @@ class Precision(CompactDataClass):
         return self.significant_digits - self.decimal_digits
 
 
-@dataclass(frozen=True, repr=False)
-class MinLength(CompactDataClass):
+@typeannotation
+class MinLength:
+    "Minimum length of a string."
+
     value: int
 
 
-@dataclass(frozen=True, repr=False)
-class MaxLength(CompactDataClass):
+@typeannotation
+class MaxLength:
+    "Maximum length of a string."
+
     value: int
+
+
+@typeannotation
+class SpecialConversion:
+    "Indicates that the annotated type is subject to custom conversion rules."
 
 
 int8 = Annotated[int, Signed(True), Storage(1), IntegerRange(-128, 127)]
