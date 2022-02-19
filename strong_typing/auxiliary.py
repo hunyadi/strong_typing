@@ -109,6 +109,9 @@ uint64 = Annotated[
     int, Signed(False), Storage(8), IntegerRange(0, 18446744073709551615)
 ]
 
+float32 = Annotated[float, Storage(4)]
+float64 = Annotated[float, Storage(8)]
+
 # maps globals of type Annotation[T, ...] defined in this module to their string names
 _auxiliary_types = {}
 module = sys.modules[__name__]
