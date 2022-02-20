@@ -8,7 +8,7 @@ import enum
 import unittest
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, NamedTuple, Set, Tuple, Type, Union
+from typing import Any, Dict, List, NamedTuple, Set, Tuple, Union
 
 from strong_typing import (
     Annotated,
@@ -392,7 +392,7 @@ class TestStrongTyping(unittest.TestCase):
             },
         )
 
-    def _assert_docstring_equal(self, generator: JsonSchemaGenerator, typ: Type):
+    def _assert_docstring_equal(self, generator: JsonSchemaGenerator, typ: type):
         "Checks if the Python class docstring matches the title and description strings in the generated JSON schema."
 
         short_description, long_description = get_class_docstrings(typ)

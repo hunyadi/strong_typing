@@ -48,14 +48,14 @@ def is_named_tuple_type(typ) -> bool:
     return all(type(n) == str for n in f)
 
 
-def is_type_enum(typ: Type) -> bool:
+def is_type_enum(typ: type) -> bool:
     "True if the specified type is an enumeration type."
 
     # use an explicit isinstance(..., type) check to filter out special forms like generics
     return isinstance(typ, type) and issubclass(typ, enum.Enum)
 
 
-def is_type_optional(typ: Type) -> bool:
+def is_type_optional(typ: type) -> bool:
     "True if the type annotation corresponds to an optional type (e.g. Optional[T] or Union[T1,T2,None])."
 
     if typing.get_origin(typ) is Union:  # Optional[T] is represented as Union[T, None]
@@ -77,7 +77,7 @@ def unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
     ]
 
 
-def is_generic_list(typ: Type) -> bool:
+def is_generic_list(typ: type) -> bool:
     "True if the specified type is a generic list, i.e. `List[T]`."
 
     return typing.get_origin(typ) is list
@@ -88,7 +88,7 @@ def unwrap_generic_list(typ: Type[List[T]]) -> Type[T]:
     return list_type
 
 
-def is_generic_dict(typ: Type) -> bool:
+def is_generic_dict(typ: type) -> bool:
     "True if the specified type is a generic dictionary, i.e. `Dict[KeyType, ValueType]`."
 
     return typing.get_origin(typ) is dict
@@ -99,14 +99,14 @@ def unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
     return key_type, value_type
 
 
-def get_module_classes(module: types.ModuleType) -> List[Type]:
+def get_module_classes(module: types.ModuleType) -> List[type]:
     is_class_member = (
         lambda member: inspect.isclass(member) and member.__module__ == module.__name__
     )
     return [class_type for _, class_type in inspect.getmembers(module, is_class_member)]
 
 
-def get_class_properties(typ: Type) -> Iterable[Tuple[str, Type]]:
+def get_class_properties(typ: type) -> Iterable[Tuple[str, type]]:
     if sys.version_info >= (3, 9):
         resolved_hints = typing.get_type_hints(typ, include_extras=True)
     else:
@@ -119,3 +119,29 @@ def get_class_properties(typ: Type) -> Iterable[Tuple[str, Type]]:
         )
     else:
         return resolved_hints.items()
+
+
+def get_referenced_types(typ: type) -> List[type]:
+    """
+    Extracts types indirectly referenced by this type.
+
+    For example, extract `T` from `List[T]`, `Optional[T]` or `Annotated[T, ...]`, `K` and `V` from `Dict[K,V]`,
+    `A` and `B` from `Union[A,B]`.
+    """
+
+    metadata = getattr(typ, "__metadata__", None)
+    if metadata is not None:
+        # type is Annotated[T, ...]
+        arg = typing.get_args(typ)[0]
+        return get_referenced_types(arg)
+
+    # type is a regular type
+    result = []
+    origin = typing.get_origin(typ)
+    if origin is not None:
+        for arg in typing.get_args(typ):
+            result.extend(get_referenced_types(arg))
+    elif typ is not type(None):
+        result.append(typ)
+
+    return result

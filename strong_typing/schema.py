@@ -36,7 +36,7 @@ from .serialization import object_to_json
 OBJECT_ENUM_EXPANSION_LIMIT = 4
 
 
-def get_class_docstrings(typ: Type) -> Tuple[Optional[str], Optional[str]]:
+def get_class_docstrings(typ: type) -> Tuple[Optional[str], Optional[str]]:
     docstr = docstring.parse_type(typ)
 
     # check if class has a doc-string other than the auto-generated string assigned by @dataclass
@@ -48,7 +48,7 @@ def get_class_docstrings(typ: Type) -> Tuple[Optional[str], Optional[str]]:
     return docstr.short_description, docstr.long_description
 
 
-def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
+def get_class_property_docstrings(typ: type) -> Dict[str, str]:
     result = {}
     for base in reversed(inspect.getmro(typ)):
         docstr = docstring.parse_type(base)
@@ -58,7 +58,7 @@ def get_class_property_docstrings(typ: Type) -> Dict[str, str]:
     return result
 
 
-def docstring_to_schema(typ: Type) -> Schema:
+def docstring_to_schema(typ: type) -> Schema:
     short_description, long_description = get_class_docstrings(typ)
     schema = dict()
     if short_description:
@@ -78,27 +78,27 @@ _TypeCatalogSchema = Union[Schema, _TypeCatalogAuto]
 class TypeCatalog:
     AUTO = _TypeCatalogAuto()
 
-    type_to_schema: Dict[Type, _TypeCatalogSchema]
-    type_to_identifier: Dict[Type, str]
+    type_to_schema: Dict[type, _TypeCatalogSchema]
+    type_to_identifier: Dict[type, str]
 
     def __init__(self):
         self.type_to_schema = {}
         self.type_to_identifier = {}
 
-    def __contains__(self, typ: Type) -> bool:
+    def __contains__(self, typ: type) -> bool:
         return typ in self.type_to_schema
 
-    def add(self, typ: Type, schema: _TypeCatalogSchema, identifier: str) -> None:
+    def add(self, typ: type, schema: _TypeCatalogSchema, identifier: str) -> None:
         if typ in self.type_to_schema:
             raise ValueError(f"type {typ} is already registered in the catalog")
 
         self.type_to_schema[typ] = schema
         self.type_to_identifier[typ] = identifier
 
-    def get_schema(self, typ: Type) -> _TypeCatalogSchema:
+    def get_schema(self, typ: type) -> _TypeCatalogSchema:
         return self.type_to_schema[typ]
 
-    def get_identifier(self, typ: Type) -> str:
+    def get_identifier(self, typ: type) -> str:
         return self.type_to_identifier[typ]
 
 
@@ -112,7 +112,7 @@ class JsonSchemaGenerator:
     """Creates a JSON schema with user-defined type definitions."""
 
     type_catalog: ClassVar[TypeCatalog] = TypeCatalog()
-    types_used: Dict[str, Type]
+    types_used: Dict[str, type]
     options: SchemaOptions
 
     def __init__(self, options: SchemaOptions = None):
@@ -155,7 +155,7 @@ class JsonSchemaGenerator:
                 type_schema.update(self._metadata_to_schema(m))
         return type_schema
 
-    def _simple_type_to_schema(self, typ: Type) -> Schema:
+    def _simple_type_to_schema(self, typ: type) -> Schema:
         "Returns the JSON schema associated with a simple, unrestricted type."
 
         if typ is None:
@@ -206,7 +206,7 @@ class JsonSchemaGenerator:
             # not a simple type
             return None
 
-    def type_to_schema(self, data_type: Type, force_expand: bool = False) -> Schema:
+    def type_to_schema(self, data_type: type, force_expand: bool = False) -> Schema:
         """
         Returns the JSON schema associated with a type.
 
@@ -399,7 +399,7 @@ class JsonSchemaGenerator:
             schema.update(docstring_to_schema(typ))
         return schema
 
-    def _type_to_schema_with_lookup(self, data_type: Type) -> Schema:
+    def _type_to_schema_with_lookup(self, data_type: type) -> Schema:
         "Returns the JSON schema associated with a type that may be registered in the catalog of known types."
 
         subschema = __class__.type_catalog.get_schema(data_type)
@@ -415,7 +415,7 @@ class JsonSchemaGenerator:
         return type_schema
 
     def classdef_to_schema(
-        self, typ: Type, force_expand: bool = False
+        self, typ: type, force_expand: bool = False
     ) -> Tuple[Schema, Dict[str, Schema]]:
         """
         Returns the JSON schema associated with a type and any nested types.
@@ -456,7 +456,7 @@ class Validator(enum.Enum):
 
 
 def classdef_to_schema(
-    typ: Type, options: SchemaOptions = None, validator: Validator = Validator.Latest
+    typ: type, options: SchemaOptions = None, validator: Validator = Validator.Latest
 ) -> Schema:
     """
     Returns the JSON schema corresponding to the given type.
@@ -486,7 +486,7 @@ def classdef_to_schema(
     return schema
 
 
-def validate_object(object_type: Type, json_dict: JsonType) -> None:
+def validate_object(object_type: type, json_dict: JsonType) -> None:
     """
     Validates if the JSON dictionary object conforms to the expected type.
 
@@ -501,14 +501,14 @@ def validate_object(object_type: Type, json_dict: JsonType) -> None:
     )
 
 
-def print_schema(typ: Type) -> None:
+def print_schema(typ: type) -> None:
     """Pretty-prints the JSON schema corresponding to the type."""
 
     s = classdef_to_schema(typ)
     print(json.dumps(s, indent=4))
 
 
-def register_schema(typ: Type, schema: Schema = None, name: str = None):
+def register_schema(typ: type, schema: Schema = None, name: str = None):
     JsonSchemaGenerator.type_catalog.add(
         typ,
         schema if schema is not None else _TypeCatalogAuto,
