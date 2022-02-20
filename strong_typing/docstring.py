@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from typing import Dict, Optional
 
+from .inspection import is_dataclass_type
+
 
 @dataclass
 class DocstringParam:
@@ -23,15 +25,27 @@ class Docstring:
     params: Dict[str, DocstringParam] = dataclasses.field(default_factory=dict)
     returns: Optional[DocstringReturns] = None
 
+    @property
+    def full_description(self) -> Optional[str]:
+        if self.short_description and self.long_description:
+            return f"{self.short_description}\n\n{self.long_description}"
+        elif self.short_description:
+            return self.short_description
+        else:
+            return None
 
-def parse_type(type: type) -> Docstring:
+
+def parse_type(typ: type) -> Docstring:
     """
     Parse the docstring of a type into its components.
 
     :returns: Components of the documentation string.
     """
 
-    return parse_text(type.__doc__)
+    if has_docstring(typ):
+        return parse_text(typ.__doc__)
+    else:
+        return Docstring()
 
 
 def parse_text(text: str) -> Docstring:
@@ -93,3 +107,14 @@ def parse_text(text: str) -> Docstring:
         params=params,
         returns=returns,
     )
+
+
+def has_docstring(typ: type) -> bool:
+    "Check if class has a documentation string other than the auto-generated string assigned by @dataclass."
+
+    if is_dataclass_type(typ) and re.match(
+        f"^{re.escape(typ.__name__)}[(].*[)]$", typ.__doc__
+    ):
+        return False
+
+    return bool(typ.__doc__)
