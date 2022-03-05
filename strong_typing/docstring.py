@@ -9,19 +9,52 @@ from .inspection import is_dataclass_type
 
 @dataclass
 class DocstringParam:
+    """
+    A parameter declaration in a parameter block.
+
+    :param name: The name of the parameter.
+    :param description: The description text for the parameter.
+    """
+
     name: str
     description: str
 
 
 @dataclass
 class DocstringReturns:
+    """
+    A returns declration extracted from a docstring.
+
+    :param description: The description text for the return value.
+    """
+
     description: str
 
 
 @dataclass
 class Docstring:
-    long_description: Optional[str] = None
+    """
+    Represents the documentation string (a.k.a. docstring) for a type such as a (data) class or function.
+
+    A docstring is broken down into the following components:
+    * A short description, which is the first block of text in the documentation string, and ends with a double
+      newline or a parameter block.
+    * A long description, which is the optional block of text following the short description, and ends with
+      a parameter block.
+    * A parameter block of named parameter and description string pairs in ReST-style.
+    * A returns declaration, which adds explanation to the return value.
+
+    When the docstring is attached to a data class, it is understood as the documentation string of the class
+    `__init__` method.
+
+    :param short_description: The short description text parsed from a docstring.
+    :param long_description: The long description text parsed from a docstring.
+    :param params: The parameter block extracted from a docstring.
+    :param returns: The returns declration extracted from a docstring.
+    """
+
     short_description: Optional[str] = None
+    long_description: Optional[str] = None
     params: Dict[str, DocstringParam] = dataclasses.field(default_factory=dict)
     returns: Optional[DocstringReturns] = None
 
@@ -39,6 +72,7 @@ def parse_type(typ: type) -> Docstring:
     """
     Parse the docstring of a type into its components.
 
+    :param typ: The type whose documentation string to parse.
     :returns: Components of the documentation string.
     """
 
@@ -52,6 +86,7 @@ def parse_text(text: str) -> Docstring:
     """
     Parse a ReST-style docstring into its components.
 
+    :param text: The documentation string to parse, typically acquired as `type.__doc__`.
     :returns: Components of the documentation string.
     """
 
@@ -93,13 +128,15 @@ def parse_text(text: str) -> Docstring:
         args = args_chunk.split()
         desc = desc_chunk.strip().replace("\n", " ")
 
-        if len(args) == 2:
-            if args[0] == "param":
-                params[args[1]] = DocstringParam(name=args[1], description=desc)
+        if len(args) > 0:
+            kw = args[0]
+            if len(args) == 2:
+                if kw == "param":
+                    params[args[1]] = DocstringParam(name=args[1], description=desc)
 
-        elif len(args) == 1:
-            if args[0] == "return" or args[0] == "returns":
-                returns = DocstringReturns(description=desc)
+            elif len(args) == 1:
+                if kw == "return" or kw == "returns":
+                    returns = DocstringReturns(description=desc)
 
     return Docstring(
         long_description=long_description,

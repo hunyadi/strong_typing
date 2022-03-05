@@ -10,24 +10,17 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, NamedTuple, Set, Tuple, Union
 
-from strong_typing import (
-    Annotated,
+from strong_typing.auxiliary import Annotated, IntegerRange, MaxLength, Precision
+from strong_typing.schema import (
     JsonSchemaGenerator,
     SchemaOptions,
+    Validator,
     classdef_to_schema,
     get_class_docstrings,
-    is_generic_dict,
-    is_generic_list,
-    is_type_enum,
     json_schema_type,
-    json_to_object,
-    object_to_json,
-    unwrap_generic_dict,
-    unwrap_generic_list,
     validate_object,
 )
-from strong_typing.auxiliary import IntegerRange, MaxLength, Precision
-from strong_typing.schema import Validator
+from strong_typing.serialization import json_to_object, object_to_json
 
 
 class Side(enum.Enum):
@@ -161,39 +154,6 @@ async def test_async_function():
 
 
 class TestStrongTyping(unittest.TestCase):
-    def test_introspection(self):
-        self.assertTrue(is_type_enum(Side))
-        self.assertTrue(is_type_enum(Suit))
-        self.assertFalse(is_type_enum(Side.LEFT))
-        self.assertFalse(is_type_enum(Suit.Diamonds))
-        self.assertFalse(is_type_enum(int))
-        self.assertFalse(is_type_enum(str))
-        self.assertFalse(is_type_enum(ValueExample))
-
-        self.assertTrue(is_generic_list(List[int]))
-        self.assertTrue(is_generic_list(List[str]))
-        self.assertTrue(is_generic_list(List[ValueExample]))
-        self.assertFalse(is_generic_list(list))
-        self.assertFalse(is_generic_list([]))
-
-        self.assertTrue(is_generic_dict(Dict[int, str]))
-        self.assertTrue(is_generic_dict(Dict[str, ValueExample]))
-        self.assertFalse(is_generic_dict(dict))
-        self.assertFalse(is_generic_dict({}))
-
-        self.assertEqual(unwrap_generic_list(List[int]), int)
-        self.assertEqual(unwrap_generic_list(List[str]), str)
-        self.assertEqual(unwrap_generic_list(List[List[str]]), List[str])
-
-        self.assertEqual(unwrap_generic_dict(Dict[int, str]), (int, str))
-        self.assertEqual(
-            unwrap_generic_dict(Dict[str, ValueExample]), (str, ValueExample)
-        )
-        self.assertEqual(
-            unwrap_generic_dict(Dict[str, List[ValueExample]]),
-            (str, List[ValueExample]),
-        )
-
     def test_composite_object(self):
         json_dict = object_to_json(SimpleObjectExample())
         validate_object(SimpleObjectExample, json_dict)

@@ -1,6 +1,6 @@
 from typing import Callable, Dict, Iterable, List, Set, TypeVar
 
-from strong_typing.inspection import get_class_properties, get_referenced_types
+from .inspection import get_class_properties, get_referenced_types
 
 T = TypeVar("T")
 
