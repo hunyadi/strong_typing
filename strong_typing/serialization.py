@@ -47,7 +47,11 @@ def object_to_json(obj: Any) -> JsonType:
     """
 
     # check for well-known types
-    if isinstance(obj, (bool, int, float, str)):  # can be directly represented in JSON
+    if obj is None:
+        # can be directly represented in JSON
+        return None
+    elif isinstance(obj, (bool, int, float, str)):
+        # can be directly represented in JSON
         return obj
     elif isinstance(obj, bytes):
         return base64.b64encode(obj).decode("ascii")
@@ -140,7 +144,11 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
     """
 
     # check for well-known types
-    if typ is bool or typ is int or typ is float or typ is str:
+    if typ is type(None):
+        if data is not None:
+            raise TypeError(f"non-null data for null type")
+        return None
+    elif typ is bool or typ is int or typ is float or typ is str:
         return data
     elif typ is bytes:
         return base64.b64decode(data)

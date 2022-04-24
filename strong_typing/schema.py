@@ -19,9 +19,8 @@ from .auxiliary import (
     MinLength,
     Precision,
     get_auxiliary_format,
-    python_type_to_name,
 )
-from .core import JsonArray, JsonObject, JsonType, Schema
+from .core import JsonArray, JsonObject, JsonType, Schema, StrictJsonType
 from .inspection import (
     get_class_properties,
     is_dataclass_type,
@@ -29,6 +28,7 @@ from .inspection import (
     is_type_optional,
     unwrap_optional_type,
 )
+from .name import python_type_to_name
 from .serialization import object_to_json
 
 # determines the maximum number of distinct enum members up to which a Dict[EnumType, Any] is converted into a JSON
@@ -158,7 +158,7 @@ class JsonSchemaGenerator:
     def _simple_type_to_schema(self, typ: type) -> Schema:
         "Returns the JSON schema associated with a simple, unrestricted type."
 
-        if typ is None:
+        if typ is type(None):
             return {"type": "null"}
         elif typ is bool:
             return {"type": "boolean"}
@@ -189,7 +189,7 @@ class JsonSchemaGenerator:
             return {"type": "string", "format": "uuid"}
         elif typ is Any:
             return {
-                "anyOf": [
+                "oneOf": [
                     {"type": "null"},
                     {"type": "boolean"},
                     {"type": "number"},
@@ -222,6 +222,8 @@ class JsonSchemaGenerator:
         # short-circuit with an error message when passing invalid data
         if isinstance(data_type, str):
             raise TypeError(f"object is not a type but a string")
+        elif data_type is None:
+            raise TypeError(f"object is not a type but the value None")
 
         # types registered in the type catalog of well-known types
         if not force_expand and data_type in __class__.type_catalog:
@@ -508,7 +510,14 @@ def print_schema(typ: type) -> None:
     print(json.dumps(s, indent=4))
 
 
-def register_schema(typ: type, schema: Schema = None, name: str = None):
+def get_schema_identifier(typ: type) -> Optional[str]:
+    if typ in JsonSchemaGenerator.type_catalog:
+        return JsonSchemaGenerator.type_catalog.get_identifier(typ)
+    else:
+        return None
+
+
+def register_schema(typ: type, schema: Schema = None, name: str = None) -> type:
     JsonSchemaGenerator.type_catalog.add(
         typ,
         schema if schema is not None else _TypeCatalogAuto,
@@ -535,3 +544,4 @@ def json_schema_type(cls=None, /, *, schema=None):
 register_schema(JsonType, name="JsonType")
 register_schema(JsonObject, name="JsonObject")
 register_schema(JsonArray, name="JsonArray")
+register_schema(StrictJsonType, name="StrictJsonType")

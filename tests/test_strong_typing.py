@@ -8,7 +8,7 @@ import enum
 import unittest
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, NamedTuple, Set, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union
 
 from strong_typing.auxiliary import Annotated, IntegerRange, MaxLength, Precision
 from strong_typing.schema import (
@@ -19,6 +19,8 @@ from strong_typing.schema import (
     get_class_docstrings,
     json_schema_type,
     validate_object,
+    JsonType,
+    StrictJsonType,
 )
 from strong_typing.serialization import json_to_object, object_to_json
 
@@ -111,12 +113,14 @@ class CompositeObjectExample:
     set_value: Set[int] = field(default_factory=set)
     tuple_value: Tuple[bool, int, str] = (True, 2, "three")
     named_tuple_value: SimpleNamedTuple = SimpleNamedTuple(1, "second")
+    optional_value: Optional[str] = None
 
 
 @dataclass
 class InheritanceExample(SimpleObjectExample, CompositeObjectExample):
     extra_int_value: int = 0
     extra_str_value: str = "zero"
+    extra_optional_value: Optional[str] = "value"
 
 
 @dataclass
@@ -170,6 +174,7 @@ class TestStrongTyping(unittest.TestCase):
     def test_schema(self):
         options = SchemaOptions(use_descriptions=True)
         generator = JsonSchemaGenerator(options)
+        self.assertEqual(generator.type_to_schema(type(None)), {"type": "null"})
         self.assertEqual(generator.type_to_schema(bool), {"type": "boolean"})
         self.assertEqual(generator.type_to_schema(int), {"type": "integer"})
         self.assertEqual(generator.type_to_schema(float), {"type": "number"})
@@ -197,7 +202,7 @@ class TestStrongTyping(unittest.TestCase):
         self.assertEqual(
             generator.type_to_schema(Any),
             {
-                "anyOf": [
+                "oneOf": [
                     {"type": "null"},
                     {"type": "boolean"},
                     {"type": "number"},
@@ -294,6 +299,38 @@ class TestStrongTyping(unittest.TestCase):
             },
         )
 
+    def test_registered_schema(self):
+        options = SchemaOptions(use_descriptions=True)
+        self.maxDiff = None
+        self.assertEqual(
+            classdef_to_schema(JsonType),
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "definitions": {
+                    "JsonType": {
+                        "oneOf": [
+                            {"type": "null"},
+                            {"type": "boolean"},
+                            {"type": "integer"},
+                            {"type": "number"},
+                            {"type": "string"},
+                            {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/definitions/JsonType"
+                                },
+                            },
+                            {
+                                "type": "array",
+                                "items": {"$ref": "#/definitions/JsonType"},
+                            },
+                        ]
+                    }
+                },
+                "$ref": "#/definitions/JsonType",
+            },
+        )
+
     def test_schema_annotated(self):
         options = SchemaOptions(use_descriptions=False)
         generator = JsonSchemaGenerator(options)
@@ -371,6 +408,7 @@ class TestStrongTyping(unittest.TestCase):
         generator = JsonSchemaGenerator(options)
 
         # never extract docstring simple types
+        self.assertEqual(generator.type_to_schema(type(None)), {"type": "null"})
         self.assertEqual(generator.type_to_schema(bool), {"type": "boolean"})
         self.assertEqual(generator.type_to_schema(int), {"type": "integer"})
         self.assertEqual(generator.type_to_schema(float), {"type": "number"})
@@ -392,6 +430,7 @@ class TestStrongTyping(unittest.TestCase):
         self._assert_docstring_equal(generator, SimpleObjectExample)
 
     def test_serialization(self):
+        self.assertEqual(object_to_json(None), None)
         self.assertEqual(object_to_json(True), True)
         self.assertEqual(object_to_json(23), 23)
         self.assertEqual(object_to_json(4.5), 4.5)
@@ -414,6 +453,7 @@ class TestStrongTyping(unittest.TestCase):
         self.assertRaises(TypeError, object_to_json, self.test_serialization)  # method
 
     def test_deserialization(self):
+        self.assertEqual(json_to_object(type(None), None), None)
         self.assertEqual(json_to_object(bool, True), True)
         self.assertEqual(json_to_object(int, 23), 23)
         self.assertEqual(json_to_object(float, 4.5), 4.5)
@@ -486,6 +526,7 @@ class TestStrongTyping(unittest.TestCase):
                 "named_tuple_value": {"int_value": 1, "str_value": "second"},
                 "extra_int_value": 0,
                 "extra_str_value": "zero",
+                "extra_optional_value": "value",
             },
         )
 

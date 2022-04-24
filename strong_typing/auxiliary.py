@@ -1,7 +1,6 @@
 import dataclasses
 import sys
-import typing
-from typing import Optional, Union
+from typing import Optional
 
 try:
     from typing import Annotated
@@ -137,76 +136,3 @@ def get_auxiliary_format(data_type: type) -> Optional[str]:
     "Returns the JSON format string corresponding to an auxiliary type."
 
     return _auxiliary_types.get(data_type)
-
-
-def _python_type_to_str(data_type: type) -> str:
-    "Returns the string representation of a Python type without metadata."
-
-    origin = typing.get_origin(data_type)
-    if origin is not None:
-        data_type_args = typing.get_args(data_type)
-
-        if origin is dict:  # Dict[T]
-            origin_name = "Dict"
-        elif origin is list:  # List[T]
-            origin_name = "List"
-        elif origin is set:  # Set[T]
-            origin_name = "Set"
-        elif origin is Union:
-            if type(None) in data_type_args:
-                # Optional[T] is represented as Union[T, None]
-                origin_name = "Optional"
-                data_type_args = tuple(t for t in data_type_args if t is not type(None))
-            else:
-                origin_name = "Union"
-        else:
-            origin_name = origin.__name__
-
-        args = ", ".join(python_type_to_str(t) for t in data_type_args)
-        return f"{origin_name}[{args}]"
-
-    if isinstance(data_type, typing.ForwardRef):
-        fwd: typing.ForwardRef = data_type
-        return fwd.__forward_arg__
-
-    return data_type.__name__
-
-
-def python_type_to_str(data_type: type) -> str:
-    "Returns the string representation of a Python type."
-
-    if data_type is type(None):
-        return "None"
-
-    # use compact name for alias types
-    name = _auxiliary_types.get(data_type)
-    if name is not None:
-        return name
-
-    metadata = getattr(data_type, "__metadata__", None)
-    if metadata is not None:
-        # type is Annotated[T, ...]
-        arg = typing.get_args(data_type)[0]
-        s = _python_type_to_str(arg)
-        args = ", ".join(repr(m) for m in metadata)
-        return f"Annotated[{s}, {args}]"
-    else:
-        # type is a regular type
-        return _python_type_to_str(data_type)
-
-
-def python_type_to_name(data_type: type) -> str:
-    "Returns the short name of a Python type."
-
-    # use compact name for alias types
-    name = _auxiliary_types.get(data_type)
-    if name is not None:
-        return name
-
-    metadata = getattr(data_type, "__metadata__", None)
-    if metadata is not None:
-        # type is Annotated[T, ...]
-        arg = typing.get_args(data_type)[0]
-        return arg.__name__
-    else:
-        return data_type.__name__
