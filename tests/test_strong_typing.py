@@ -20,7 +20,6 @@ from strong_typing.schema import (
     json_schema_type,
     validate_object,
     JsonType,
-    StrictJsonType,
 )
 from strong_typing.serialization import json_to_object, object_to_json
 
@@ -324,7 +323,17 @@ class TestStrongTyping(unittest.TestCase):
                                 "type": "array",
                                 "items": {"$ref": "#/definitions/JsonType"},
                             },
-                        ]
+                        ],
+                        "examples": [
+                            {
+                                "property1": None,
+                                "property2": True,
+                                "property3": 64,
+                                "property4": "string",
+                                "property5": ["item"],
+                                "property6": {"key": "value"},
+                            }
+                        ],
                     }
                 },
                 "$ref": "#/definitions/JsonType",

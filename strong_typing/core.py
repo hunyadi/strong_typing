@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Dict, List, Union
 
 
@@ -31,4 +33,4 @@ StrictJsonType = Union[
 ]
 
 # a meta-type that captures the object type in a JSON schema
-Schema = StrictJsonType
+Schema = Dict[str, "StrictJsonType"]
