@@ -133,6 +133,17 @@ def is_type_annotated(typ: type) -> bool:
     return getattr(typ, "__metadata__", None) is not None
 
 
+def get_annotation(data_type: type, annotation_type: Type[T]) -> Optional[T]:
+    "Returns the first annotation on a data type that matches the expected annotation type."
+
+    if is_type_annotated(data_type):
+        for annotation in data_type.__metadata__:
+            if isinstance(annotation, annotation_type):
+                return annotation
+    else:
+        return None
+
+
 def unwrap_annotated_type(typ: type) -> type:
     if is_type_annotated(typ):
         # type is Annotated[T, ...]

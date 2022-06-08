@@ -77,14 +77,31 @@ def get_class_docstrings(data_type: type) -> Tuple[Optional[str], Optional[str]]
     return docstr.short_description, docstr.long_description
 
 
-def get_class_property_docstrings(data_type: type) -> Dict[str, str]:
+def get_class_property_docstrings(
+    data_type: type, transform_fun: Callable[[type, str, str], str] = None
+) -> Dict[str, str]:
+    """
+    Extracts the documentation strings associated with the properties of a composite type.
+
+    :param data_type: The object whose properties to iterate over.
+    :param transform_fun: An optional function that maps a property documentation string to a custom tailored string.
+    :returns: A dictionary mapping property names to descriptions.
+    """
+
     check_type(data_type)
     result = {}
-    for base in reversed(inspect.getmro(data_type)):
+    for base in inspect.getmro(data_type):
         docstr = docstring.parse_type(base)
-        result.update(
-            {param.name: param.description for param in docstr.params.values()}
-        )
+        for param in docstr.params.values():
+            if param.name in result:
+                continue
+
+            if transform_fun:
+                description = transform_fun(data_type, param.name, param.description)
+            else:
+                description = param.description
+
+            result[param.name] = description
     return result
 
 
@@ -160,6 +177,7 @@ class SchemaOptions:
     definitions_path: str = "#/definitions/"
     use_descriptions: bool = True
     use_examples: bool = True
+    property_description_fun: Callable[[type, str, str], str] = None
 
 
 class JsonSchemaGenerator:
@@ -401,7 +419,9 @@ class JsonSchemaGenerator:
         # dictionary of class attributes
         members = dict(inspect.getmembers(typ, lambda a: not inspect.isroutine(a)))
 
-        property_docstrings = get_class_property_docstrings(typ)
+        property_docstrings = get_class_property_docstrings(
+            typ, self.options.property_description_fun
+        )
 
         properties: Dict[str, Schema] = {}
         required: List[Schema] = []
