@@ -41,6 +41,13 @@ def typeannotation(cls=None, /, *, eq=True, order=False):
 
 
 @typeannotation
+class Alias:
+    "Alternative name of a property, typically used in JSON serialization."
+
+    name: str
+
+
+@typeannotation
 class Signed:
     "Signedness of an integer type."
 

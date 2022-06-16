@@ -12,8 +12,10 @@ import typing
 import uuid
 from typing import Any, Type, TypeVar, Union
 
+from .auxiliary import Alias
 from .core import JsonType
 from .inspection import (
+    get_annotation,
     get_class_properties,
     is_dataclass_instance,
     is_named_tuple_instance,
@@ -25,13 +27,20 @@ from .inspection import (
 T = TypeVar("T")
 
 
-def python_id_to_json_field(python_id: str) -> str:
+def python_id_to_json_field(python_id: str, python_type: type = None) -> str:
     """
     Convert a Python identifier to a JSON field name.
 
     Authors may use an underscore appended at the end of a Python identifier as per PEP 8 if it clashes with a Python
     keyword: e.g. `in` would become `in_` and `from` would become `from_`. Remove these suffixes when exporting to JSON.
+
+    Authors may supply an explicit alias with the type annotation `Alias`, e.g. `Annotated[MyType, Alias("alias")]`.
     """
+
+    if python_type is not None:
+        alias = get_annotation(python_type, Alias)
+        if alias:
+            return alias.name
 
     if python_id.endswith("_"):
         id = python_id[:-1]
@@ -89,7 +98,9 @@ def object_to_json(obj: Any) -> JsonType:
             value = getattr(obj, field.name)
             if value is None:
                 continue
-            object_dict[python_id_to_json_field(field.name)] = object_to_json(value)
+            object_dict[
+                python_id_to_json_field(field.name, field.type)
+            ] = object_to_json(value)
         return object_dict
 
     elif is_named_tuple_instance(obj):
@@ -213,7 +224,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
 
     obj = object.__new__(typ)
     for property_name, property_type in get_class_properties(typ):
-        json_name = python_id_to_json_field(property_name)
+        json_name = python_id_to_json_field(property_name, property_type)
         if is_type_optional(property_type):
             if json_name in data:
                 setattr(

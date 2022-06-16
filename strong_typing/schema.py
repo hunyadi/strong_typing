@@ -11,12 +11,24 @@ import re
 import typing
 import uuid
 from copy import deepcopy
-from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import jsonschema
 
 from . import docstring
 from .auxiliary import (
+    Alias,
     IntegerRange,
     MaxLength,
     MinLength,
@@ -25,6 +37,7 @@ from .auxiliary import (
 )
 from .core import JsonArray, JsonObject, JsonType, Schema, StrictJsonType
 from .inspection import (
+    get_annotation,
     get_class_properties,
     is_dataclass_type,
     is_type_enum,
@@ -207,8 +220,8 @@ class JsonSchemaGenerator:
     def _(self, arg: Precision) -> Schema:
         return {
             "multipleOf": 10 ** (-arg.decimal_digits),
-            "exclusiveMinimum": -(10 ** arg.integer_digits),
-            "exclusiveMaximum": (10 ** arg.integer_digits),
+            "exclusiveMinimum": -(10**arg.integer_digits),
+            "exclusiveMaximum": (10**arg.integer_digits),
         }
 
     @_metadata_to_schema.register
@@ -405,9 +418,6 @@ class JsonSchemaGenerator:
                     self.type_to_schema(member_type) for member_type in args
                 ],
             }
-        elif origin_type is type:
-            (concrete_type,) = typing.get_args(typ)  # unpack single tuple element
-            return {"const": self.type_to_schema(concrete_type, force_expand=True)}
         elif origin_type is Union:
             return {
                 "oneOf": [
@@ -415,6 +425,14 @@ class JsonSchemaGenerator:
                     for union_type in typing.get_args(typ)
                 ]
             }
+        elif origin_type is Literal:
+            (literal_value,) = typing.get_args(typ)  # unpack value of literal type
+            schema = self.type_to_schema(type(literal_value))
+            schema["const"] = literal_value
+            return schema
+        elif origin_type is type:
+            (concrete_type,) = typing.get_args(typ)  # unpack single tuple element
+            return {"const": self.type_to_schema(concrete_type, force_expand=True)}
 
         # dictionary of class attributes
         members = dict(inspect.getmembers(typ, lambda a: not inspect.isroutine(a)))
@@ -426,12 +444,19 @@ class JsonSchemaGenerator:
         properties: Dict[str, Schema] = {}
         required: List[Schema] = []
         for property_name, property_type in get_class_properties(typ):
+            # rename property if an alias name is specified
+            alias = get_annotation(property_type, Alias)
+            if alias:
+                output_name = alias.name
+            else:
+                output_name = property_name
+
             if is_type_optional(property_type):
                 optional_type = unwrap_optional_type(property_type)
                 property_def = self.type_to_schema(optional_type)
             else:
                 property_def = self.type_to_schema(property_type)
-                required.append(property_name)
+                required.append(output_name)
 
             # check if attribute has a default value initializer
             if members.get(property_name) is not None:
@@ -458,7 +483,7 @@ class JsonSchemaGenerator:
                 property_def["title"] = property_doc
                 property_def.pop("description", None)
 
-            properties[property_name] = property_def
+            properties[output_name] = property_def
 
         schema = {"type": "object"}
         if len(properties) > 0:
