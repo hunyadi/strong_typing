@@ -25,7 +25,7 @@ class DocstringParam:
 @dataclass
 class DocstringReturns:
     """
-    A returns declration extracted from a docstring.
+    A returns declaration extracted from a docstring.
 
     :param description: The description text for the return value.
     """
@@ -52,7 +52,7 @@ class Docstring:
     :param short_description: The short description text parsed from a docstring.
     :param long_description: The long description text parsed from a docstring.
     :param params: The parameter block extracted from a docstring.
-    :param returns: The returns declration extracted from a docstring.
+    :param returns: The returns declaration extracted from a docstring.
     """
 
     short_description: Optional[str] = None

@@ -11,6 +11,8 @@ except ImportError:
 
 
 def _compact_dataclass_repr(obj) -> str:
+    "Compact dataclass representation where positional arguments are used instead of keyword arguments."
+
     arglist = ", ".join(
         repr(getattr(obj, field.name)) for field in dataclasses.fields(obj)
     )
@@ -24,7 +26,7 @@ class CompactDataClass:
         return _compact_dataclass_repr(self)
 
 
-def typeannotation(cls=None, /, *, eq=True, order=False):
+def typeannotation(cls: type = None, /, *, eq=True, order=False) -> type:
     "Returns the same class as was passed in, with dunder methods added based on the fields defined in the class."
 
     data_cls = dataclasses.dataclass(

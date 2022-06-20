@@ -1,14 +1,22 @@
+from dataclasses import dataclass
 import datetime
 import enum
+import sys
 import unittest
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, NamedTuple, Optional, Union
 
 from strong_typing.auxiliary import Annotated, typeannotation
 from strong_typing.inspection import (
+    get_class_properties,
+    get_module_classes,
     get_referenced_types,
+    is_dataclass_type,
     is_generic_dict,
     is_generic_list,
+    is_named_tuple_type,
     is_type_enum,
+    is_type_optional,
+    is_type_union,
     unwrap_generic_dict,
     unwrap_generic_list,
 )
@@ -34,6 +42,18 @@ class SimpleObject:
     "A value of a fundamental type wrapped into an object."
 
     value: int = 0
+
+
+@dataclass
+class SimpleDataClass:
+    "A value of a fundamental type wrapped into an object."
+
+    value: int = 0
+
+
+class SimpleNamedTuple(NamedTuple):
+    integer: int
+    string: str
 
 
 @typeannotation
@@ -62,6 +82,20 @@ class TestInspection(unittest.TestCase):
         self.assertFalse(is_type_enum(int))
         self.assertFalse(is_type_enum(str))
         self.assertFalse(is_type_enum(SimpleObject))
+
+    def test_optional(self):
+        self.assertTrue(is_type_optional(Optional[int]))
+        self.assertTrue(is_type_optional(Union[None, int]))
+        self.assertTrue(is_type_optional(Union[int, None]))
+        self.assertFalse(is_type_optional(int))
+        self.assertFalse(is_type_optional(Union[int, str]))
+
+    def test_union(self):
+        self.assertTrue(is_type_union(Union[int, str]))
+        self.assertTrue(is_type_union(Union[bool, int, str]))
+        self.assertTrue(is_type_union(Union[int, str, None]))
+        self.assertTrue(is_type_union(Union[bool, int, str, None]))
+        self.assertFalse(is_type_union(int))
 
     def test_list(self):
         self.assertTrue(is_generic_list(List[int]))
@@ -93,6 +127,41 @@ class TestInspection(unittest.TestCase):
         self.assertTrue(is_type_enum(Annotated[Suit, SimpleAnnotation()]))
         self.assertTrue(is_generic_list(Annotated[List[int], SimpleAnnotation()]))
         self.assertTrue(is_generic_dict(Annotated[Dict[int, str], SimpleAnnotation()]))
+
+    def test_classes(self):
+        classes = get_module_classes(sys.modules[__name__])
+        self.assertCountEqual(
+            classes,
+            [
+                Side,
+                Suit,
+                SimpleAnnotation,
+                SimpleObject,
+                SimpleDataClass,
+                SimpleNamedTuple,
+                TestInspection,
+            ],
+        )
+
+    def test_properties(self):
+        properties = [
+            (name, data_type) for name, data_type in get_class_properties(SimpleObject)
+        ]
+        self.assertCountEqual(properties, [("value", int)])
+
+        self.assertTrue(is_dataclass_type(SimpleDataClass))
+        properties = [
+            (name, data_type)
+            for name, data_type in get_class_properties(SimpleDataClass)
+        ]
+        self.assertCountEqual(properties, [("value", int)])
+
+        self.assertTrue(is_named_tuple_type(SimpleNamedTuple))
+        properties = [
+            (name, data_type)
+            for name, data_type in get_class_properties(SimpleNamedTuple)
+        ]
+        self.assertCountEqual(properties, [("integer", int), ("string", str)])
 
 
 if __name__ == "__main__":

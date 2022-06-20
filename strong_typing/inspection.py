@@ -78,12 +78,31 @@ def is_type_optional(typ: type) -> bool:
     return False
 
 
+def is_type_union(typ: type) -> bool:
+    "True if the type annotation corresponds to a union type (e.g. Union[T1,T2,T3])."
+
+    typ = unwrap_annotated_type(typ)
+
+    if typing.get_origin(typ) is Union:  # Optional[T] is represented as Union[T, None]
+        args = typing.get_args(typ)
+        return len(args) > 2 or type(None) not in args
+
+    return False
+
+
 def unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
+    """
+    Extracts the inner type of an optional type.
+
+    :param typ: The optional type `Optional[T]`.
+    :returns: The inner type `T`.
+    """
+
     return rewrap_annotated_type(_unwrap_optional_type, typ)
 
 
 def _unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
-    "Extracts the type qualified as optional (e.g. returns T for Optional[T])."
+    "Extracts the type qualified as optional (e.g. returns `T` for `Optional[T]`)."
 
     # Optional[T] is represented internally as Union[T, None]
     if typing.get_origin(typ) is not Union:
@@ -103,10 +122,19 @@ def is_generic_list(typ: type) -> bool:
 
 
 def unwrap_generic_list(typ: Type[List[T]]) -> Type[T]:
+    """
+    Extracts the item type of a list type.
+
+    :param typ: The list type `List[T]`.
+    :returns: The item type `T`.
+    """
+
     return rewrap_annotated_type(_unwrap_generic_list, typ)
 
 
 def _unwrap_generic_list(typ: Type[List[T]]) -> Type[T]:
+    "Extracts the item type of a list type (e.g. returns `T` for `List[T]`)."
+
     (list_type,) = typing.get_args(typ)  # unpack single tuple element
     return list_type
 
@@ -119,22 +147,37 @@ def is_generic_dict(typ: type) -> bool:
 
 
 def unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
+    """
+    Extracts the key and value types of a dictionary type as a tuple.
+
+    :param typ: The dictionary type `Dict[K, V]`.
+    :returns: The key and value types `K` and `V`.
+    """
+
     return rewrap_annotated_type(_unwrap_generic_dict, typ)
 
 
 def _unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
+    "Extracts the key and value types of a dict type (e.g. returns (`K`, `V`) for `Dict[K, V]`)."
+
     key_type, value_type = typing.get_args(typ)
     return key_type, value_type
 
 
 def is_type_annotated(typ: type) -> bool:
-    "True if the type annotation corresponds to an annotated type (i.e. Annotated[T, ...])."
+    "True if the type annotation corresponds to an annotated type (i.e. `Annotated[T, ...]`)."
 
     return getattr(typ, "__metadata__", None) is not None
 
 
 def get_annotation(data_type: type, annotation_type: Type[T]) -> Optional[T]:
-    "Returns the first annotation on a data type that matches the expected annotation type."
+    """
+    Returns the first annotation on a data type that matches the expected annotation type.
+
+    :param data_type: The annotated type from which to extract the annotation.
+    :param annotation_type: The annotation class to look for.
+    :returns: The annotation class instance found (if any).
+    """
 
     if is_type_annotated(data_type):
         for annotation in data_type.__metadata__:
@@ -145,6 +188,8 @@ def get_annotation(data_type: type, annotation_type: Type[T]) -> Optional[T]:
 
 
 def unwrap_annotated_type(typ: type) -> type:
+    "Extracts the wrapped type from an annotated type (e.g. returns `T` for `Annotated[T, ...]`)."
+
     if is_type_annotated(typ):
         # type is Annotated[T, ...]
         return typing.get_args(typ)[0]
@@ -178,6 +223,8 @@ def rewrap_annotated_type(transform: Callable[[type], type], typ: type) -> type:
 
 
 def get_module_classes(module: types.ModuleType) -> List[type]:
+    "Returns all classes declared in a module."
+
     is_class_member = (
         lambda member: inspect.isclass(member) and member.__module__ == module.__name__
     )
@@ -185,6 +232,8 @@ def get_module_classes(module: types.ModuleType) -> List[type]:
 
 
 def get_class_properties(typ: type) -> Iterable[Tuple[str, type]]:
+    "Returns all properties of a class."
+
     if sys.version_info >= (3, 9):
         resolved_hints = typing.get_type_hints(typ, include_extras=True)
     else:
