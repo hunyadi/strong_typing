@@ -299,7 +299,6 @@ class TestStrongTyping(unittest.TestCase):
         )
 
     def test_registered_schema(self):
-        options = SchemaOptions(use_descriptions=True)
         self.maxDiff = None
         self.assertEqual(
             classdef_to_schema(JsonType),
@@ -456,6 +455,12 @@ class TestStrongTyping(unittest.TestCase):
             "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
         )
 
+        self.assertEqual(object_to_json([1, 2, 3]), [1, 2, 3])
+        self.assertEqual(
+            object_to_json({"a": 1, "b": 2, "c": 3}), {"a": 1, "b": 2, "c": 3}
+        )
+        self.assertEqual(object_to_json(set([1, 2, 3])), [1, 2, 3])
+
         self.assertRaises(TypeError, object_to_json, test_function)  # function
         self.assertRaises(TypeError, object_to_json, test_async_function)  # function
         self.assertRaises(TypeError, object_to_json, TestStrongTyping)  # class
@@ -479,6 +484,37 @@ class TestStrongTyping(unittest.TestCase):
             json_to_object(uuid.UUID, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
             uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
         )
+
+        self.assertEqual(json_to_object(List[int], [1, 2, 3]), [1, 2, 3])
+        self.assertEqual(
+            json_to_object(Dict[str, int], {"a": 1, "b": 2, "c": 3}),
+            {"a": 1, "b": 2, "c": 3},
+        )
+        self.assertEqual(json_to_object(Set[int], [1, 2, 3]), set([1, 2, 3]))
+        self.assertEqual(json_to_object(Optional[int], None), None)
+        self.assertEqual(json_to_object(Optional[int], 42), 42)
+        self.assertEqual(json_to_object(Union[int, str], 42), 42)
+        self.assertEqual(json_to_object(Union[int, str], "a string"), "a string")
+        self.assertEqual(json_to_object(Union[SimpleValueExample, int], 42), 42)
+        self.assertEqual(
+            json_to_object(Union[int, SimpleValueExample], {"value": 42}),
+            SimpleValueExample(42),
+        )
+        self.assertEqual(
+            json_to_object(
+                Union[SimpleObjectExample, SimpleValueExample], {"value": 42}
+            ),
+            SimpleValueExample(42),
+        )
+
+        with self.assertRaises(TypeError):
+            json_to_object(None, 23)
+        with self.assertRaises(TypeError):
+            json_to_object(int, "int")
+        with self.assertRaises(TypeError):
+            json_to_object(str, 1982)
+        with self.assertRaises(KeyError):
+            json_to_object(Union[int, str], 10.23)
 
     def test_object_serialization(self):
         """Test composition and inheritance with object serialization."""

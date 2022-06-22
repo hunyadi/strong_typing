@@ -55,6 +55,9 @@ def object_to_json(obj: Any) -> JsonType:
     Convert an object to a representation that can be exported to JSON.
     Fundamental types (e.g. numeric types) are left as is. Objects with properties are converted
     to a dictionaries of key-value pairs.
+
+    :raises KeyError: Deserialization for a class or union type has failed because a matching member was not found.
+    :raises TypeError: Deserialization for data has failed due to a type mismatch.
     """
 
     # check for well-known types
@@ -159,10 +162,34 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
     # check for well-known types
     if typ is type(None):
         if data is not None:
-            raise TypeError(f"non-null data for null type")
+            raise TypeError(
+                f"`None` type expects JSON `null` but instead received: {data}"
+            )
         return None
-    elif typ is bool or typ is int or typ is float or typ is str:
-        return data
+    elif typ is bool:
+        if not isinstance(data, bool):
+            raise TypeError(
+                f"`bool` type expects JSON `boolean` data but instead received: {data}"
+            )
+        return bool(data)
+    elif typ is int:
+        if not isinstance(data, int):
+            raise TypeError(
+                f"`int` type expects integer data as JSON `number` but instead received: {data}"
+            )
+        return int(data)
+    elif typ is float:
+        if not isinstance(data, float) and not isinstance(data, int):
+            raise TypeError(
+                f"`int` type expects data as JSON `number` but instead received: {data}"
+            )
+        return float(data)
+    elif typ is str:
+        if not isinstance(data, str):
+            raise TypeError(
+                f"`str` type expects JSON `string` data but instead received: {data}"
+            )
+        return str(data)
     elif typ is bytes:
         return base64.b64decode(data)
     elif typ is datetime.datetime or typ is datetime.date or typ is datetime.time:
@@ -197,8 +224,8 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
             # iterate over potential types of discriminated union
             try:
                 return json_to_object(t, data)
-            except KeyError:
-                # indicates a required field is missing from JSON dict,
+            except (KeyError, TypeError):
+                # indicates a required field is missing from JSON dict -OR- the data cannot be cast to the expected type,
                 # i.e. we don't have the type that we are looking for
                 continue
 
