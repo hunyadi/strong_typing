@@ -437,7 +437,7 @@ class TestStrongTyping(unittest.TestCase):
         self._assert_docstring_equal(generator, Suit)
         self._assert_docstring_equal(generator, SimpleObjectExample)
 
-    def test_serialization(self):
+    def test_serialization_simple(self):
         self.assertEqual(object_to_json(None), None)
         self.assertEqual(object_to_json(True), True)
         self.assertEqual(object_to_json(23), 23)
@@ -446,27 +446,43 @@ class TestStrongTyping(unittest.TestCase):
         self.assertEqual(object_to_json(bytes([65, 78])), "QU4=")
         self.assertEqual(object_to_json(Side.LEFT), "L")
         self.assertEqual(object_to_json(Suit.Diamonds), 1)
-        self.assertEqual(object_to_json(UID("1.2.3.4567.8900")), "1.2.3.4567.8900")
         self.assertEqual(
-            object_to_json(BinaryValueExample(bytes([65, 78]))), {"value": "QU4="}
+            object_to_json(datetime.datetime(1989, 10, 23, 1, 45, 50)),
+            "1989-10-23T01:45:50",
+        )
+        self.assertEqual(
+            object_to_json(
+                datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc)
+            ),
+            "1989-10-23T01:45:50+00:00",
         )
         self.assertEqual(
             object_to_json(uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")),
             "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
         )
 
+    def test_serialization_collection(self):
         self.assertEqual(object_to_json([1, 2, 3]), [1, 2, 3])
         self.assertEqual(
             object_to_json({"a": 1, "b": 2, "c": 3}), {"a": 1, "b": 2, "c": 3}
         )
         self.assertEqual(object_to_json(set([1, 2, 3])), [1, 2, 3])
 
+    def test_serialization_composite(self):
+        self.assertEqual(object_to_json(UID("1.2.3.4567.8900")), "1.2.3.4567.8900")
+        self.assertEqual(
+            object_to_json(BinaryValueExample(bytes([65, 78]))), {"value": "QU4="}
+        )
+
+    def test_serialization_error(self):
         self.assertRaises(TypeError, object_to_json, test_function)  # function
         self.assertRaises(TypeError, object_to_json, test_async_function)  # function
         self.assertRaises(TypeError, object_to_json, TestStrongTyping)  # class
-        self.assertRaises(TypeError, object_to_json, self.test_serialization)  # method
+        self.assertRaises(
+            TypeError, object_to_json, self.test_serialization_error
+        )  # method
 
-    def test_deserialization(self):
+    def test_deserialization_simple(self):
         self.assertEqual(json_to_object(type(None), None), None)
         self.assertEqual(json_to_object(bool, True), True)
         self.assertEqual(json_to_object(int, 23), 23)
@@ -475,16 +491,32 @@ class TestStrongTyping(unittest.TestCase):
         self.assertEqual(json_to_object(bytes, "QU4="), bytes([65, 78]))
         self.assertEqual(json_to_object(Side, "L"), Side.LEFT)
         self.assertEqual(json_to_object(Suit, 1), Suit.Diamonds)
-        self.assertEqual(json_to_object(UID, "1.2.3.4567.8900"), UID("1.2.3.4567.8900"))
         self.assertEqual(
-            json_to_object(BinaryValueExample, {"value": "QU4="}),
-            BinaryValueExample(bytes([65, 78])),
+            json_to_object(datetime.datetime, "1989-10-23T01:45:50"),
+            datetime.datetime(1989, 10, 23, 1, 45, 50),
+        )
+        self.assertEqual(
+            json_to_object(datetime.datetime, "1989-10-23T01:45:50Z"),
+            datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc),
+        )
+        timezone_cet = datetime.timezone(datetime.timedelta(seconds=3600))
+        self.assertEqual(
+            json_to_object(datetime.datetime, "1989-10-23T01:45:50+01:00"),
+            datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=timezone_cet),
         )
         self.assertEqual(
             json_to_object(uuid.UUID, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
             uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
         )
 
+    def test_deserialization_composite(self):
+        self.assertEqual(json_to_object(UID, "1.2.3.4567.8900"), UID("1.2.3.4567.8900"))
+        self.assertEqual(
+            json_to_object(BinaryValueExample, {"value": "QU4="}),
+            BinaryValueExample(bytes([65, 78])),
+        )
+
+    def test_deserialization_collection(self):
         self.assertEqual(json_to_object(List[int], [1, 2, 3]), [1, 2, 3])
         self.assertEqual(
             json_to_object(Dict[str, int], {"a": 1, "b": 2, "c": 3}),

@@ -193,6 +193,14 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
     elif typ is bytes:
         return base64.b64decode(data)
     elif typ is datetime.datetime or typ is datetime.date or typ is datetime.time:
+        if not isinstance(data, str):
+            raise TypeError(
+                f"`{typ.__name__}` type expects JSON `string` data but instead received: {data}"
+            )
+
+        if (typ is datetime.datetime or typ is datetime.time) and data.endswith("Z"):
+            data = f"{data[:-1]}+00:00"  # Python's isoformat() does not support military time zones like "Zulu" for UTC
+
         return typ.fromisoformat(data)
     elif typ is uuid.UUID:
         return uuid.UUID(data)
