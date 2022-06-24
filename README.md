@@ -158,21 +158,21 @@ The following table shows the conversion types the package employs:
 | time | string | constrained to match ISO 8601 format `20:20:39+00:00` |
 | UUID | string | constrained to match UUID format `f81d4fae-7dec-11d0-a765-00a0c91e6bf6` |
 | Enum | *value type* | stores the enumeration value type (typically integer or string) |
-| Optional[**T**] | *inner type* | reads and writes **T** if present |
-| Union[...]] | *inner type* | reads and writes the appropriate inner type |
+| Optional[**T**] | *depends on inner type* | reads and writes **T** if present |
+| Union[**T1**, **T2**, ...] | *depends on concrete type* | serializes to the appropriate inner type; deserializes from the first matching type |
 | List[**T**] | array | recursive in **T** |
 | Dict[**K**, **V**] | object | recursive in **V**, keys are coerced into string |
-| Dict[Enum, **V**] | object | recursive in **V**, keys are of enumeration value type |
+| Dict[Enum, **V**] | object | recursive in **V**, keys are of enumeration value type and coerced into string |
 | Set[**T**] | array | recursive in **T**, container has uniqueness constraint |
 | Tuple[**T1**, **T2**, ...] | array | array has fixed length, each element has specific type |
-| Literal[**const**] | type of **const** | export the literal value as a constant value |
+| Literal[**const**] | *type matching* **const** | export the literal value as a constant value |
 | data class | object | iterates over fields of data class |
 | named tuple | object | iterates over fields of named tuple |
 | regular class | object | iterates over `dir(obj)` |
 | JsonArray | array | untyped JSON array |
 | JsonObject | object | untyped JSON object |
 | Any | oneOf | a union of all basic JSON schema types |
-| Annotated[**T**, ...] | depends on **T** | outputs schema for **T**, applies constraints and format based on auxiliary type information |
+| Annotated[**T**, ...] | *depends on* **T** | outputs value for **T**, applies constraints and format based on auxiliary type information |
 
 ## JSON schema examples
 
@@ -239,6 +239,28 @@ Annotated[decimal.Decimal, Precision(9, 6)])
     "exclusiveMinimum": -1000,
     "exclusiveMaximum": 1000,
 }
+```
+
+### Fixed-width types
+
+Fixed-width integer (e.g. `uint64`) and floating-point (e.g. `float32`) types are annotated types defined in the package `strong_typing.auxiliary`. Their signature is recognized when generating a schema, and a `format` property is written instead of minimum and maximum constraints.
+
+`int32`:
+```python
+int32 = Annotated[int, Signed(True), Storage(4), IntegerRange(-2147483648, 2147483647)]
+```
+
+```json
+{"format": "int32", "type": "integer"}
+```
+
+`uint64`:
+```python
+uint64 = Annotated[int, Signed(False), Storage(8), IntegerRange(0, 18446744073709551615)]
+```
+
+```json
+{"format": "uint64", "type": "integer"}
 ```
 
 ### Any type
