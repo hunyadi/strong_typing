@@ -70,7 +70,10 @@ def object_to_json(obj: Any) -> JsonType:
     elif isinstance(obj, bytes):
         return base64.b64encode(obj).decode("ascii")
     elif isinstance(obj, (datetime.datetime, datetime.date, datetime.time)):
-        return obj.isoformat()
+        fmt = obj.isoformat()
+        if fmt.endswith("+00:00"):
+            fmt = f"{fmt[:-6]}Z"  # Python's isoformat() does not support military time zones like "Zulu" for UTC
+        return fmt
     elif isinstance(obj, uuid.UUID):
         return str(obj)
     elif isinstance(obj, enum.Enum):

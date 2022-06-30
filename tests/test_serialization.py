@@ -48,7 +48,14 @@ class TestSerialization(unittest.TestCase):
             object_to_json(
                 datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc)
             ),
-            "1989-10-23T01:45:50+00:00",
+            "1989-10-23T01:45:50Z",
+        )
+        timezone_cet = datetime.timezone(datetime.timedelta(seconds=3600))
+        self.assertEqual(
+            object_to_json(
+                datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=timezone_cet)
+            ),
+            "1989-10-23T01:45:50+01:00",
         )
         self.assertEqual(
             object_to_json(uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")),
