@@ -21,7 +21,9 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
+    overload,
 )
 
 import jsonschema
@@ -50,6 +52,9 @@ from .serialization import object_to_json
 # determines the maximum number of distinct enum members up to which a Dict[EnumType, Any] is converted into a JSON
 # schema with explicitly listed properties (rather than employing a pattern constraint on property names)
 OBJECT_ENUM_EXPANSION_LIMIT = 4
+
+
+T = TypeVar("T")
 
 
 def check_type(data_type: type) -> None:
@@ -632,11 +637,11 @@ def get_schema_identifier(data_type: type) -> Optional[str]:
 
 
 def register_schema(
-    data_type: type,
+    data_type: Type[T],
     schema: Schema = None,
     name: str = None,
     examples: List[JsonType] = None,
-) -> type:
+) -> Type[T]:
     """
     Associates a type with a JSON schema definition.
 
@@ -656,12 +661,20 @@ def register_schema(
     return data_type
 
 
-def json_schema_type(
-    cls: type = None, /, *, schema: Schema = None
-) -> Callable[[type], type]:
+@overload
+def json_schema_type(cls: Type[T], /) -> Type[T]:
+    ...
+
+
+@overload
+def json_schema_type(cls: None, /) -> Callable[[Type[T]], Type[T]]:
+    ...
+
+
+def json_schema_type(cls: Type[T] = None, /, *, schema: Schema = None):
     """Decorator to add user-defined schema definition to a class."""
 
-    def wrap(cls: type):
+    def wrap(cls: Type[T]) -> Type[T]:
         return register_schema(cls, schema)
 
     # see if decorator is used as @json_schema_type or @json_schema_type()
