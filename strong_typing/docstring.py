@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import dataclasses
 import inspect
 import re
@@ -79,7 +77,7 @@ def parse_type(typ: type) -> Docstring:
     """
 
     if has_docstring(typ):
-        return parse_text(typ.__doc__)
+        return parse_text(typ.__doc__)  # type: ignore
     else:
         return Docstring()
 
@@ -148,12 +146,20 @@ def parse_text(text: str) -> Docstring:
     )
 
 
+def has_default_docstring(typ: type) -> bool:
+    "Check if class has the auto-generated string assigned by @dataclass."
+
+    return (
+        is_dataclass_type(typ)
+        and typ.__doc__ is not None
+        and re.match(f"^{re.escape(typ.__name__)}[(].*[)]$", typ.__doc__) is not None
+    )
+
+
 def has_docstring(typ: type) -> bool:
     "Check if class has a documentation string other than the auto-generated string assigned by @dataclass."
 
-    if is_dataclass_type(typ) and re.match(
-        f"^{re.escape(typ.__name__)}[(].*[)]$", typ.__doc__
-    ):
+    if has_default_docstring(typ):
         return False
 
     return bool(typ.__doc__)

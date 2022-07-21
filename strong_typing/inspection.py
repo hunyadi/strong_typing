@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import dataclasses
 import enum
 import inspect
@@ -11,7 +9,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVa
 try:
     from typing import Annotated
 except ImportError:
-    from typing_extensions import Annotated
+    from typing_extensions import Annotated  # type: ignore
 
 T = TypeVar("T")
 K = TypeVar("K")
@@ -154,7 +152,7 @@ def unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
     :returns: The key and value types `K` and `V`.
     """
 
-    return rewrap_annotated_type(_unwrap_generic_dict, typ)
+    return rewrap_annotated_type(_unwrap_generic_dict, typ)  # type: ignore
 
 
 def _unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
@@ -180,11 +178,11 @@ def get_annotation(data_type: type, annotation_type: Type[T]) -> Optional[T]:
     """
 
     if is_type_annotated(data_type):
-        for annotation in data_type.__metadata__:
+        for annotation in data_type.__metadata__:  # type: ignore
             if isinstance(annotation, annotation_type):
                 return annotation
-    else:
-        return None
+
+    return None
 
 
 def unwrap_annotated_type(typ: type) -> type:
@@ -217,7 +215,7 @@ def rewrap_annotated_type(transform: Callable[[type], type], typ: type) -> type:
     transformed_type = transform(inner_type)
 
     if metadata is not None:
-        return Annotated[(transformed_type, *metadata)]
+        return Annotated[(transformed_type, *metadata)]  # type: ignore
     else:
         return transformed_type
 

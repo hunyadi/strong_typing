@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Dict, List, Union
 
 
@@ -12,25 +10,25 @@ class JsonArray:
 
 
 # a JSON type with possible `null` values
-JsonType = Union[
+JsonType = Union[  # type: ignore
     None,
     bool,
     int,
     float,
     str,
-    Dict[str, "JsonType"],
-    List["JsonType"],
+    Dict[str, "JsonType"],  # type: ignore
+    List["JsonType"],  # type: ignore
 ]
 
 # a JSON type that cannot contain `null` values
-StrictJsonType = Union[
+StrictJsonType = Union[  # type: ignore
     bool,
     int,
     float,
     str,
-    Dict[str, "StrictJsonType"],
-    List["StrictJsonType"],
+    Dict[str, "StrictJsonType"],  # type: ignore
+    List["StrictJsonType"],  # type: ignore
 ]
 
 # a meta-type that captures the object type in a JSON schema
-Schema = Dict[str, "StrictJsonType"]
+Schema = Dict[str, "StrictJsonType"]  # type: ignore

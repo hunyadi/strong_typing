@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import dataclasses
 import datetime
 import decimal
@@ -7,7 +5,6 @@ import enum
 import functools
 import inspect
 import json
-import re
 import typing
 import uuid
 from copy import deepcopy
@@ -87,9 +84,7 @@ def get_class_docstrings(data_type: type) -> Tuple[Optional[str], Optional[str]]
     docstr = docstring.parse_type(data_type)
 
     # check if class has a doc-string other than the auto-generated string assigned by @dataclass
-    if is_dataclass_type(data_type) and re.match(
-        f"^{re.escape(data_type.__name__)}[(].*[)]$", data_type.__doc__
-    ):
+    if docstring.has_default_docstring(data_type):
         return None, None
 
     return docstr.short_description, docstr.long_description
@@ -131,11 +126,7 @@ def docstring_to_schema(data_type: type) -> Schema:
         schema["title"] = short_description
     if long_description:
         schema["description"] = long_description
-    return schema
-
-
-class _TypeCatalogAuto:
-    "Marker object for a type whose schema is automatically generated on the fly."
+    return schema  # type: ignore
 
 
 @dataclasses.dataclass
@@ -195,7 +186,7 @@ class SchemaOptions:
     definitions_path: str = "#/definitions/"
     use_descriptions: bool = True
     use_examples: bool = True
-    property_description_fun: Callable[[type, str, str], str] = None
+    property_description_fun: Optional[Callable[[type, str, str], str]] = None
 
 
 class JsonSchemaGenerator:
@@ -207,7 +198,7 @@ class JsonSchemaGenerator:
 
     def __init__(self, options: SchemaOptions = None):
         if options is None:
-            self.options = SchemaOptions
+            self.options = SchemaOptions()
         else:
             self.options = options
         self.types_used = {}
@@ -245,7 +236,7 @@ class JsonSchemaGenerator:
                 type_schema.update(self._metadata_to_schema(m))
         return type_schema
 
-    def _simple_type_to_schema(self, typ: type) -> Schema:
+    def _simple_type_to_schema(self, typ: type) -> Optional[Schema]:
         "Returns the JSON schema associated with a simple, unrestricted type."
 
         if typ is type(None):
@@ -311,9 +302,10 @@ class JsonSchemaGenerator:
             return schema
 
         # types registered in the type catalog of well-known types
-        if not force_expand and data_type in __class__.type_catalog:
+        type_catalog = JsonSchemaGenerator.type_catalog
+        if not force_expand and data_type in type_catalog:
             # user-defined type
-            identifier = __class__.type_catalog.get(data_type).identifier
+            identifier = type_catalog.get(data_type).identifier
             self.types_used[identifier] = data_type
             return {"$ref": f"{self.options.definitions_path}{identifier}"}
 
@@ -367,7 +359,7 @@ class JsonSchemaGenerator:
                     f"unsupported enumeration member value type: {enum_value_type}"
                 )
 
-            enum_schema = {"type": enum_schema_type, "enum": enum_values}
+            enum_schema: Schema = {"type": enum_schema_type, "enum": enum_values}
             if self.options.use_descriptions:
                 enum_schema.update(docstring_to_schema(typ))
             return enum_schema
@@ -383,6 +375,7 @@ class JsonSchemaGenerator:
                     "`dict` with key type not coercible to `str` is not supported"
                 )
 
+            dict_schema: Schema
             value_schema = self.type_to_schema(value_type)
             if is_type_enum(key_type):
                 enum_values = [e.value for e in key_type]
@@ -447,7 +440,7 @@ class JsonSchemaGenerator:
         )
 
         properties: Dict[str, Schema] = {}
-        required: List[Schema] = []
+        required: List[str] = []
         for property_name, property_type in get_class_properties(typ):
             # rename property if an alias name is specified
             alias = get_annotation(property_type, Alias)
@@ -457,7 +450,7 @@ class JsonSchemaGenerator:
                 output_name = property_name
 
             if is_type_optional(property_type):
-                optional_type = unwrap_optional_type(property_type)
+                optional_type: type = unwrap_optional_type(property_type)
                 property_def = self.type_to_schema(optional_type)
             else:
                 property_def = self.type_to_schema(property_type)
@@ -480,7 +473,7 @@ class JsonSchemaGenerator:
                         datetime.time,
                     ),
                 ):
-                    property_def["default"] = object_to_json(def_value)
+                    property_def["default"] = object_to_json(def_value)  # type: ignore
 
             # add property docstring if available
             property_doc = property_docstrings.get(property_name)
@@ -508,7 +501,7 @@ class JsonSchemaGenerator:
         :returns: The JSON schema associated with the type.
         """
 
-        entry = __class__.type_catalog.get(data_type)
+        entry = JsonSchemaGenerator.type_catalog.get(data_type)
         if entry.schema is None:
             type_schema = self.type_to_schema(data_type, force_expand=True)
         else:
@@ -540,7 +533,7 @@ class JsonSchemaGenerator:
         try:
             type_schema = self.type_to_schema(data_type, force_expand=force_expand)
 
-            types_defined = {}
+            types_defined: Dict[str, Schema] = {}
             while len(self.types_used) > len(types_defined):
                 # make a snapshot copy; original collection is going to be modified
                 types_undefined = {
@@ -591,7 +584,7 @@ def classdef_to_schema(
     class_schema = {}
     if type_definitions:
         class_schema["definitions"] = type_definitions
-    class_schema.update(type_schema)
+    class_schema.update(type_schema)  # type: ignore
 
     validator_id = validator.value.META_SCHEMA["$id"]
     try:
@@ -654,7 +647,7 @@ def register_schema(
     check_type(data_type)
     JsonSchemaGenerator.type_catalog.add(
         data_type,
-        schema,
+        schema,  # type: ignore
         name if name is not None else python_type_to_name(data_type),
         examples,
     )
@@ -667,11 +660,13 @@ def json_schema_type(cls: Type[T], /) -> Type[T]:
 
 
 @overload
-def json_schema_type(cls: None, /) -> Callable[[Type[T]], Type[T]]:
+def json_schema_type(
+    cls: None, *, schema: Schema = None
+) -> Callable[[Type[T]], Type[T]]:
     ...
 
 
-def json_schema_type(cls: Type[T] = None, /, *, schema: Schema = None):
+def json_schema_type(cls: Type[T] = None, *, schema: Schema = None):
     """Decorator to add user-defined schema definition to a class."""
 
     def wrap(cls: Type[T]) -> Type[T]:
@@ -690,7 +685,7 @@ register_schema(JsonObject, name="JsonObject")
 register_schema(JsonArray, name="JsonArray")
 
 register_schema(
-    JsonType,
+    JsonType,  # type: ignore
     name="JsonType",
     examples=[
         {
@@ -704,7 +699,7 @@ register_schema(
     ],
 )
 register_schema(
-    StrictJsonType,
+    StrictJsonType,  # type: ignore
     name="StrictJsonType",
     examples=[
         {

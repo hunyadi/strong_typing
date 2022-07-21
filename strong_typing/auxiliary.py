@@ -1,13 +1,13 @@
-from __future__ import annotations
-
 import dataclasses
 import sys
-from typing import Optional
+from typing import Callable, Optional, Type, TypeVar, overload
 
 try:
     from typing import Annotated
 except ImportError:
-    from typing_extensions import Annotated
+    from typing_extensions import Annotated  # type: ignore
+
+T = TypeVar("T")
 
 
 def _compact_dataclass_repr(obj) -> str:
@@ -26,10 +26,22 @@ class CompactDataClass:
         return _compact_dataclass_repr(self)
 
 
-def typeannotation(cls: type = None, /, *, eq=True, order=False) -> type:
+@overload
+def typeannotation(cls: Type[T], /) -> Type[T]:
+    ...
+
+
+@overload
+def typeannotation(
+    cls: None, *, eq: bool = True, order: bool = False
+) -> Callable[[Type[T]], Type[T]]:
+    ...
+
+
+def typeannotation(cls: type = None, *, eq=True, order=False):
     "Returns the same class as was passed in, with dunder methods added based on the fields defined in the class."
 
-    data_cls = dataclasses.dataclass(
+    data_cls = dataclasses.dataclass(  # type: ignore
         cls,
         init=True,
         repr=True,
@@ -76,7 +88,7 @@ class Precision:
     "Precision of a floating-point value."
 
     significant_digits: int
-    decimal_digits: Optional[int] = 0
+    decimal_digits: int = 0
 
     @property
     def integer_digits(self):

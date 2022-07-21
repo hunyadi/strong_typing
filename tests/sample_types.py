@@ -38,7 +38,7 @@ class BinaryValueExample:
     value: bytes
 
 
-@json_schema_type(
+@json_schema_type(  # type: ignore
     schema={
         "type": "string",
         "pattern": r"^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$",

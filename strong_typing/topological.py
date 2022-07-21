@@ -66,7 +66,7 @@ def type_topological_sort(
     while queue:
         cls = queue.pop()
 
-        references = set()
+        references: Set[type] = set()
         graph[cls] = references
         for _, typ in get_class_properties(cls):
             for arg in get_referenced_types(typ):

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import base64
 import dataclasses
 import datetime
@@ -112,10 +110,10 @@ def object_to_json(obj: Any) -> JsonType:
     elif is_named_tuple_instance(obj):
         object_dict = {}
         for field in type(obj)._fields:
-            value = getattr(obj, field)
+            value = getattr(obj, field)  # type: ignore
             if value is None:
                 continue
-            object_dict[python_id_to_json_field(field)] = object_to_json(value)
+            object_dict[python_id_to_json_field(field)] = object_to_json(value)  # type: ignore
         return object_dict
 
     elif isinstance(obj, tuple):
@@ -155,6 +153,7 @@ def object_to_json(obj: Any) -> JsonType:
     return object_dict
 
 
+@typing.no_type_check
 def json_to_object(typ: Type[T], data: JsonType) -> T:
     """
     Create an object from a representation that has been de-serialized from JSON.
