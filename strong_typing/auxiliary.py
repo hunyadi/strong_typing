@@ -1,5 +1,6 @@
 import dataclasses
 import sys
+from dataclasses import dataclass
 from typing import Callable, Optional, Type, TypeVar, overload
 
 try:
@@ -38,23 +39,34 @@ def typeannotation(
     ...
 
 
-def typeannotation(cls: type = None, *, eq=True, order=False):
+def typeannotation(cls: Type[T] = None, *, eq=True, order=False):
     "Returns the same class as was passed in, with dunder methods added based on the fields defined in the class."
 
-    data_cls = dataclasses.dataclass(  # type: ignore
-        cls,
-        init=True,
-        repr=True,
-        eq=eq,
-        order=order,
-        unsafe_hash=False,
-        frozen=True,
-    )
-    data_cls.__repr__ = _compact_dataclass_repr
-    return data_cls
+    def wrap(cls: Type[T]) -> Type[T]:
+        setattr(cls, "__repr__", _compact_dataclass_repr)
+        if not dataclasses.is_dataclass(cls):
+            cls = dataclasses.dataclass(  # type: ignore
+                cls,
+                init=True,
+                repr=False,
+                eq=eq,
+                order=order,
+                unsafe_hash=False,
+                frozen=True,
+            )
+        return cls
+
+    # see if decorator is used as @typeannotation or @typeannotation()
+    if cls is None:
+        # called with parentheses
+        return wrap
+    else:
+        # called without parentheses
+        return wrap(cls)
 
 
 @typeannotation
+@dataclass(frozen=True)
 class Alias:
     "Alternative name of a property, typically used in JSON serialization."
 
@@ -62,6 +74,7 @@ class Alias:
 
 
 @typeannotation
+@dataclass(frozen=True)
 class Signed:
     "Signedness of an integer type."
 
@@ -69,6 +82,7 @@ class Signed:
 
 
 @typeannotation
+@dataclass(frozen=True)
 class Storage:
     "Number of bytes the binary representation of an integer type takes, e.g. 4 bytes for an int32."
 
@@ -76,6 +90,7 @@ class Storage:
 
 
 @typeannotation
+@dataclass(frozen=True)
 class IntegerRange:
     "Minimum and maximum value of an integer. The range is inclusive."
 
@@ -84,6 +99,7 @@ class IntegerRange:
 
 
 @typeannotation
+@dataclass(frozen=True)
 class Precision:
     "Precision of a floating-point value."
 
@@ -96,6 +112,7 @@ class Precision:
 
 
 @typeannotation
+@dataclass(frozen=True)
 class TimePrecision:
     """
     Precision of a timestamp or time interval.
@@ -107,6 +124,7 @@ class TimePrecision:
 
 
 @typeannotation
+@dataclass(frozen=True)
 class MinLength:
     "Minimum length of a string."
 
@@ -114,6 +132,7 @@ class MinLength:
 
 
 @typeannotation
+@dataclass(frozen=True)
 class MaxLength:
     "Maximum length of a string."
 
@@ -121,6 +140,7 @@ class MaxLength:
 
 
 @typeannotation
+@dataclass(frozen=True)
 class SpecialConversion:
     "Indicates that the annotated type is subject to custom conversion rules."
 

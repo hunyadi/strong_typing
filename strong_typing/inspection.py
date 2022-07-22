@@ -11,6 +11,7 @@ try:
 except ImportError:
     from typing_extensions import Annotated  # type: ignore
 
+S = TypeVar("S")
 T = TypeVar("T")
 K = TypeVar("K")
 V = TypeVar("V")
@@ -196,7 +197,9 @@ def unwrap_annotated_type(typ: type) -> type:
         return typ
 
 
-def rewrap_annotated_type(transform: Callable[[type], type], typ: type) -> type:
+def rewrap_annotated_type(
+    transform: Callable[[Type[S]], Type[T]], typ: Type[S]
+) -> Type[T]:
     """
     Un-boxes, transforms and re-boxes an optionally annotated type.
 
