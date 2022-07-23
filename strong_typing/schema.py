@@ -478,8 +478,8 @@ class JsonSchemaGenerator:
             # add property docstring if available
             property_doc = property_docstrings.get(property_name)
             if property_doc:
-                property_def["title"] = property_doc
-                property_def.pop("description", None)
+                property_def.pop("title", None)
+                property_def["description"] = property_doc
 
             properties[output_name] = property_def
 
