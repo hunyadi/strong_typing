@@ -232,13 +232,17 @@ def get_module_classes(module: types.ModuleType) -> List[type]:
     return [class_type for _, class_type in inspect.getmembers(module, is_class_member)]
 
 
+def get_resolved_hints(typ: type) -> Dict[str, type]:
+    if sys.version_info >= (3, 9):
+        return typing.get_type_hints(typ, include_extras=True)
+    else:
+        return typing.get_type_hints(typ)
+
+
 def get_class_properties(typ: type) -> Iterable[Tuple[str, type]]:
     "Returns all properties of a class."
 
-    if sys.version_info >= (3, 9):
-        resolved_hints = typing.get_type_hints(typ, include_extras=True)
-    else:
-        resolved_hints = typing.get_type_hints(typ)
+    resolved_hints = get_resolved_hints(typ)
 
     if is_dataclass_type(typ):
         return (

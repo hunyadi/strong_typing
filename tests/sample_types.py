@@ -34,6 +34,13 @@ class SimpleValueExample:
 
 
 @dataclass
+class OptionalValueExample:
+    "A simple data class with an optional field."
+
+    value: Optional[int]
+
+
+@dataclass
 class BinaryValueExample:
     value: bytes
 
@@ -102,7 +109,14 @@ class CompositeObjectExample:
 
 
 @dataclass
-class InheritanceExample(SimpleObjectExample, CompositeObjectExample):
+class SimpleInheritanceExample(SimpleObjectExample):
+    extra_int_value: int = 0
+    extra_str_value: str = "zero"
+    extra_optional_value: Optional[str] = "value"
+
+
+@dataclass
+class MultipleInheritanceExample(SimpleObjectExample, CompositeObjectExample):
     extra_int_value: int = 0
     extra_str_value: str = "zero"
     extra_optional_value: Optional[str] = "value"
