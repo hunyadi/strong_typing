@@ -2,9 +2,9 @@ import dataclasses
 import inspect
 import re
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
-from .inspection import is_dataclass_type
+from .inspection import get_class_properties, get_signature, is_dataclass_type
 
 
 @dataclass
@@ -23,11 +23,24 @@ class DocstringParam:
 @dataclass
 class DocstringReturns:
     """
-    A returns declaration extracted from a docstring.
+    A `returns` declaration extracted from a docstring.
 
     :param description: The description text for the return value.
     """
 
+    description: str
+
+
+@dataclass
+class DocstringRaises:
+    """
+    A `raises` declaration extracted from a docstring.
+
+    :param typename: The type name of the exception raised.
+    :param description: The description associated with the exception raised.
+    """
+
+    typename: str
     description: str
 
 
@@ -57,6 +70,7 @@ class Docstring:
     long_description: Optional[str] = None
     params: Dict[str, DocstringParam] = dataclasses.field(default_factory=dict)
     returns: Optional[DocstringReturns] = None
+    raises: Dict[str, DocstringRaises] = dataclasses.field(default_factory=dict)
 
     @property
     def full_description(self) -> Optional[str]:
@@ -76,10 +90,12 @@ def parse_type(typ: type) -> Docstring:
     :returns: Components of the documentation string.
     """
 
-    if has_docstring(typ):
-        return parse_text(typ.__doc__)  # type: ignore
-    else:
+    if not has_docstring(typ):
         return Docstring()
+
+    docstring = parse_text(typ.__doc__)  # type: ignore
+    check_docstring(typ, docstring)
+    return docstring
 
 
 def parse_text(text: str) -> Docstring:
@@ -116,6 +132,7 @@ def parse_text(text: str) -> Docstring:
         long_description = None
 
     params: Dict[str, DocstringParam] = {}
+    raises: Dict[str, DocstringRaises] = {}
     returns = None
     for match in re.finditer(
         r"(^:.*?)(?=^:|\Z)", meta_chunk, flags=re.DOTALL | re.MULTILINE
@@ -132,7 +149,15 @@ def parse_text(text: str) -> Docstring:
             kw = args[0]
             if len(args) == 2:
                 if kw == "param":
-                    params[args[1]] = DocstringParam(name=args[1], description=desc)
+                    params[args[1]] = DocstringParam(
+                        name=args[1],
+                        description=desc,
+                    )
+                elif kw == "raise" or kw == "raises":
+                    raises[args[1]] = DocstringRaises(
+                        typename=args[1],
+                        description=desc,
+                    )
 
             elif len(args) == 1:
                 if kw == "return" or kw == "returns":
@@ -143,6 +168,7 @@ def parse_text(text: str) -> Docstring:
         short_description=short_description,
         params=params,
         returns=returns,
+        raises=raises,
     )
 
 
@@ -163,3 +189,100 @@ def has_docstring(typ: type) -> bool:
         return False
 
     return bool(typ.__doc__)
+
+
+def check_docstring(typ: type, docstring: Docstring, strict: bool = False) -> None:
+    """
+    Verifies the doc-string of a type.
+
+    :raises TypeError: Raised on a mismatch between doc-string parameters, and function or type signature.
+    """
+
+    if is_dataclass_type(typ):
+        check_dataclass_docstring(typ, docstring, strict)
+    elif inspect.isfunction(typ):
+        check_function_docstring(typ, docstring, strict)
+
+
+def check_dataclass_docstring(
+    typ: type, docstring: Docstring, strict: bool = False
+) -> None:
+    """
+    Verifies the doc-string of a data-class type.
+
+    :param strict: Whether to check if all data-class members have doc-strings.
+    :raises TypeError: Raised on a mismatch between doc-string parameters and data-class members.
+    """
+
+    if not is_dataclass_type(typ):
+        raise TypeError("not a data-class type")
+
+    properties = dict(get_class_properties(typ))
+    class_name = typ.__name__
+
+    for name in docstring.params:
+        if name not in properties:
+            raise TypeError(
+                f"doc-string parameter `{name}` is not a member of the data-class `{class_name}`"
+            )
+
+    if not strict:
+        return
+
+    for name in properties:
+        if name not in docstring.params:
+            raise TypeError(
+                f"member `{name}` in data-class `{class_name}` is missing its doc-string"
+            )
+
+
+def check_function_docstring(
+    fn: Callable[..., Any], docstring: Docstring, strict: bool = False
+) -> None:
+    """
+    Verifies the doc-string of a function or member function.
+
+    :param strict: Whether to check if all function parameters and the return type have doc-strings.
+    :raises TypeError: Raised on a mismatch between doc-string parameters and function signature.
+    """
+
+    signature = get_signature(fn)
+    func_name = fn.__qualname__
+
+    for name in docstring.params:
+        if name not in signature.parameters:
+            raise TypeError(
+                f"doc-string parameter `{name}` is absent from signature of function `{func_name}`"
+            )
+
+    if (
+        docstring.returns is not None
+        and signature.return_annotation is inspect.Signature.empty
+    ):
+        raise TypeError(
+            f"doc-string has returns description in function `{func_name}` with no return type annotation"
+        )
+
+    if not strict:
+        return
+
+    for name, param in signature.parameters.items():
+        # ignore `self` in member function signatures
+        if name == "self" and (
+            param.kind is inspect.Parameter.POSITIONAL_ONLY
+            or param.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+        ):
+            continue
+
+        if name not in docstring.params:
+            raise TypeError(
+                f"function parameter `{name}` in `{func_name}` is missing its doc-string"
+            )
+
+    if (
+        signature.return_annotation is not inspect.Signature.empty
+        and docstring.returns is None
+    ):
+        raise TypeError(
+            f"function `{func_name}` has no returns description in its doc-string"
+        )

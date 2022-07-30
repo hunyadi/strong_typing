@@ -4,7 +4,18 @@ import inspect
 import sys
 import types
 import typing
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 try:
     from typing import Annotated
@@ -277,3 +288,12 @@ def get_referenced_types(typ: type) -> List[type]:
         result.append(typ)
 
     return result
+
+
+def get_signature(fn: Callable[..., Any]) -> inspect.Signature:
+    "Extracts the signature of a function."
+
+    if sys.version_info >= (3, 10):
+        return inspect.signature(fn, eval_str=True)
+    else:
+        return inspect.signature(fn)

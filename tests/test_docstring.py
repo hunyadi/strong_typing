@@ -37,6 +37,8 @@ class ShortDescriptionParameterClass:
     :param a: Short description for `a`.
     """
 
+    a: int
+
 
 @dataclass
 class MultiLineDescriptionParametersClass:
@@ -51,6 +53,19 @@ class MultiLineDescriptionParametersClass:
     spans multiple lines.
     :param c_3: Description for `c`.
     :see: https://example.com
+    """
+
+    a: int
+    b2: str
+    c_3: float
+
+
+@dataclass
+class MissingMemberClass:
+    """
+    Short description.
+
+    :param a: Short description for `a`.
     """
 
 
@@ -79,6 +94,13 @@ class SampleClass:
         Short description of a static method.
 
         :param a: Short description for `a`.
+        """
+
+    def no_type_annotation_method(self):
+        """
+        Short description of an instance method without parameter or return value annotation.
+
+        :returns: A return value.
         """
 
 
@@ -133,6 +155,9 @@ class TestDocstring(unittest.TestCase):
         )
         self.assertEqual(docstring.params["c_3"].description, "Description for `c`.")
 
+        with self.assertRaises(TypeError):
+            parse_type(MissingMemberClass)
+
     def test_function_parameter_list(self):
         docstring = parse_type(SampleClass.instance_method)
         self.assertEqual(
@@ -169,6 +194,9 @@ class TestDocstring(unittest.TestCase):
             docstring.params["a"].description, "Short description for `a`."
         )
         self.assertIsNone(docstring.returns)
+
+        with self.assertRaises(TypeError):
+            parse_type(SampleClass.no_type_annotation_method)
 
 
 if __name__ == "__main__":
