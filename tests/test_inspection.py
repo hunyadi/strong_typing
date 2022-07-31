@@ -87,6 +87,11 @@ class TestInspection(unittest.TestCase):
         self.assertTrue(is_type_optional(Optional[int]))
         self.assertTrue(is_type_optional(Union[None, int]))
         self.assertTrue(is_type_optional(Union[int, None]))
+
+        if sys.version_info >= (3, 10):
+            self.assertTrue(is_type_optional(None | int))
+            self.assertTrue(is_type_optional(int | None))
+
         self.assertFalse(is_type_optional(int))
         self.assertFalse(is_type_optional(Union[int, str]))
 
@@ -95,6 +100,13 @@ class TestInspection(unittest.TestCase):
         self.assertTrue(is_type_union(Union[bool, int, str]))
         self.assertTrue(is_type_union(Union[int, str, None]))
         self.assertTrue(is_type_union(Union[bool, int, str, None]))
+
+        if sys.version_info >= (3, 10):
+            self.assertTrue(is_type_union(int | str))
+            self.assertTrue(is_type_union(bool | int | str))
+            self.assertTrue(is_type_union(int | str | None))
+            self.assertTrue(is_type_union(bool | int | str | None))
+
         self.assertFalse(is_type_union(int))
 
     def test_list(self):

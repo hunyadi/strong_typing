@@ -83,12 +83,18 @@ def is_type_enum(typ: type) -> TypeGuard[Type[enum.Enum]]:
     return isinstance(typ, type) and issubclass(typ, enum.Enum)
 
 
-def is_type_optional(typ: type) -> bool:
+def is_type_optional(typ: type) -> TypeGuard[Type[Optional[Any]]]:
     "True if the type annotation corresponds to an optional type (e.g. Optional[T] or Union[T1,T2,None])."
 
     typ = unwrap_annotated_type(typ)
 
-    if typing.get_origin(typ) is Union:  # Optional[T] is represented as Union[T, None]
+    # Optional[T] is represented as Union[T, None]
+    is_generic_union = typing.get_origin(typ) is Union
+
+    # Optional[T] is equivalent to T | None
+    is_union_expr = sys.version_info >= (3, 10) and isinstance(typ, types.UnionType)
+
+    if is_generic_union or is_union_expr:
         return type(None) in typing.get_args(typ)
 
     return False
@@ -99,7 +105,13 @@ def is_type_union(typ: type) -> bool:
 
     typ = unwrap_annotated_type(typ)
 
-    if typing.get_origin(typ) is Union:  # Optional[T] is represented as Union[T, None]
+    # Optional[T] is represented as Union[T, None]
+    is_generic_union = typing.get_origin(typ) is Union
+
+    # Optional[T] is equivalent to T | None
+    is_union_expr = sys.version_info >= (3, 10) and isinstance(typ, types.UnionType)
+
+    if is_generic_union or is_union_expr:
         args = typing.get_args(typ)
         return len(args) > 2 or type(None) not in args
 

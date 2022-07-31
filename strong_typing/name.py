@@ -87,10 +87,6 @@ def python_type_to_name(data_type: type, force: bool = False) -> str:
         arg = typing.get_args(data_type)[0]
         return python_type_to_name(arg)
 
-    # named system or user-defined type
-    if hasattr(data_type, "__name__"):
-        return data_type.__name__
-
     if force:
         # generic types
         if is_type_optional(data_type):
@@ -104,5 +100,9 @@ def python_type_to_name(data_type: type, force: bool = False) -> str:
             key_name = python_type_to_name(key_type)
             value_name = python_type_to_name(value_type)
             return f"Dict__{key_name}__{value_name}"
+
+    # named system or user-defined type
+    if hasattr(data_type, "__name__"):
+        return data_type.__name__
 
     raise TypeError(f"cannot assign a simple name to type: {data_type}")
