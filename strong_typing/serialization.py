@@ -109,7 +109,7 @@ def object_to_json(obj: Any) -> JsonType:
 
     elif is_named_tuple_instance(obj):
         object_dict = {}
-        for field in type(obj)._fields:
+        for field in type(obj)._fields:  # type: ignore
             value = getattr(obj, field)  # type: ignore
             if value is None:
                 continue
@@ -299,7 +299,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
             field_name: json_to_object(field_type, json_named_tuple_data[field_name])
             for field_name, field_type in typing.get_type_hints(typ).items()
         }
-        return typ(**object_dict)
+        return typ(**object_dict)  # type: ignore
 
     if issubclass(typ, enum.Enum):
         return typ(data)  # type: ignore
@@ -322,11 +322,13 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
 
             if json_name in json_field_data:
                 if is_type_optional(field_type):
-                    required_type = unwrap_optional_type(field_type)  # type: ignore
+                    required_type: type = unwrap_optional_type(field_type)
                 else:
                     required_type = field_type
 
-                field_value = json_to_object(required_type, json_field_data[json_name])
+                field_value: Any = json_to_object(
+                    required_type, json_field_data[json_name]
+                )
             elif field.default is not dataclasses.MISSING:
                 field_value = field.default
             elif field.default_factory is not dataclasses.MISSING:
@@ -361,8 +363,10 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
 
         if is_type_optional(property_type):
             if json_name in json_data:
-                required_type = unwrap_optional_type(property_type)  # type: ignore
-                property_value = json_to_object(required_type, json_data[json_name])
+                required_type = unwrap_optional_type(property_type)
+                property_value: Any = json_to_object(
+                    required_type, json_data[json_name]
+                )
             else:
                 property_value = None
         else:

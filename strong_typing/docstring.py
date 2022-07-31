@@ -90,10 +90,11 @@ def parse_type(typ: type) -> Docstring:
     :returns: Components of the documentation string.
     """
 
-    if not has_docstring(typ):
+    doc = get_docstring(typ)
+    if doc is None:
         return Docstring()
 
-    docstring = parse_text(typ.__doc__)  # type: ignore
+    docstring = parse_text(doc)
     check_docstring(typ, docstring)
     return docstring
 
@@ -189,6 +190,16 @@ def has_docstring(typ: type) -> bool:
         return False
 
     return bool(typ.__doc__)
+
+
+def get_docstring(typ: type) -> Optional[str]:
+    if typ.__doc__ is None:
+        return None
+
+    if has_default_docstring(typ):
+        return None
+
+    return typ.__doc__
 
 
 def check_docstring(typ: type, docstring: Docstring, strict: bool = False) -> None:

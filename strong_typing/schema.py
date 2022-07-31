@@ -121,17 +121,17 @@ def get_class_property_docstrings(
 def docstring_to_schema(data_type: type) -> Schema:
     check_type(data_type)
     short_description, long_description = get_class_docstrings(data_type)
-    schema = dict()
+    schema: Schema = {}
     if short_description:
         schema["title"] = short_description
     if long_description:
         schema["description"] = long_description
-    return schema  # type: ignore
+    return schema
 
 
 @dataclasses.dataclass
 class TypeCatalogEntry:
-    schema: Schema
+    schema: Optional[Schema]
     identifier: str
     examples: Optional[JsonType] = None
 
@@ -157,7 +157,7 @@ class TypeCatalog:
     def add(
         self,
         data_type: type,
-        schema: Schema,
+        schema: Optional[Schema],
         identifier: str,
         examples: List[JsonType] = None,
     ) -> None:
@@ -473,7 +473,7 @@ class JsonSchemaGenerator:
                         datetime.time,
                     ),
                 ):
-                    property_def["default"] = object_to_json(def_value)  # type: ignore
+                    property_def["default"] = object_to_json(def_value)
 
             # add property docstring if available
             property_doc = property_docstrings.get(property_name)
@@ -581,10 +581,10 @@ def classdef_to_schema(
     generator = JsonSchemaGenerator(options)
     type_schema, type_definitions = generator.classdef_to_schema(data_type)
 
-    class_schema = {}
+    class_schema: Schema = {}
     if type_definitions:
         class_schema["definitions"] = type_definitions
-    class_schema.update(type_schema)  # type: ignore
+    class_schema.update(type_schema)
 
     validator_id = validator.value.META_SCHEMA["$id"]
     try:
@@ -647,7 +647,7 @@ def register_schema(
     check_type(data_type)
     JsonSchemaGenerator.type_catalog.add(
         data_type,
-        schema,  # type: ignore
+        schema,
         name if name is not None else python_type_to_name(data_type),
         examples,
     )

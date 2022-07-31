@@ -3,10 +3,15 @@ import sys
 from dataclasses import dataclass
 from typing import Callable, Optional, Type, TypeVar, overload
 
-try:
+if sys.version_info >= (3, 9):
     from typing import Annotated
-except ImportError:
-    from typing_extensions import Annotated  # type: ignore
+else:
+    from typing_extensions import Annotated
+
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 
 T = TypeVar("T")
 
@@ -145,25 +150,38 @@ class SpecialConversion:
     "Indicates that the annotated type is subject to custom conversion rules."
 
 
-int8 = Annotated[int, Signed(True), Storage(1), IntegerRange(-128, 127)]
-int16 = Annotated[int, Signed(True), Storage(2), IntegerRange(-32768, 32767)]
-int32 = Annotated[int, Signed(True), Storage(4), IntegerRange(-2147483648, 2147483647)]
-int64 = Annotated[
+int8: TypeAlias = Annotated[int, Signed(True), Storage(1), IntegerRange(-128, 127)]
+int16: TypeAlias = Annotated[int, Signed(True), Storage(2), IntegerRange(-32768, 32767)]
+int32: TypeAlias = Annotated[
+    int,
+    Signed(True),
+    Storage(4),
+    IntegerRange(-2147483648, 2147483647),
+]
+int64: TypeAlias = Annotated[
     int,
     Signed(True),
     Storage(8),
     IntegerRange(-9223372036854775808, 9223372036854775807),
 ]
 
-uint8 = Annotated[int, Signed(False), Storage(1), IntegerRange(0, 255)]
-uint16 = Annotated[int, Signed(False), Storage(2), IntegerRange(0, 65535)]
-uint32 = Annotated[int, Signed(False), Storage(4), IntegerRange(0, 4294967295)]
-uint64 = Annotated[
-    int, Signed(False), Storage(8), IntegerRange(0, 18446744073709551615)
+uint8: TypeAlias = Annotated[int, Signed(False), Storage(1), IntegerRange(0, 255)]
+uint16: TypeAlias = Annotated[int, Signed(False), Storage(2), IntegerRange(0, 65535)]
+uint32: TypeAlias = Annotated[
+    int,
+    Signed(False),
+    Storage(4),
+    IntegerRange(0, 4294967295),
+]
+uint64: TypeAlias = Annotated[
+    int,
+    Signed(False),
+    Storage(8),
+    IntegerRange(0, 18446744073709551615),
 ]
 
-float32 = Annotated[float, Storage(4)]
-float64 = Annotated[float, Storage(8)]
+float32: TypeAlias = Annotated[float, Storage(4)]
+float64: TypeAlias = Annotated[float, Storage(8)]
 
 # maps globals of type Annotation[T, ...] defined in this module to their string names
 _auxiliary_types = {}

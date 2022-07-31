@@ -10,6 +10,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    NamedTuple,
     Optional,
     Tuple,
     Type,
@@ -17,10 +18,15 @@ from typing import (
     Union,
 )
 
-try:
+if sys.version_info >= (3, 9):
     from typing import Annotated
-except ImportError:
-    from typing_extensions import Annotated  # type: ignore
+else:
+    from typing_extensions import Annotated
+
+if sys.version_info >= (3, 10):
+    from typing import TypeGuard
+else:
+    from typing_extensions import TypeGuard
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -41,13 +47,13 @@ def is_dataclass_instance(obj) -> bool:
     return not isinstance(obj, type) and dataclasses.is_dataclass(obj)
 
 
-def is_named_tuple_instance(obj) -> bool:
+def is_named_tuple_instance(obj: object) -> TypeGuard[NamedTuple]:
     "True if the argument corresponds to a named tuple instance."
 
     return is_named_tuple_type(type(obj))
 
 
-def is_named_tuple_type(typ) -> bool:
+def is_named_tuple_type(typ: type) -> TypeGuard[Type[NamedTuple]]:
     """
     True if the argument corresponds to a named tuple type.
 
@@ -68,7 +74,7 @@ def is_named_tuple_type(typ) -> bool:
     return all(type(n) == str for n in f)
 
 
-def is_type_enum(typ: type) -> bool:
+def is_type_enum(typ: type) -> TypeGuard[Type[enum.Enum]]:
     "True if the specified type is an enumeration type."
 
     typ = unwrap_annotated_type(typ)
@@ -124,7 +130,7 @@ def _unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
     ]
 
 
-def is_generic_list(typ: type) -> bool:
+def is_generic_list(typ: type) -> TypeGuard[Type[list]]:
     "True if the specified type is a generic list, i.e. `List[T]`."
 
     typ = unwrap_annotated_type(typ)
@@ -149,7 +155,7 @@ def _unwrap_generic_list(typ: Type[List[T]]) -> Type[T]:
     return list_type
 
 
-def is_generic_dict(typ: type) -> bool:
+def is_generic_dict(typ: type) -> TypeGuard[Type[dict]]:
     "True if the specified type is a generic dictionary, i.e. `Dict[KeyType, ValueType]`."
 
     typ = unwrap_annotated_type(typ)
@@ -189,8 +195,9 @@ def get_annotation(data_type: type, annotation_type: Type[T]) -> Optional[T]:
     :returns: The annotation class instance found (if any).
     """
 
-    if is_type_annotated(data_type):
-        for annotation in data_type.__metadata__:  # type: ignore
+    metadata = getattr(data_type, "__metadata__", None)
+    if metadata is not None:
+        for annotation in metadata:
             if isinstance(annotation, annotation_type):
                 return annotation
 
