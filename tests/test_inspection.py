@@ -95,6 +95,14 @@ class TestInspection(unittest.TestCase):
         self.assertFalse(is_type_optional(int))
         self.assertFalse(is_type_optional(Union[int, str]))
 
+    def test_strict_optional(self):
+        self.assertTrue(is_type_optional(Union[None, int], strict=True))
+        self.assertTrue(is_type_optional(Union[int, None], strict=True))
+        self.assertTrue(is_type_optional(Union[None, int, str]))
+        self.assertTrue(is_type_optional(Union[int, None, str]))
+        self.assertFalse(is_type_optional(Union[None, int, str], strict=True))
+        self.assertFalse(is_type_optional(Union[int, None, str], strict=True))
+
     def test_union(self):
         self.assertTrue(is_type_union(Union[int, str]))
         self.assertTrue(is_type_union(Union[bool, int, str]))

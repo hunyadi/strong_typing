@@ -6,9 +6,11 @@ from .inspection import (
     is_generic_dict,
     is_generic_list,
     is_type_optional,
+    is_type_union,
     unwrap_generic_dict,
     unwrap_generic_list,
     unwrap_optional_type,
+    unwrap_union_types,
 )
 
 
@@ -89,7 +91,7 @@ def python_type_to_name(data_type: type, force: bool = False) -> str:
 
     if force:
         # generic types
-        if is_type_optional(data_type):
+        if is_type_optional(data_type, strict=True):
             inner_name = python_type_to_name(unwrap_optional_type(data_type))
             return f"Optional__{inner_name}"
         elif is_generic_list(data_type):
@@ -100,6 +102,12 @@ def python_type_to_name(data_type: type, force: bool = False) -> str:
             key_name = python_type_to_name(key_type)
             value_name = python_type_to_name(value_type)
             return f"Dict__{key_name}__{value_name}"
+        elif is_type_union(data_type):
+            member_types = unwrap_union_types(data_type)
+            member_names = "__".join(
+                python_type_to_name(member_type) for member_type in member_types
+            )
+            return f"Union__{member_names}"
 
     # named system or user-defined type
     if hasattr(data_type, "__name__"):

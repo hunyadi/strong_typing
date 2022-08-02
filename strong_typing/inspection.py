@@ -83,37 +83,31 @@ def is_type_enum(typ: type) -> TypeGuard[Type[enum.Enum]]:
     return isinstance(typ, type) and issubclass(typ, enum.Enum)
 
 
-def is_type_optional(typ: type) -> TypeGuard[Type[Optional[Any]]]:
-    "True if the type annotation corresponds to an optional type (e.g. Optional[T] or Union[T1,T2,None])."
+def _is_union_like(typ: type) -> bool:
+    "True if type is a union such as `Union[T1, T2, ...]` or a union type `T1 | T2`."
+
+    is_generic_union = typing.get_origin(typ) is Union
+    is_union_expr = sys.version_info >= (3, 10) and isinstance(typ, types.UnionType)
+    return is_generic_union or is_union_expr
+
+
+def is_type_optional(typ: type, strict: bool = False) -> TypeGuard[Type[Optional[Any]]]:
+    """
+    True if the type annotation corresponds to an optional type (e.g. `Optional[T]` or `Union[T1,T2,None]`).
+
+    `Optional[T]` is represented as `Union[T, None]` is classic style, and is equivalent to `T | None` in new style.
+
+    :param strict: True if only `Optional[T]` qualifies as an optional type but `Union[T1, T2, None]` does not.
+    """
 
     typ = unwrap_annotated_type(typ)
 
-    # Optional[T] is represented as Union[T, None]
-    is_generic_union = typing.get_origin(typ) is Union
-
-    # Optional[T] is equivalent to T | None
-    is_union_expr = sys.version_info >= (3, 10) and isinstance(typ, types.UnionType)
-
-    if is_generic_union or is_union_expr:
-        return type(None) in typing.get_args(typ)
-
-    return False
-
-
-def is_type_union(typ: type) -> bool:
-    "True if the type annotation corresponds to a union type (e.g. Union[T1,T2,T3])."
-
-    typ = unwrap_annotated_type(typ)
-
-    # Optional[T] is represented as Union[T, None]
-    is_generic_union = typing.get_origin(typ) is Union
-
-    # Optional[T] is equivalent to T | None
-    is_union_expr = sys.version_info >= (3, 10) and isinstance(typ, types.UnionType)
-
-    if is_generic_union or is_union_expr:
+    if _is_union_like(typ):
         args = typing.get_args(typ)
-        return len(args) > 2 or type(None) not in args
+        if strict and len(args) != 2:
+            return False
+
+        return type(None) in args
 
     return False
 
@@ -140,6 +134,39 @@ def _unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
     return Union[
         tuple(filter(lambda item: item is not type(None), typing.get_args(typ)))  # type: ignore
     ]
+
+
+def is_type_union(typ: type) -> bool:
+    "True if the type annotation corresponds to a union type (e.g. `Union[T1,T2,T3]`)."
+
+    typ = unwrap_annotated_type(typ)
+
+    if _is_union_like(typ):
+        args = typing.get_args(typ)
+        return len(args) > 2 or type(None) not in args
+
+    return False
+
+
+def unwrap_union_types(typ: type) -> Tuple[type]:
+    """
+    Extracts the inner types of a union type.
+
+    :param typ: The union type `Union[T1, T2, ...]`.
+    :returns: The inner types `T1`, `T2`, etc.
+    """
+
+    return _unwrap_union_types(typ)
+
+
+def _unwrap_union_types(typ: type) -> Tuple[type]:
+    "Extracts the types in a union (e.g. returns a tuple of types `T1` and `T2` for `Union[T1, T2]`)."
+
+    if typing.get_origin(typ) is not Union:
+        raise TypeError("union type must have un-subscripted type of Union")
+
+    # will automatically unwrap Union[T] into T
+    return typing.get_args(typ)  # type: ignore
 
 
 def is_generic_list(typ: type) -> TypeGuard[Type[list]]:

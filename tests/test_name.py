@@ -1,5 +1,5 @@
 import unittest
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from strong_typing.auxiliary import Alias, Annotated
 from strong_typing.name import python_type_to_name
@@ -24,6 +24,10 @@ class TestName(unittest.TestCase):
         self.assertEqual(
             python_type_to_name(Dict[str, int], force=True),
             "Dict__str__int",
+        )
+        self.assertEqual(
+            python_type_to_name(Union[str, int, None], force=True),
+            "Union__str__int__NoneType",
         )
 
     def test_alias(self):
