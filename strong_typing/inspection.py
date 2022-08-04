@@ -281,7 +281,7 @@ def rewrap_annotated_type(
 
 
 def get_module_classes(module: types.ModuleType) -> List[type]:
-    "Returns all classes declared in a module."
+    "Returns all classes declared directly in a module."
 
     is_class_member = (
         lambda member: inspect.isclass(member) and member.__module__ == module.__name__

@@ -4,6 +4,8 @@ from typing import Optional
 
 from strong_typing.docstring import parse_type
 
+from sample_exceptions import CustomException
+
 
 class NoDescriptionClass:
     pass
@@ -77,6 +79,9 @@ class SampleClass:
         :param a: Short description for `a`.
         :param b: Short description for `b`.
         :return: A return value.
+        :raise TypeError: A type exception rarely raised.
+        :raise ValueError: A value exception rarely raised.
+        :raise CustomException: A custom exception.
         """
 
     @classmethod
@@ -147,13 +152,17 @@ class TestDocstring(unittest.TestCase):
         )
         self.assertEqual(len(docstring.params), 3)
         self.assertEqual(
-            docstring.params["a"].description, "Short description for `a`."
+            docstring.params["a"].description,
+            "Short description for `a`.",
         )
+        self.assertEqual(docstring.params["a"].param_type, int)
         self.assertEqual(
             docstring.params["b2"].description,
             "Long description for `b` that spans multiple lines.",
         )
+        self.assertEqual(docstring.params["b2"].param_type, str)
         self.assertEqual(docstring.params["c_3"].description, "Description for `c`.")
+        self.assertEqual(docstring.params["c_3"].param_type, float)
 
         with self.assertRaises(TypeError):
             parse_type(MissingMemberClass)
@@ -172,6 +181,25 @@ class TestDocstring(unittest.TestCase):
             docstring.params["b"].description, "Short description for `b`."
         )
         self.assertEqual(docstring.returns.description, "A return value.")
+
+        self.assertEqual(len(docstring.raises), 3)
+        self.assertEqual(
+            docstring.raises["TypeError"].description,
+            "A type exception rarely raised.",
+        )
+        self.assertEqual(docstring.raises["TypeError"].raise_type, TypeError)
+        self.assertEqual(
+            docstring.raises["ValueError"].description,
+            "A value exception rarely raised.",
+        )
+        self.assertEqual(docstring.raises["ValueError"].raise_type, ValueError)
+        self.assertEqual(
+            docstring.raises["CustomException"].description,
+            "A custom exception.",
+        )
+        self.assertEqual(
+            docstring.raises["CustomException"].raise_type, CustomException
+        )
 
         docstring = parse_type(SampleClass.class_method)
         self.assertEqual(

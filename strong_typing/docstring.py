@@ -1,8 +1,10 @@
+import builtins
 import dataclasses
 import inspect
 import re
+import types
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Type
 
 from .inspection import get_class_properties, get_signature, is_dataclass_type
 
@@ -18,6 +20,7 @@ class DocstringParam:
 
     name: str
     description: str
+    param_type: type = inspect.Signature.empty
 
 
 @dataclass
@@ -29,6 +32,7 @@ class DocstringReturns:
     """
 
     description: str
+    return_type: type = inspect.Signature.empty
 
 
 @dataclass
@@ -42,6 +46,7 @@ class DocstringRaises:
 
     typename: str
     description: str
+    raise_type: type = inspect.Signature.empty
 
 
 @dataclass
@@ -82,6 +87,18 @@ class Docstring:
             return None
 
 
+def get_exceptions(module: types.ModuleType) -> Dict[str, Type[BaseException]]:
+    "Returns all exception classes declared in a module."
+
+    is_exception = lambda member: isinstance(member, type) and issubclass(
+        member, BaseException
+    )
+    return {
+        name: class_type
+        for name, class_type in inspect.getmembers(module, is_exception)
+    }
+
+
 def parse_type(typ: type) -> Docstring:
     """
     Parse the docstring of a type into its components.
@@ -96,6 +113,36 @@ def parse_type(typ: type) -> Docstring:
 
     docstring = parse_text(doc)
     check_docstring(typ, docstring)
+
+    # assign parameter and return types
+    if is_dataclass_type(typ):
+        properties = dict(get_class_properties(typ))
+
+        for name, param in docstring.params.items():
+            param.param_type = properties[name]
+
+    elif inspect.isfunction(typ):
+        signature = get_signature(typ)
+        for name, param in docstring.params.items():
+            param.param_type = signature.parameters[name].annotation
+        if docstring.returns:
+            docstring.returns.return_type = signature.return_annotation
+
+    # assign exception types
+    defining_module = inspect.getmodule(typ)
+    if defining_module:
+        context: Dict[str, type] = {}
+        context.update(get_exceptions(builtins))
+        context.update(get_exceptions(defining_module))
+        for name, exception in docstring.raises.items():
+            raise_type = context.get(name)
+            if raise_type is None:
+                raise TypeError(
+                    f"doc-string exception type `{name}` is not an exception defined in the context of `{typ.__qualname__}`"
+                )
+
+            exception.raise_type = raise_type
+
     return docstring
 
 
