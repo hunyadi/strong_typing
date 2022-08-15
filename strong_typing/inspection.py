@@ -1,9 +1,12 @@
 import dataclasses
+import datetime
 import enum
 import inspect
+import re
 import sys
 import types
 import typing
+import uuid
 from typing import (
     Any,
     Callable,
@@ -343,3 +346,197 @@ def get_signature(fn: Callable[..., Any]) -> inspect.Signature:
         return inspect.signature(fn, eval_str=True)
     else:
         return inspect.signature(fn)
+
+
+def is_reserved_property(name: str) -> bool:
+    "True if the name stands for an internal property."
+
+    # filter built-in and special properties
+    if re.match(r"^__.+__$", name):
+        return True
+
+    # filter built-in special names
+    if name in ["_abc_impl"]:
+        return True
+
+    return False
+
+
+def is_generic_instance(obj: Any, typ: type) -> bool:
+    """
+    Returns whether an object is an instance of a generic class, a standard class or of a subclass thereof.
+
+    This function checks the following items recursively:
+    * items of a list
+    * keys and values of a dictionary
+    * members of a set
+    * items of a tuple
+    * members of a union type
+
+    :param obj: The (possibly generic container) object to check recursively.
+    :param typ: The expected type of the object.
+    """
+
+    # generic types (e.g. list, dict, set, etc.)
+    origin_type = typing.get_origin(typ)
+    if origin_type is list:
+        if not isinstance(obj, list):
+            return False
+        (list_item_type,) = typing.get_args(typ)  # unpack single tuple element
+        list_obj: list = obj
+        return all(is_generic_instance(item, list_item_type) for item in list_obj)
+    elif origin_type is dict:
+        if not isinstance(obj, dict):
+            return False
+        key_type, value_type = typing.get_args(typ)
+        dict_obj: dict = obj
+        return all(
+            is_generic_instance(key, key_type)
+            and is_generic_instance(value, value_type)
+            for key, value in dict_obj.items()
+        )
+    elif origin_type is set:
+        if not isinstance(obj, set):
+            return False
+        (set_member_type,) = typing.get_args(typ)  # unpack single tuple element
+        set_obj: set = obj
+        return all(is_generic_instance(item, set_member_type) for item in set_obj)
+    elif origin_type is tuple:
+        if not isinstance(obj, tuple):
+            return False
+        return all(
+            is_generic_instance(item, tuple_item_type)
+            for tuple_item_type, item in zip(
+                (tuple_item_type for tuple_item_type in typing.get_args(typ)),
+                (item for item in obj),
+            )
+        )
+    elif origin_type is Union:
+        return any(
+            is_generic_instance(obj, member_type)
+            for member_type in typing.get_args(typ)
+        )
+    elif isinstance(typ, type):
+        return isinstance(obj, typ)
+    else:
+        raise TypeError(f"expected `type` but got: {typ}")
+
+
+class RecursiveChecker:
+    _pred: Optional[Callable[[type, Any], bool]]
+
+    def __init__(self, pred: Callable[[type, Any], bool]) -> None:
+        """
+        Creates a checker to verify if a predicate applies to all nested member values of an object recursively.
+
+        :param pred: The predicate to apply to member values.
+        """
+
+        self._pred = pred
+
+    def pred(self, typ: type, obj: Any) -> bool:
+        "Acts as a workaround for the type checker mypy."
+
+        assert self._pred is not None
+        return self._pred(typ, obj)
+
+    def check(self, typ: type, obj: Any) -> bool:
+        """
+        Checks if a predicate applies to all nested member values of an object recursively.
+
+        :param typ: The type to recurse into.
+        :param obj: The object to inspect recursively. Must be an instance of the given type.
+        """
+
+        # check for well-known types
+        if (
+            typ is type(None)
+            or typ is bool
+            or typ is int
+            or typ is float
+            or typ is str
+            or typ is bytes
+            or typ is datetime.datetime
+            or typ is datetime.date
+            or typ is datetime.time
+            or typ is uuid.UUID
+        ):
+            return self.pred(typ, obj)
+
+        # generic types (e.g. list, dict, set, etc.)
+        origin_type = typing.get_origin(typ)
+        if origin_type is list:
+            if not isinstance(obj, list):
+                raise TypeError(f"expected `list` but got: {obj}")
+            (list_item_type,) = typing.get_args(typ)  # unpack single tuple element
+            list_obj: list = obj
+            return all(self.check(list_item_type, item) for item in list_obj)
+        elif origin_type is dict:
+            if not isinstance(obj, dict):
+                raise TypeError(f"expected `dict` but got: {obj}")
+            key_type, value_type = typing.get_args(typ)
+            dict_obj: dict = obj
+            return all(self.check(value_type, item) for item in dict_obj.values())
+        elif origin_type is set:
+            if not isinstance(obj, set):
+                raise TypeError(f"expected `set` but got: {obj}")
+            (set_member_type,) = typing.get_args(typ)  # unpack single tuple element
+            set_obj: set = obj
+            return all(self.check(set_member_type, item) for item in set_obj)
+        elif origin_type is tuple:
+            if not isinstance(obj, tuple):
+                raise TypeError(f"expected `tuple` but got: {obj}")
+            return all(
+                self.check(tuple_item_type, item)
+                for tuple_item_type, item in zip(
+                    (tuple_item_type for tuple_item_type in typing.get_args(typ)),
+                    (item for item in obj),
+                )
+            )
+        elif origin_type is Union:
+            return self.pred(typ, obj)
+
+        if not inspect.isclass(typ):
+            raise TypeError(f"expected `type` but got: {typ}")
+
+        # enumeration type
+        if issubclass(typ, enum.Enum):
+            if not isinstance(obj, enum.Enum):
+                raise TypeError(f"expected `{typ}` but got: {obj}")
+            return self.pred(typ, obj)
+
+        # class types with properties
+        if is_named_tuple_type(typ):
+            if not isinstance(obj, tuple):
+                raise TypeError(f"expected `NamedTuple` but got: {obj}")
+            return all(
+                self.check(field_type, getattr(obj, field_name))
+                for field_name, field_type in typing.get_type_hints(typ).items()
+            )
+        elif is_dataclass_type(typ):
+            if not isinstance(obj, typ):
+                raise TypeError(f"expected `{typ}` but got: {obj}")
+            resolved_hints = get_resolved_hints(typ)
+            return all(
+                self.check(resolved_hints[field.name], getattr(obj, field.name))
+                for field in dataclasses.fields(typ)
+            )
+        else:
+            if not isinstance(obj, typ):
+                raise TypeError(f"expected `{typ}` but got: {obj}")
+            return all(
+                self.check(property_type, getattr(obj, property_name))
+                for property_name, property_type in get_class_properties(typ)
+            )
+
+
+def check_recursive(typ: type, obj: Any, pred: Callable[[type, Any], bool]) -> bool:
+    """
+    Checks if a predicate applies to all nested member values of an object recursively.
+
+    :param typ: The type to recurse into.
+    :param obj: The object to inspect recursively. Must be an instance of the given type.
+    :param pred: The predicate to apply to member values.
+    """
+
+    return RecursiveChecker(pred).check(typ, obj)

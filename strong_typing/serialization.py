@@ -20,6 +20,7 @@ from .inspection import (
     is_dataclass_type,
     is_named_tuple_instance,
     is_named_tuple_type,
+    is_reserved_property,
     is_type_optional,
     unwrap_optional_type,
 )
@@ -150,12 +151,7 @@ def object_to_json(obj: Any) -> JsonType:
     # iterate over object attributes to get a standard representation
     object_dict = {}
     for name in dir(obj):
-        # filter built-in and special properties
-        if re.match(r"^__.+__$", name):
-            continue
-
-        # filter built-in special names
-        if name in ["_abc_impl"]:
+        if is_reserved_property(name):
             continue
 
         value = getattr(obj, name)
@@ -305,9 +301,9 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
 
     if not inspect.isclass(typ):
         if is_dataclass_instance(typ):
-            raise TypeError(f"dataclass type expected but got instance: `{typ}`")
+            raise TypeError(f"dataclass type expected but got instance: {typ}")
         else:
-            raise TypeError(f"unable to de-serialize unrecognized type `{typ}`")
+            raise TypeError(f"unable to de-serialize unrecognized type {typ}")
 
     if is_named_tuple_type(typ):
         json_named_tuple_data: Dict[str, JsonType] = _as_json_dict(typ, data)

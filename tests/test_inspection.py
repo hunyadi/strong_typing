@@ -1,16 +1,18 @@
-from dataclasses import dataclass
 import datetime
 import enum
 import sys
 import unittest
+from dataclasses import dataclass
 from typing import Dict, List, NamedTuple, Optional, Union
 
 from strong_typing.auxiliary import Annotated, typeannotation
 from strong_typing.inspection import (
+    check_recursive,
     get_class_properties,
     get_module_classes,
     get_referenced_types,
     is_dataclass_type,
+    is_generic_instance,
     is_generic_dict,
     is_generic_list,
     is_named_tuple_type,
@@ -20,6 +22,8 @@ from strong_typing.inspection import (
     unwrap_generic_dict,
     unwrap_generic_list,
 )
+
+from sample_types import *
 
 
 class Side(enum.Enum):
@@ -182,6 +186,84 @@ class TestInspection(unittest.TestCase):
             for name, data_type in get_class_properties(SimpleNamedTuple)
         ]
         self.assertCountEqual(properties, [("integer", int), ("string", str)])
+
+    def test_generic(self):
+        obj = SimpleObject()
+        self.assertTrue(is_generic_instance(obj, SimpleObject))
+        self.assertFalse(is_generic_instance(None, SimpleObject))
+        self.assertFalse(is_generic_instance(42, SimpleObject))
+        self.assertFalse(is_generic_instance("string", SimpleObject))
+
+        self.assertTrue(is_generic_instance([], List[int]))
+        self.assertTrue(is_generic_instance([1, 2, 3], List[int]))
+        self.assertTrue(is_generic_instance([obj], List[SimpleObject]))
+        self.assertFalse(is_generic_instance(None, List[int]))
+        self.assertFalse(is_generic_instance(42, List[int]))
+
+        self.assertTrue(is_generic_instance({}, Dict[str, int]))
+        self.assertTrue(is_generic_instance({"a": 1, "b": 2}, Dict[str, int]))
+        self.assertFalse(is_generic_instance(None, Dict[str, int]))
+        self.assertFalse(is_generic_instance("string", Dict[str, int]))
+
+        self.assertTrue(is_generic_instance(set(), Set[int]))
+        self.assertTrue(is_generic_instance(set([1, 2, 3]), Set[int]))
+        self.assertFalse(is_generic_instance(None, Set[int]))
+        self.assertFalse(is_generic_instance(42, Set[int]))
+
+        self.assertTrue(is_generic_instance(("a", 42), Tuple[str, int]))
+        self.assertFalse(is_generic_instance(None, Tuple[str, int]))
+
+        self.assertTrue(is_generic_instance("string", Union[str, int]))
+        self.assertTrue(is_generic_instance(42, Union[str, int]))
+        self.assertFalse(is_generic_instance(None, Union[str, int]))
+
+        self.assertTrue(is_generic_instance(None, Optional[str]))
+        self.assertTrue(is_generic_instance("string", Optional[str]))
+        self.assertFalse(is_generic_instance(42, Optional[str]))
+
+    def test_recursive(self):
+        self.assertTrue(
+            check_recursive(
+                SimpleObject,
+                SimpleObject(),
+                lambda typ, obj: isinstance(obj, typ),
+            )
+        )
+        self.assertTrue(
+            check_recursive(
+                SimpleDataClass,
+                SimpleDataClass(),
+                lambda typ, obj: isinstance(obj, typ),
+            )
+        )
+        self.assertTrue(
+            check_recursive(
+                SimpleObjectExample,
+                SimpleObjectExample(),
+                lambda typ, obj: isinstance(obj, typ),
+            )
+        )
+        self.assertTrue(
+            check_recursive(
+                CompositeObjectExample,
+                CompositeObjectExample(),
+                lambda typ, obj: is_generic_instance(obj, typ),
+            )
+        )
+        self.assertTrue(
+            check_recursive(
+                NestedObjectExample,
+                NestedObjectExample(),
+                lambda typ, obj: is_generic_instance(obj, typ),
+            )
+        )
+        self.assertTrue(
+            check_recursive(
+                SimpleObjectExample,
+                SimpleObjectExample(),
+                lambda typ, obj: typ is not datetime.datetime or obj.tzinfo is not None,
+            )
+        )
 
 
 if __name__ == "__main__":
