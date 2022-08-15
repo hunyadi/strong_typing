@@ -7,6 +7,7 @@ from strong_typing.schema import validate_object
 from strong_typing.serialization import (
     JsonKeyError,
     JsonTypeError,
+    JsonValueError,
     json_to_object,
     object_to_json,
 )
@@ -46,9 +47,11 @@ class TestSerialization(unittest.TestCase):
         self.assertEqual(object_to_json(Side.LEFT), "L")
         self.assertEqual(object_to_json(Suit.Diamonds), 1)
         self.assertEqual(
-            object_to_json(datetime.datetime(1989, 10, 23, 1, 45, 50)),
-            "1989-10-23T01:45:50",
+            object_to_json(uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")),
+            "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
         )
+
+    def test_serialization_datetime(self):
         self.assertEqual(
             object_to_json(
                 datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc)
@@ -62,10 +65,8 @@ class TestSerialization(unittest.TestCase):
             ),
             "1989-10-23T01:45:50+01:00",
         )
-        self.assertEqual(
-            object_to_json(uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")),
-            "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
-        )
+        with self.assertRaises(JsonValueError):
+            object_to_json(datetime.datetime(1989, 10, 23, 1, 45, 50))
 
     def test_serialization_collection(self):
         self.assertEqual(object_to_json([1, 2, 3]), [1, 2, 3])
@@ -98,19 +99,6 @@ class TestSerialization(unittest.TestCase):
         self.assertEqual(json_to_object(Side, "L"), Side.LEFT)
         self.assertEqual(json_to_object(Suit, 1), Suit.Diamonds)
         self.assertEqual(
-            json_to_object(datetime.datetime, "1989-10-23T01:45:50"),
-            datetime.datetime(1989, 10, 23, 1, 45, 50),
-        )
-        self.assertEqual(
-            json_to_object(datetime.datetime, "1989-10-23T01:45:50Z"),
-            datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc),
-        )
-        timezone_cet = datetime.timezone(datetime.timedelta(seconds=3600))
-        self.assertEqual(
-            json_to_object(datetime.datetime, "1989-10-23T01:45:50+01:00"),
-            datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=timezone_cet),
-        )
-        self.assertEqual(
             json_to_object(uuid.UUID, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
             uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
         )
@@ -125,6 +113,19 @@ class TestSerialization(unittest.TestCase):
             json_to_object(str, None)
         with self.assertRaises(JsonTypeError):
             json_to_object(str, 1982)
+
+    def test_deserialization_datetime(self):
+        self.assertEqual(
+            json_to_object(datetime.datetime, "1989-10-23T01:45:50Z"),
+            datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc),
+        )
+        timezone_cet = datetime.timezone(datetime.timedelta(seconds=3600))
+        self.assertEqual(
+            json_to_object(datetime.datetime, "1989-10-23T01:45:50+01:00"),
+            datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=timezone_cet),
+        )
+        with self.assertRaises(JsonValueError):
+            json_to_object(datetime.datetime, "1989-10-23T01:45:50")
 
     def test_deserialization_composite(self):
         self.assertEqual(json_to_object(UID, "1.2.3.4567.8900"), UID("1.2.3.4567.8900"))
@@ -235,7 +236,7 @@ class TestSerialization(unittest.TestCase):
                 "str_value": "string",
                 "date_value": "1970-01-01",
                 "time_value": "06:15:30",
-                "datetime_value": "1989-10-23T01:45:50",
+                "datetime_value": "1989-10-23T01:45:50Z",
                 "guid_value": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
             },
         )
@@ -268,7 +269,7 @@ class TestSerialization(unittest.TestCase):
                 "str_value": "string",
                 "date_value": "1970-01-01",
                 "time_value": "06:15:30",
-                "datetime_value": "1989-10-23T01:45:50",
+                "datetime_value": "1989-10-23T01:45:50Z",
                 "guid_value": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
                 "list_value": [],
                 "dict_value": {},

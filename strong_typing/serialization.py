@@ -28,6 +28,18 @@ from .name import python_type_to_str
 T = TypeVar("T")
 
 
+class JsonKeyError(Exception):
+    "Raised when deserialization for a class or union type has failed because a matching member was not found."
+
+
+class JsonValueError(Exception):
+    "Raised when (de)serialization of data has failed due to invalid value."
+
+
+class JsonTypeError(Exception):
+    "Raised when deserialization of data has failed due to a type mismatch."
+
+
 def python_id_to_json_field(python_id: str, python_type: type = None) -> str:
     """
     Convert a Python identifier to a JSON field name.
@@ -67,11 +79,17 @@ def object_to_json(obj: Any) -> JsonType:
         return obj
     elif isinstance(obj, bytes):
         return base64.b64encode(obj).decode("ascii")
-    elif isinstance(obj, (datetime.datetime, datetime.date, datetime.time)):
+    elif isinstance(obj, datetime.datetime):
+        if obj.tzinfo is None:
+            raise JsonValueError(
+                f"timestamp lacks explicit time zone designator: {obj}"
+            )
         fmt = obj.isoformat()
         if fmt.endswith("+00:00"):
             fmt = f"{fmt[:-6]}Z"  # Python's isoformat() does not support military time zones like "Zulu" for UTC
         return fmt
+    elif isinstance(obj, (datetime.date, datetime.time)):
+        return obj.isoformat()
     elif isinstance(obj, uuid.UUID):
         return str(obj)
     elif isinstance(obj, enum.Enum):
@@ -153,14 +171,6 @@ def object_to_json(obj: Any) -> JsonType:
     return object_dict
 
 
-class JsonKeyError(Exception):
-    "Raised when deserialization for a class or union type has failed because a matching member was not found."
-
-
-class JsonTypeError(Exception):
-    "Raised when deserialization for data has failed due to a type mismatch."
-
-
 def _as_json_list(typ: type, data: JsonType) -> List[JsonType]:
     if isinstance(data, list):
         return data
@@ -233,11 +243,17 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
             raise JsonTypeError(
                 f"`{typ.__name__}` type expects JSON `string` data but instead received: {data}"
             )
-
-        if (typ is datetime.datetime or typ is datetime.time) and data.endswith("Z"):
-            data = f"{data[:-1]}+00:00"  # Python's isoformat() does not support military time zones like "Zulu" for UTC
-
-        return typ.fromisoformat(data)  # type: ignore
+        if typ is datetime.datetime:
+            if data.endswith("Z"):
+                data = f"{data[:-1]}+00:00"  # Python's isoformat() does not support military time zones like "Zulu" for UTC
+            timestamp = datetime.datetime.fromisoformat(data)
+            if timestamp.tzinfo is None:
+                raise JsonValueError(
+                    f"timestamp lacks explicit time zone designator: {data}"
+                )
+            return timestamp  # type: ignore
+        else:
+            return typ.fromisoformat(data)  # type: ignore
     elif typ is uuid.UUID:
         if not isinstance(data, str):
             raise JsonTypeError(
