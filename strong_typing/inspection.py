@@ -427,9 +427,9 @@ class RecursiveChecker:
 
     def __init__(self, pred: Callable[[type, Any], bool]) -> None:
         """
-        Creates a checker to verify if a predicate applies to all nested member values of an object recursively.
+        Creates a checker to verify if a predicate applies to all nested member properties of an object recursively.
 
-        :param pred: The predicate to apply to member values.
+        :param pred: The predicate to test on member properties. Takes a property type and a property value.
         """
 
         self._pred = pred
@@ -442,10 +442,11 @@ class RecursiveChecker:
 
     def check(self, typ: type, obj: Any) -> bool:
         """
-        Checks if a predicate applies to all nested member values of an object recursively.
+        Checks if a predicate applies to all nested member properties of an object recursively.
 
         :param typ: The type to recurse into.
         :param obj: The object to inspect recursively. Must be an instance of the given type.
+        :returns: True if all member properties pass the filter predicate.
         """
 
         # check for well-known types
@@ -530,13 +531,48 @@ class RecursiveChecker:
             )
 
 
-def check_recursive(typ: type, obj: Any, pred: Callable[[type, Any], bool]) -> bool:
+def check_recursive(
+    obj: Any,
+    /,
+    *,
+    pred: Callable[[Type[T], T], bool] = None,
+    type_pred: Callable[[Type[T]], bool] = None,
+    value_pred: Callable[[T], bool] = None,
+) -> bool:
     """
-    Checks if a predicate applies to all nested member values of an object recursively.
+    Checks if a predicate applies to all nested member properties of an object recursively.
 
     :param typ: The type to recurse into.
     :param obj: The object to inspect recursively. Must be an instance of the given type.
-    :param pred: The predicate to apply to member values.
+    :param pred: The predicate to test on member properties. Takes a property type and a property value.
+    :param type_pred: Constrains the check to properties of an expected type. Properties of other types pass automatically.
+    :param value_pred: Verifies a condition on member property values (of an expected type).
+    :returns: True if all member properties pass the filter predicate(s).
     """
 
-    return RecursiveChecker(pred).check(typ, obj)
+    if type_pred is not None and value_pred is not None:
+        if pred is not None:
+            raise TypeError(
+                "filter predicate not permitted when type and value predicates are present"
+            )
+
+        type_p: Callable[[Type[T]], bool] = type_pred
+        value_p: Callable[[T], bool] = value_pred
+        pred = lambda typ, obj: not type_p(typ) or value_p(obj)
+
+    elif value_pred is not None:
+        if pred is not None:
+            raise TypeError(
+                "filter predicate not permitted when value predicate is present"
+            )
+
+        value_only_p: Callable[[T], bool] = value_pred
+        pred = lambda typ, obj: value_only_p(obj)
+
+    elif type_pred is not None:
+        raise TypeError("value predicate required when type predicate is present")
+
+    elif pred is None:
+        pred = lambda typ, obj: True
+
+    return RecursiveChecker(pred).check(type(obj), obj)
