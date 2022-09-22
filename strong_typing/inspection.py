@@ -377,6 +377,12 @@ def is_generic_instance(obj: Any, typ: type) -> bool:
     :param typ: The expected type of the object.
     """
 
+    if isinstance(typ, typing.ForwardRef):
+        fwd: typing.ForwardRef = typ
+        identifier = fwd.__forward_arg__
+        typ = eval(identifier)
+        return is_generic_instance(obj, typ)
+
     # generic types (e.g. list, dict, set, etc.)
     origin_type = typing.get_origin(typ)
     if origin_type is list:

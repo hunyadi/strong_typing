@@ -325,7 +325,10 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
         json_field_data: Dict[str, JsonType] = _as_json_dict(typ, data)
         assigned_names: Set[str] = set()
         resolved_hints = get_resolved_hints(typ)
-        obj = object.__new__(typ)
+        if issubclass(typ, Exception):
+            obj = typ.__new__(typ)
+        else:
+            obj = object.__new__(typ)
 
         for field in dataclasses.fields(typ):
             field_type = resolved_hints[field.name]
@@ -366,7 +369,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
                 f"unrecognized fields in JSON object: {unassigned_names}"
             )
 
-        return obj
+        return obj  # type: ignore
 
     json_data: Dict[str, JsonType] = _as_json_dict(typ, data)
     obj = object.__new__(typ)
@@ -391,7 +394,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
 
         setattr(obj, property_name, property_value)
 
-    return obj
+    return obj  # type: ignore
 
 
 def json_dump_string(json_object: JsonType) -> str:
