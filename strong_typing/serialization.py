@@ -4,16 +4,15 @@ import datetime
 import enum
 import inspect
 import json
-import keyword
-import re
 import typing
 import uuid
-from typing import Any, Dict, List, Set, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, List, Set, TextIO, Tuple, Type, TypeVar, Union
 
-from .auxiliary import Alias
 from .core import JsonType
+from .deserializer import create_deserializer
+from .exception import JsonKeyError, JsonTypeError, JsonValueError
 from .inspection import (
-    get_annotation,
+    create_object,
     get_class_properties,
     get_resolved_hints,
     is_dataclass_instance,
@@ -24,51 +23,23 @@ from .inspection import (
     is_type_optional,
     unwrap_optional_type,
 )
+from .mapping import python_id_to_json_field
 from .name import python_type_to_str
 
 T = TypeVar("T")
 
 
-class JsonKeyError(Exception):
-    "Raised when deserialization for a class or union type has failed because a matching member was not found."
-
-
-class JsonValueError(Exception):
-    "Raised when (de)serialization of data has failed due to invalid value."
-
-
-class JsonTypeError(Exception):
-    "Raised when deserialization of data has failed due to a type mismatch."
-
-
-def python_id_to_json_field(python_id: str, python_type: type = None) -> str:
-    """
-    Convert a Python identifier to a JSON field name.
-
-    Authors may use an underscore appended at the end of a Python identifier as per PEP 8 if it clashes with a Python
-    keyword: e.g. `in` would become `in_` and `from` would become `from_`. Remove these suffixes when exporting to JSON.
-
-    Authors may supply an explicit alias with the type annotation `Alias`, e.g. `Annotated[MyType, Alias("alias")]`.
-    """
-
-    if python_type is not None:
-        alias = get_annotation(python_type, Alias)
-        if alias:
-            return alias.name
-
-    if python_id.endswith("_"):
-        id = python_id[:-1]
-        if keyword.iskeyword(id):
-            return id
-
-    return python_id
-
-
 def object_to_json(obj: Any) -> JsonType:
     """
-    Convert an object to a representation that can be exported to JSON.
-    Fundamental types (e.g. numeric types) are left as is. Objects with properties are converted
-    to a dictionaries of key-value pairs.
+    Converts a Python object to a representation that can be exported to JSON.
+
+    * Fundamental types (e.g. numeric types) are written as is.
+    * Date and time types are serialized in the ISO 8601 format with time zone.
+    * A byte array is written as a string with Base64 encoding.
+    * UUIDs are written as a UUID string.
+    * Enumerations are written as their value.
+    * Containers (e.g. `list`, `dict`, `set`, `tuple`) are exported recursively.
+    * Objects with properties (including data class types) are converted to a dictionaries of key-value pairs.
     """
 
     # check for well-known types
@@ -188,24 +159,32 @@ def _as_json_dict(typ: type, data: JsonType) -> Dict[str, JsonType]:
         )
 
 
-def _create_object(typ: Type[T]) -> T:
-    if issubclass(typ, Exception):
-        e = typ.__new__(typ)
-        return typing.cast(T, e)
-    else:
-        return object.__new__(typ)
-
-
 def json_to_object(typ: Type[T], data: JsonType) -> T:
     """
-    Create an object from a representation that has been de-serialized from JSON.
-    Fundamental types (e.g. numeric types) are left as is. Objects with properties are populated
-    from dictionaries of key-value pairs using reflection (enumerating instance type annotations).
+    Creates an object from a representation that has been de-serialized from JSON.
 
+    When de-serializing a JSON object into a Python object, the following transformations are applied:
+
+    * Fundamental types are parsed as `bool`, `int`, `float` or `str`.
+    * Date and time types are parsed from the ISO 8601 format with time zone into the corresponding Python type
+      `datetime`, `date` or `time`
+    * A byte array is read from a string with Base64 encoding into a `bytes` instance.
+    * UUIDs are extracted from a UUID string into a `uuid.UUID` instance.
+    * Enumerations are instantiated with a lookup on enumeration value.
+    * Containers (e.g. `list`, `dict`, `set`, `tuple`) are parsed recursively.
+    * Complex objects with properties (including data class types) are populated from dictionaries of key-value pairs
+      using reflection (enumerating type annotations).
+
+    :raises TypeError: A de-serializing engine cannot be constructed for the input type.
     :raises JsonKeyError: Deserialization for a class or union type has failed because a matching member was not found.
     :raises JsonTypeError: Deserialization for data has failed due to a type mismatch.
     """
 
+    parser = create_deserializer(typ)
+    return parser.parse(data)
+
+
+def _json_to_object(typ: Type[T], data: JsonType) -> T:
     # check for well-known types
     if typ is type(None):
         if data is not None:
@@ -338,7 +317,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
         json_field_data: Dict[str, JsonType] = _as_json_dict(typ, data)
         assigned_names: Set[str] = set()
         resolved_hints = get_resolved_hints(typ)
-        obj = _create_object(typ)
+        obj = create_object(typ)
         for field in dataclasses.fields(typ):
             field_type = resolved_hints[field.name]
             json_name = python_id_to_json_field(field.name, field_type)
@@ -381,7 +360,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
         return typing.cast(T, obj)
 
     json_data: Dict[str, JsonType] = _as_json_dict(typ, data)
-    obj = _create_object(typ)
+    obj = create_object(typ)
     for property_name, property_type in get_class_properties(typ):
         json_name = python_id_to_json_field(property_name, property_type)
 
@@ -412,3 +391,14 @@ def json_dump_string(json_object: JsonType) -> str:
     return json.dumps(
         json_object, ensure_ascii=False, check_circular=False, separators=(",", ":")
     )
+
+
+def json_dump(json_object: JsonType, file: TextIO) -> None:
+    json.dump(
+        json_object,
+        file,
+        ensure_ascii=False,
+        check_circular=False,
+        separators=(",", ":"),
+    )
+    file.write("\n")

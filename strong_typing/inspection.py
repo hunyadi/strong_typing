@@ -362,6 +362,14 @@ def is_reserved_property(name: str) -> bool:
     return False
 
 
+def create_object(typ: Type[T]) -> T:
+    if issubclass(typ, Exception):
+        e = typ.__new__(typ)
+        return typing.cast(T, e)
+    else:
+        return object.__new__(typ)
+
+
 def is_generic_instance(obj: Any, typ: type) -> bool:
     """
     Returns whether an object is an instance of a generic class, a standard class or of a subclass thereof.
