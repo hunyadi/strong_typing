@@ -8,7 +8,7 @@ import keyword
 import re
 import typing
 import uuid
-from typing import Any, Dict, List, Set, Type, TypeVar, Union
+from typing import Any, Dict, List, Set, Tuple, Type, TypeVar, Union
 
 from .auxiliary import Alias
 from .core import JsonType
@@ -128,11 +128,12 @@ def object_to_json(obj: Any) -> JsonType:
 
     elif is_named_tuple_instance(obj):
         object_dict = {}
-        for field in type(obj)._fields:  # type: ignore
-            value = getattr(obj, field)  # type: ignore
+        field_names: Tuple[str, ...] = type(obj)._fields
+        for field_name in field_names:
+            value = getattr(obj, field_name)
             if value is None:
                 continue
-            object_dict[python_id_to_json_field(field)] = object_to_json(value)  # type: ignore
+            object_dict[python_id_to_json_field(field_name)] = object_to_json(value)
         return object_dict
 
     elif isinstance(obj, tuple):
@@ -187,6 +188,14 @@ def _as_json_dict(typ: type, data: JsonType) -> Dict[str, JsonType]:
         )
 
 
+def _create_object(typ: Type[T]) -> T:
+    if issubclass(typ, Exception):
+        e = typ.__new__(typ)
+        return typing.cast(T, e)
+    else:
+        return object.__new__(typ)
+
+
 def json_to_object(typ: Type[T], data: JsonType) -> T:
     """
     Create an object from a representation that has been de-serialized from JSON.
@@ -203,37 +212,37 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
             raise JsonTypeError(
                 f"`None` type expects JSON `null` but instead received: {data}"
             )
-        return None  # type: ignore
+        return typing.cast(T, None)
     elif typ is bool:
         if not isinstance(data, bool):
             raise JsonTypeError(
                 f"`bool` type expects JSON `boolean` data but instead received: {data}"
             )
-        return bool(data)  # type: ignore
+        return typing.cast(T, bool(data))
     elif typ is int:
         if not isinstance(data, int):
             raise JsonTypeError(
                 f"`int` type expects integer data as JSON `number` but instead received: {data}"
             )
-        return int(data)  # type: ignore
+        return typing.cast(T, int(data))
     elif typ is float:
         if not isinstance(data, float) and not isinstance(data, int):
             raise JsonTypeError(
                 f"`int` type expects data as JSON `number` but instead received: {data}"
             )
-        return float(data)  # type: ignore
+        return typing.cast(T, float(data))
     elif typ is str:
         if not isinstance(data, str):
             raise JsonTypeError(
                 f"`str` type expects JSON `string` data but instead received: {data}"
             )
-        return str(data)  # type: ignore
+        return typing.cast(T, str(data))
     elif typ is bytes:
         if not isinstance(data, str):
             raise JsonTypeError(
                 f"`bytes` type expects JSON `string` data but instead received: {data}"
             )
-        return base64.b64decode(data)  # type: ignore
+        return typing.cast(T, base64.b64decode(data))
     elif typ is datetime.datetime or typ is datetime.date or typ is datetime.time:
         if not isinstance(data, str):
             raise JsonTypeError(
@@ -247,15 +256,17 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
                 raise JsonValueError(
                     f"timestamp lacks explicit time zone designator: {data}"
                 )
-            return timestamp  # type: ignore
-        else:
-            return typ.fromisoformat(data)  # type: ignore
+            return typing.cast(T, timestamp)
+        elif typ is datetime.date:
+            return typing.cast(T, datetime.date.fromisoformat(data))
+        elif typ is datetime.time:
+            return typing.cast(T, datetime.time.fromisoformat(data))
     elif typ is uuid.UUID:
         if not isinstance(data, str):
             raise JsonTypeError(
                 f"`{typ.__name__}` type expects JSON `string` data but instead received: {data}"
             )
-        return uuid.UUID(data)  # type: ignore
+        return typing.cast(T, uuid.UUID(data))
 
     # generic types (e.g. list, dict, set, etc.)
     origin_type = typing.get_origin(typ)
@@ -263,7 +274,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
         (list_type,) = typing.get_args(typ)  # unpack single tuple element
         json_list_data: List[JsonType] = _as_json_list(typ, data)
         list_value = [json_to_object(list_type, item) for item in json_list_data]
-        return list_value  # type: ignore
+        return typing.cast(T, list_value)
     elif origin_type is dict:
         key_type, value_type = typing.get_args(typ)
         json_dict_data: Dict[str, JsonType] = _as_json_dict(typ, data)
@@ -271,12 +282,12 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
             (key_type(key), json_to_object(value_type, value))
             for key, value in json_dict_data.items()
         )
-        return dict_value  # type: ignore
+        return typing.cast(T, dict_value)
     elif origin_type is set:
         (set_type,) = typing.get_args(typ)  # unpack single tuple element
         json_set_data: List[JsonType] = _as_json_list(typ, data)
         set_value = set(json_to_object(set_type, item) for item in json_set_data)
-        return set_value  # type: ignore
+        return typing.cast(T, set_value)
     elif origin_type is tuple:
         json_tuple_data: List[JsonType] = _as_json_list(typ, data)
         tuple_value = tuple(
@@ -286,7 +297,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
                 (item for item in json_tuple_data),
             )
         )
-        return tuple_value  # type: ignore
+        return typing.cast(T, tuple_value)
     elif origin_type is Union:
         for t in typing.get_args(typ):
             # iterate over potential types of discriminated union
@@ -311,10 +322,12 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
             field_name: json_to_object(field_type, json_named_tuple_data[field_name])
             for field_name, field_type in typing.get_type_hints(typ).items()
         }
-        return typ(**object_dict)  # type: ignore
+        tuple_value = typ(**object_dict)  # type: ignore
+        return typing.cast(T, tuple_value)
 
     if issubclass(typ, enum.Enum):
-        return typ(data)  # type: ignore
+        enum_value = typ(data)
+        return typing.cast(T, enum_value)
 
     # check if object has custom serialization method
     convert_func = getattr(typ, "from_json", None)
@@ -325,11 +338,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
         json_field_data: Dict[str, JsonType] = _as_json_dict(typ, data)
         assigned_names: Set[str] = set()
         resolved_hints = get_resolved_hints(typ)
-        if issubclass(typ, Exception):
-            obj = typ.__new__(typ)
-        else:
-            obj = object.__new__(typ)
-
+        obj = _create_object(typ)
         for field in dataclasses.fields(typ):
             field_type = resolved_hints[field.name]
             json_name = python_id_to_json_field(field.name, field_type)
@@ -369,10 +378,10 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
                 f"unrecognized fields in JSON object: {unassigned_names}"
             )
 
-        return obj  # type: ignore
+        return typing.cast(T, obj)
 
     json_data: Dict[str, JsonType] = _as_json_dict(typ, data)
-    obj = object.__new__(typ)
+    obj = _create_object(typ)
     for property_name, property_type in get_class_properties(typ):
         json_name = python_id_to_json_field(property_name, property_type)
 
@@ -394,7 +403,7 @@ def json_to_object(typ: Type[T], data: JsonType) -> T:
 
         setattr(obj, property_name, property_value)
 
-    return obj  # type: ignore
+    return typing.cast(T, obj)
 
 
 def json_dump_string(json_object: JsonType) -> str:

@@ -151,7 +151,7 @@ def is_type_union(typ: type) -> bool:
     return False
 
 
-def unwrap_union_types(typ: type) -> Tuple[type]:
+def unwrap_union_types(typ: type) -> Tuple[type, ...]:
     """
     Extracts the inner types of a union type.
 
@@ -162,14 +162,14 @@ def unwrap_union_types(typ: type) -> Tuple[type]:
     return _unwrap_union_types(typ)
 
 
-def _unwrap_union_types(typ: type) -> Tuple[type]:
+def _unwrap_union_types(typ: type) -> Tuple[type, ...]:
     "Extracts the types in a union (e.g. returns a tuple of types `T1` and `T2` for `Union[T1, T2]`)."
 
     if typing.get_origin(typ) is not Union:
         raise TypeError("union type must have un-subscripted type of Union")
 
     # will automatically unwrap Union[T] into T
-    return typing.get_args(typ)  # type: ignore
+    return typing.get_args(typ)
 
 
 def is_generic_list(typ: type) -> TypeGuard[Type[list]]:
@@ -212,7 +212,7 @@ def unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
     :returns: The key and value types `K` and `V`.
     """
 
-    return rewrap_annotated_type(_unwrap_generic_dict, typ)  # type: ignore
+    return _unwrap_generic_dict(unwrap_annotated_type(typ))
 
 
 def _unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:

@@ -98,7 +98,7 @@ def python_type_to_name(data_type: type, force: bool = False) -> str:
             item_name = python_type_to_name(unwrap_generic_list(data_type))
             return f"List__{item_name}"
         elif is_generic_dict(data_type):
-            key_type, value_type = unwrap_generic_dict(data_type)  # type: ignore
+            key_type, value_type = unwrap_generic_dict(data_type)
             key_name = python_type_to_name(key_type)
             value_name = python_type_to_name(value_type)
             return f"Dict__{key_name}__{value_name}"
