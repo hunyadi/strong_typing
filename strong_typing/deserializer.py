@@ -12,6 +12,7 @@ from .core import JsonType
 from .exception import JsonKeyError, JsonTypeError, JsonValueError
 from .inspection import (
     create_object,
+    enum_value_types,
     get_class_properties,
     get_resolved_hints,
     is_dataclass_instance,
@@ -20,7 +21,7 @@ from .inspection import (
     is_type_optional,
     unwrap_optional_type,
 )
-from .mapping import python_id_to_json_field
+from .mapping import python_field_to_json_property
 from .name import python_type_to_str
 
 
@@ -130,6 +131,8 @@ class UUIDDeserializer(Deserializer):
 
 
 class ListDeserializer(Deserializer):
+    "Recursively de-serializes a JSON array into a Python `list`."
+
     item_type: type
     item_parser: Deserializer
 
@@ -148,6 +151,8 @@ class ListDeserializer(Deserializer):
 
 
 class DictDeserializer(Deserializer):
+    "Recursively de-serializes a JSON object into a Python `dict`."
+
     key_type: type
     value_type: type
     value_parser: Deserializer
@@ -155,14 +160,38 @@ class DictDeserializer(Deserializer):
     def __init__(self, key_type: type, value_type: type) -> None:
         self.key_type = key_type
         self.value_type = value_type
+        self._check_key_type(key_type)
         self.value_parser = create_deserializer(value_type)
+
+    def _check_key_type(self, key_type: type) -> None:
+        if self.key_type is str:
+            return
+
+        if issubclass(self.key_type, enum.Enum):
+            value_types = enum_value_types(key_type)
+            if len(value_types) != 1:
+                raise JsonTypeError(
+                    f"type `{self.container_type}` has invalid key type, enumerations must have a consistent member value type but several types found: {value_types}"
+                )
+            value_type = value_types.pop()
+            if value_type is not str:
+                f"`type `{self.container_type}` has invalid enumeration key type, expected `enum.Enum` with string values"
+            return
+
+        raise JsonTypeError(
+            f"`type `{self.container_type}` has invalid key type, expected `str` or `enum.Enum` with string values"
+        )
+
+    @property
+    def container_type(self) -> str:
+        key_type_name = python_type_to_str(self.key_type)
+        value_type_name = python_type_to_str(self.value_type)
+        return f"Dict[{key_type_name}, {value_type_name}]"
 
     def parse(self, data: JsonType) -> dict:
         if not isinstance(data, dict):
-            key_type_name = python_type_to_str(self.key_type)
-            value_type_name = python_type_to_str(self.value_type)
             raise JsonTypeError(
-                f"`type `Dict[{key_type_name}, {value_type_name}]` expects JSON `object` data but instead received: {data}"
+                f"`type `{self.container_type}` expects JSON `object` data but instead received: {data}"
             )
 
         return dict(
@@ -172,6 +201,8 @@ class DictDeserializer(Deserializer):
 
 
 class SetDeserializer(Deserializer):
+    "Recursively de-serializes a JSON list into a Python `set`."
+
     member_type: type
     member_parser: Deserializer
 
@@ -190,6 +221,8 @@ class SetDeserializer(Deserializer):
 
 
 class TupleDeserializer(Deserializer):
+    "Recursively de-serializes a JSON list into a Python `tuple`."
+
     item_types: Tuple[type, ...]
     item_parsers: Tuple[Deserializer, ...]
 
@@ -199,18 +232,22 @@ class TupleDeserializer(Deserializer):
             create_deserializer(item_type) for item_type in item_types
         )
 
+    @property
+    def container_type(self) -> str:
+        type_names = ", ".join(
+            python_type_to_str(item_type) for item_type in self.item_types
+        )
+        return f"Tuple[{type_names}]"
+
     def parse(self, data: JsonType) -> tuple:
         if not isinstance(data, list) or len(data) != len(self.item_parsers):
-            type_names = ", ".join(
-                python_type_to_str(item_type) for item_type in self.item_types
-            )
             if not isinstance(data, list):
                 raise JsonTypeError(
-                    f"type `Tuple[{type_names}]` expects JSON `array` data but instead received: {data}"
+                    f"type `{self.container_type}` expects JSON `array` data but instead received: {data}"
                 )
             else:
                 raise JsonValueError(
-                    f"type `Tuple[{type_names}]` expects a JSON `array` of length {len(self.item_parsers)} but received length {len(data)}"
+                    f"type `{self.container_type}` expects a JSON `array` of length {len(self.item_parsers)} but received length {len(data)}"
                 )
 
         return tuple(
@@ -220,6 +257,8 @@ class TupleDeserializer(Deserializer):
 
 
 class UnionDeserializer(Deserializer):
+    "De-serializes a JSON value (of any type) into a Python union type."
+
     member_types: Tuple[type, ...]
     member_parsers: Tuple[Deserializer, ...]
 
@@ -248,6 +287,8 @@ class UnionDeserializer(Deserializer):
 
 
 class EnumDeserializer(Deserializer):
+    "Returns an enumeration instance based on the enumeration value read from a JSON value."
+
     enum_type: Type[enum.Enum]
 
     def __init__(self, enum_type: type) -> None:
@@ -258,6 +299,8 @@ class EnumDeserializer(Deserializer):
 
 
 class CustomDeserializer(Deserializer):
+    "Uses the `from_json` class method in class to de-serialize the object from JSON."
+
     converter: Callable[[JsonType], Any]
 
     def __init__(self, converter: Callable[[JsonType], Any]) -> None:
@@ -268,6 +311,14 @@ class CustomDeserializer(Deserializer):
 
 
 class FieldDeserializer:
+    """
+    Deserializes a JSON property into a Python object field.
+
+    :param property_name: The name of the JSON property to read from a JSON `object`.
+    :param field_name: The name of the field in a Python class to write data to.
+    :param parser: A compatible deserializer that can handle the field's type.
+    """
+
     property_name: str
     field_name: str
     parser: Deserializer
@@ -284,6 +335,8 @@ class FieldDeserializer:
 
 
 class RequiredFieldDeserializer(FieldDeserializer):
+    "Deserializes a JSON property into a mandatory Python object field."
+
     def parse_field(self, data: Dict[str, JsonType]) -> Any:
         if self.property_name not in data:
             raise JsonKeyError(
@@ -294,6 +347,8 @@ class RequiredFieldDeserializer(FieldDeserializer):
 
 
 class OptionalFieldDeserializer(FieldDeserializer):
+    "Deserializes a JSON property into an optional Python object field with a default value of `None`."
+
     def parse_field(self, data: Dict[str, JsonType]) -> Any:
         value = data.get(self.property_name)
         if value is not None:
@@ -303,6 +358,8 @@ class OptionalFieldDeserializer(FieldDeserializer):
 
 
 class DefaultFieldDeserializer(FieldDeserializer):
+    "Deserializes a JSON property into an optional Python object field with an explicit default value."
+
     default_value: Optional[Any] = None
 
     def __init__(
@@ -324,6 +381,8 @@ class DefaultFieldDeserializer(FieldDeserializer):
 
 
 class DefaultFactoryFieldDeserializer(FieldDeserializer):
+    "Deserializes a JSON property into an optional Python object field with an explicit default value factory."
+
     default_factory: Callable[[], Any]
 
     def __init__(
@@ -345,6 +404,8 @@ class DefaultFactoryFieldDeserializer(FieldDeserializer):
 
 
 class ClassDeserializer(Deserializer):
+    "Base class for de-serializing class-like types such as data classes, named tuples and regular classes."
+
     class_type: type
     property_parsers: List[FieldDeserializer]
 
@@ -379,6 +440,8 @@ class ClassDeserializer(Deserializer):
         return self.create(**field_values)
 
     def create(self, **field_values) -> object:
+        "Instantiates an object with a collection of property values."
+
         obj: object = create_object(self.class_type)
         for field_name, field_value in field_values.items():
             setattr(obj, field_name, field_value)
@@ -386,6 +449,8 @@ class ClassDeserializer(Deserializer):
 
 
 class NamedTupleDeserializer(ClassDeserializer):
+    "De-serializes a named tuple from a JSON `object`."
+
     def __init__(self, class_type: type) -> None:
         super().__init__(class_type)
 
@@ -401,6 +466,8 @@ class NamedTupleDeserializer(ClassDeserializer):
 
 
 class DataclassDeserializer(ClassDeserializer):
+    "De-serializes a data class from a JSON `object`."
+
     def __init__(self, class_type: type) -> None:
         super().__init__(class_type)
 
@@ -408,7 +475,7 @@ class DataclassDeserializer(ClassDeserializer):
         resolved_hints = get_resolved_hints(class_type)
         for field in dataclasses.fields(class_type):
             field_type = resolved_hints[field.name]
-            property_name = python_id_to_json_field(field.name, field_type)
+            property_name = python_field_to_json_property(field.name, field_type)
 
             is_optional = is_type_optional(field_type)
             has_default = field.default is not dataclasses.MISSING
@@ -443,12 +510,14 @@ class DataclassDeserializer(ClassDeserializer):
 
 
 class RegularClassDeserializer(ClassDeserializer):
+    "De-serializes a regular class from a JSON `object` by iterating over class properties."
+
     def __init__(self, class_type: type) -> None:
         super().__init__(class_type)
 
         self.property_parsers = []
         for field_name, field_type in get_class_properties(class_type):
-            property_name = python_id_to_json_field(field_name, field_type)
+            property_name = python_field_to_json_property(field_name, field_type)
 
             is_optional = is_type_optional(field_type)
 
@@ -551,11 +620,11 @@ def _create_deserializer(typ: type) -> Deserializer:
         else:
             raise TypeError(f"unable to de-serialize unrecognized type {typ}")
 
-    if is_named_tuple_type(typ):
-        return NamedTupleDeserializer(typ)
-
     if issubclass(typ, enum.Enum):
         return EnumDeserializer(typ)
+
+    if is_named_tuple_type(typ):
+        return NamedTupleDeserializer(typ)
 
     # check if object has custom serialization method
     convert_func = getattr(typ, "from_json", None)

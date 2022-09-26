@@ -4,9 +4,9 @@ from .auxiliary import Alias
 from .inspection import get_annotation
 
 
-def python_id_to_json_field(python_id: str, python_type: type = None) -> str:
+def python_field_to_json_property(python_id: str, python_type: type = None) -> str:
     """
-    Convert a Python identifier to a JSON field name.
+    Map a Python field identifier to a JSON property name.
 
     Authors may use an underscore appended at the end of a Python identifier as per PEP 8 if it clashes with a Python
     keyword: e.g. `in` would become `in_` and `from` would become `from_`. Remove these suffixes when exporting to JSON.

@@ -86,6 +86,15 @@ def is_type_enum(typ: type) -> TypeGuard[Type[enum.Enum]]:
     return isinstance(typ, type) and issubclass(typ, enum.Enum)
 
 
+def enum_value_types(enum_type: Type[enum.Enum]) -> List[type]:
+    """
+    Returns all unique value types of the `enum.Enum` type in definition order.
+    """
+
+    # filter unique enumeration value types by keeping definition order
+    return list(dict.fromkeys(type(e.value) for e in enum_type))
+
+
 def _is_union_like(typ: type) -> bool:
     "True if type is a union such as `Union[T1, T2, ...]` or a union type `T1 | T2`."
 

@@ -13,7 +13,7 @@ from .core import JsonType
 from .deserializer import create_deserializer
 from .exception import JsonValueError
 from .inspection import is_dataclass_type, is_named_tuple_type, is_reserved_property
-from .mapping import python_id_to_json_field
+from .mapping import python_field_to_json_property
 
 T = TypeVar("T")
 
@@ -126,33 +126,8 @@ class CustomSerializer(Serializer):
         return self.converter(obj)  # type: ignore
 
 
-class NamedTupleSerializer(Serializer):
+class ClassSerializer(Serializer):
     fields: Dict[str, str]
-
-    def __init__(self, class_type: Type[NamedTuple]) -> None:
-        # named tuples are also instances of tuple
-        self.fields = {}
-        field_names: Tuple[str, ...] = class_type._fields
-        for field_name in field_names:
-            self.fields[field_name] = python_id_to_json_field(field_name)
-
-    def generate(self, obj: NamedTuple) -> JsonType:
-        object_dict = {}
-        for field_name, property_name in self.fields.items():
-            value = getattr(obj, field_name)
-            if value is None:
-                continue
-            object_dict[property_name] = object_to_json(value)
-        return object_dict
-
-
-class DataclassSerializer(Serializer):
-    fields: Dict[str, str]
-
-    def __init__(self, class_type: type) -> None:
-        self.fields = {}
-        for field in dataclasses.fields(class_type):
-            self.fields[field.name] = python_id_to_json_field(field.name, field.type)
 
     def generate(self, obj: object) -> JsonType:
         object_dict = {}
@@ -164,7 +139,25 @@ class DataclassSerializer(Serializer):
         return object_dict
 
 
-class RegularClassSerializer(Serializer):
+class NamedTupleSerializer(ClassSerializer):
+    def __init__(self, class_type: Type[NamedTuple]) -> None:
+        # named tuples are also instances of tuple
+        self.fields = {}
+        field_names: Tuple[str, ...] = class_type._fields
+        for field_name in field_names:
+            self.fields[field_name] = python_field_to_json_property(field_name)
+
+
+class DataclassSerializer(ClassSerializer):
+    def __init__(self, class_type: type) -> None:
+        self.fields = {}
+        for field in dataclasses.fields(class_type):
+            self.fields[field.name] = python_field_to_json_property(
+                field.name, field.type
+            )
+
+
+class DynamicClassSerializer(Serializer):
     def __init__(self, class_type: type) -> None:
         pass
 
@@ -183,25 +176,13 @@ class RegularClassSerializer(Serializer):
             if inspect.ismethod(value):
                 continue
 
-            object_dict[python_id_to_json_field(name)] = object_to_json(value)
+            object_dict[python_field_to_json_property(name)] = object_to_json(value)
 
         return object_dict
 
 
-def create_serializer(typ: type) -> Serializer:
-    if isinstance(typ, type):
-        return _fetch_serializer(typ)
-    else:
-        # special forms are not always hashable
-        return _create_serializer(typ)
-
-
 @functools.lru_cache(maxsize=None)
-def _fetch_serializer(typ: type) -> Serializer:
-    return _create_serializer(typ)
-
-
-def _create_serializer(typ: type) -> Serializer:
+def create_serializer(typ: type) -> Serializer:
     # check for well-known types
     if typ is type(None):
         return NoneSerializer()
@@ -255,7 +236,7 @@ def _create_serializer(typ: type) -> Serializer:
     ):
         raise TypeError(f"object of type {typ} cannot be represented in JSON")
 
-    return RegularClassSerializer(typ)
+    return DynamicClassSerializer(typ)
 
 
 def object_to_json(obj: Any) -> JsonType:
@@ -271,7 +252,8 @@ def object_to_json(obj: Any) -> JsonType:
     * Objects with properties (including data class types) are converted to a dictionaries of key-value pairs.
     """
 
-    generator = create_serializer(type(obj))
+    typ: type = type(obj)
+    generator = create_serializer(typ)
     return generator.generate(obj)
 
 

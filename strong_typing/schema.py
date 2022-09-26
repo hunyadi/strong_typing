@@ -36,9 +36,9 @@ from .auxiliary import (
 )
 from .core import JsonArray, JsonObject, JsonType, Schema, StrictJsonType
 from .inspection import (
+    enum_value_types,
     get_annotation,
     get_class_properties,
-    is_dataclass_type,
     is_type_enum,
     is_type_optional,
     unwrap_optional_type,
@@ -338,14 +338,12 @@ class JsonSchemaGenerator:
 
         if is_type_enum(typ):
             enum_type: Type[enum.Enum] = typ
-            enum_values = [e.value for e in enum_type]
-            enum_value_types = list(dict.fromkeys(type(value) for value in enum_values))
-            if len(enum_value_types) != 1:
+            value_types = enum_value_types(enum_type)
+            if len(value_types) != 1:
                 raise ValueError(
-                    f"enumerations must have a consistent member value type but several types found: {enum_value_types}"
+                    f"enumerations must have a consistent member value type but several types found: {value_types}"
                 )
-
-            enum_value_type = enum_value_types[0]
+            enum_value_type = value_types.pop()
             if enum_value_type is bool:
                 enum_schema_type = "boolean"
             elif enum_value_type is int:
@@ -359,6 +357,7 @@ class JsonSchemaGenerator:
                     f"unsupported enumeration member value type: {enum_value_type}"
                 )
 
+            enum_values = [e.value for e in enum_type]
             enum_schema: Schema = {"type": enum_schema_type, "enum": enum_values}
             if self.options.use_descriptions:
                 enum_schema.update(docstring_to_schema(typ))

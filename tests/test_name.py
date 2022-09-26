@@ -2,8 +2,8 @@ import unittest
 from typing import Dict, List, Optional, Union
 
 from strong_typing.auxiliary import Alias, Annotated
+from strong_typing.mapping import python_field_to_json_property
 from strong_typing.name import python_type_to_name
-from strong_typing.serialization import python_id_to_json_field
 
 
 class TestName(unittest.TestCase):
@@ -31,9 +31,9 @@ class TestName(unittest.TestCase):
         )
 
     def test_alias(self):
-        self.assertEqual(python_id_to_json_field("id"), "id")
+        self.assertEqual(python_field_to_json_property("id"), "id")
         self.assertEqual(
-            python_id_to_json_field("id", Annotated[str, Alias("alias")]), "alias"
+            python_field_to_json_property("id", Annotated[str, Alias("alias")]), "alias"
         )
 
 
