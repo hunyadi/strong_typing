@@ -3,14 +3,9 @@ import unittest
 import uuid
 from typing import Dict, List, Optional, Set, Union
 
+from strong_typing.exception import JsonKeyError, JsonTypeError, JsonValueError
 from strong_typing.schema import validate_object
-from strong_typing.serialization import (
-    JsonKeyError,
-    JsonTypeError,
-    JsonValueError,
-    json_to_object,
-    object_to_json,
-)
+from strong_typing.serialization import json_to_object, object_to_json
 
 from sample_types import *
 
