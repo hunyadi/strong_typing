@@ -4,6 +4,7 @@ import inspect
 import re
 import types
 from dataclasses import dataclass
+from io import StringIO
 from typing import Any, Callable, Dict, Optional, Type
 
 from .inspection import get_class_properties, get_signature, is_dataclass_type
@@ -22,6 +23,9 @@ class DocstringParam:
     description: str
     param_type: type = inspect.Signature.empty
 
+    def __str__(self) -> str:
+        return f":param {self.name}: {self.description}"
+
 
 @dataclass
 class DocstringReturns:
@@ -33,6 +37,9 @@ class DocstringReturns:
 
     description: str
     return_type: type = inspect.Signature.empty
+
+    def __str__(self) -> str:
+        return f":returns: {self.description}"
 
 
 @dataclass
@@ -48,6 +55,9 @@ class DocstringRaises:
     description: str
     raise_type: type = inspect.Signature.empty
 
+    def __str__(self) -> str:
+        return f":raises {self.typename}: {self.description}"
+
 
 @dataclass
 class Docstring:
@@ -60,7 +70,8 @@ class Docstring:
     * A long description, which is the optional block of text following the short description, and ends with
       a parameter block.
     * A parameter block of named parameter and description string pairs in ReST-style.
-    * A returns declaration, which adds explanation to the return value.
+    * A `returns` declaration, which adds explanation to the return value.
+    * A `raises` declaration, which adds explanation to the exception type raised by the function on error.
 
     When the docstring is attached to a data class, it is understood as the documentation string of the class
     `__init__` method.
@@ -85,6 +96,38 @@ class Docstring:
             return self.short_description
         else:
             return None
+
+    def __str__(self) -> str:
+        output = StringIO()
+
+        has_description = self.short_description or self.long_description
+        has_blocks = self.params or self.returns or self.raises
+
+        if has_description:
+            if self.short_description and self.long_description:
+                output.write(self.short_description)
+                output.write("\n\n")
+                output.write(self.long_description)
+            elif self.short_description:
+                output.write(self.short_description)
+
+        if has_blocks:
+            if has_description:
+                output.write("\n")
+
+            for param in self.params.values():
+                output.write("\n")
+                output.write(str(param))
+            if self.returns:
+                output.write("\n")
+                output.write(str(self.returns))
+            for raises in self.raises.values():
+                output.write("\n")
+                output.write(str(raises))
+
+        s = output.getvalue()
+        output.close()
+        return s
 
 
 def get_exceptions(module: types.ModuleType) -> Dict[str, Type[BaseException]]:
