@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import Any, Callable, Dict, Optional, Type
 
-from .inspection import get_class_properties, get_signature, is_dataclass_type
+from .inspection import (
+    get_class_properties,
+    get_signature,
+    is_dataclass_type,
+    is_type_enum,
+)
 
 
 @dataclass
@@ -270,7 +275,7 @@ def has_default_docstring(typ: type) -> bool:
         is_dataclass_type(typ)
         and typ.__doc__ is not None
         and re.match(f"^{re.escape(typ.__name__)}[(].*[)]$", typ.__doc__) is not None
-    )
+    ) or (is_type_enum(typ) and typ.__doc__ == "An enumeration.")
 
 
 def has_docstring(typ: type) -> bool:

@@ -1,14 +1,24 @@
+import enum
 import inspect
 import unittest
 from dataclasses import dataclass
 from typing import Optional
 
-from strong_typing.docstring import parse_type
+from strong_typing.docstring import has_default_docstring, has_docstring, parse_type
 
 from sample_exceptions import CustomException
 
 
 class NoDescriptionClass:
+    pass
+
+
+@dataclass
+class NoDescriptionDataclass:
+    pass
+
+
+class NoDescriptionEnumeration(enum.Enum):
     pass
 
 
@@ -123,6 +133,18 @@ class SampleClass:
 
 
 class TestDocstring(unittest.TestCase):
+    def test_default_docstring(self):
+        self.assertFalse(has_default_docstring(NoDescriptionClass))
+        self.assertTrue(has_default_docstring(NoDescriptionDataclass))
+        self.assertTrue(has_default_docstring(NoDescriptionEnumeration))
+        self.assertFalse(has_default_docstring(ShortDescriptionClass))
+
+    def test_any_docstring(self):
+        self.assertFalse(has_docstring(NoDescriptionClass))
+        self.assertFalse(has_docstring(NoDescriptionDataclass))
+        self.assertFalse(has_docstring(NoDescriptionEnumeration))
+        self.assertTrue(has_docstring(ShortDescriptionClass))
+
     def test_no_description(self):
         docstring = parse_type(NoDescriptionClass)
         self.assertIsNone(docstring.short_description)
