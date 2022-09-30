@@ -1,3 +1,4 @@
+import abc
 import base64
 import dataclasses
 import datetime
@@ -18,19 +19,26 @@ from .inspection import (
     is_dataclass_instance,
     is_dataclass_type,
     is_named_tuple_type,
+    is_type_annotated,
     is_type_optional,
+    unwrap_annotated_type,
     unwrap_optional_type,
 )
 from .mapping import python_field_to_json_property
 from .name import python_type_to_str
 
 
-class Deserializer:
+class Deserializer(abc.ABC):
+    "Parses a JSON value into a Python type."
+
+    @abc.abstractmethod
     def parse(self, data: JsonType) -> Any:
-        pass
+        ...
 
 
 class NoneDeserializer(Deserializer):
+    "Parses JSON `null` values into Python `None`."
+
     def parse(self, data: JsonType) -> None:
         if data is not None:
             raise JsonTypeError(
@@ -40,6 +48,8 @@ class NoneDeserializer(Deserializer):
 
 
 class BoolDeserializer(Deserializer):
+    "Parses JSON `boolean` values into Python `bool` type."
+
     def parse(self, data: JsonType) -> bool:
         if not isinstance(data, bool):
             raise JsonTypeError(
@@ -49,6 +59,8 @@ class BoolDeserializer(Deserializer):
 
 
 class IntDeserializer(Deserializer):
+    "Parses JSON `number` values into Python `int` type."
+
     def parse(self, data: JsonType) -> int:
         if not isinstance(data, int):
             raise JsonTypeError(
@@ -58,6 +70,8 @@ class IntDeserializer(Deserializer):
 
 
 class FloatDeserializer(Deserializer):
+    "Parses JSON `number` values into Python `float` type."
+
     def parse(self, data: JsonType) -> float:
         if not isinstance(data, float) and not isinstance(data, int):
             raise JsonTypeError(
@@ -67,6 +81,8 @@ class FloatDeserializer(Deserializer):
 
 
 class StringDeserializer(Deserializer):
+    "Parses JSON `string` values into Python `str` type."
+
     def parse(self, data: JsonType) -> str:
         if not isinstance(data, str):
             raise JsonTypeError(
@@ -76,15 +92,19 @@ class StringDeserializer(Deserializer):
 
 
 class BytesDeserializer(Deserializer):
+    "Parses JSON `string` values of Base64-encoded strings into Python `bytes` type."
+
     def parse(self, data: JsonType) -> bytes:
         if not isinstance(data, str):
             raise JsonTypeError(
                 f"`bytes` type expects JSON `string` data but instead received: {data}"
             )
-        return base64.b64decode(data)
+        return base64.b64decode(data, validate=True)
 
 
 class DateTimeDeserializer(Deserializer):
+    "Parses JSON `string` values representing timestamps in ISO 8601 format to Python `datetime` with time zone."
+
     def parse(self, data: JsonType) -> datetime.datetime:
         if not isinstance(data, str):
             raise JsonTypeError(
@@ -102,6 +122,8 @@ class DateTimeDeserializer(Deserializer):
 
 
 class DateDeserializer(Deserializer):
+    "Parses JSON `string` values representing dates in ISO 8601 format to Python `date` type."
+
     def parse(self, data: JsonType) -> datetime.date:
         if not isinstance(data, str):
             raise JsonTypeError(
@@ -112,6 +134,8 @@ class DateDeserializer(Deserializer):
 
 
 class TimeDeserializer(Deserializer):
+    "Parses JSON `string` values representing time instances in ISO 8601 format to Python `time` type with time zone."
+
     def parse(self, data: JsonType) -> datetime.time:
         if not isinstance(data, str):
             raise JsonTypeError(
@@ -122,6 +146,8 @@ class TimeDeserializer(Deserializer):
 
 
 class UUIDDeserializer(Deserializer):
+    "Parses JSON `string` values of UUID strings into Python `uuid.UUID` type."
+
     def parse(self, data: JsonType) -> uuid.UUID:
         if not isinstance(data, str):
             raise JsonTypeError(
@@ -160,15 +186,15 @@ class DictDeserializer(Deserializer):
     def __init__(self, key_type: type, value_type: type) -> None:
         self.key_type = key_type
         self.value_type = value_type
-        self._check_key_type(key_type)
+        self._check_key_type()
         self.value_parser = create_deserializer(value_type)
 
-    def _check_key_type(self, key_type: type) -> None:
+    def _check_key_type(self) -> None:
         if self.key_type is str:
             return
 
         if issubclass(self.key_type, enum.Enum):
-            value_types = enum_value_types(key_type)
+            value_types = enum_value_types(self.key_type)
             if len(value_types) != 1:
                 raise JsonTypeError(
                     f"type `{self.container_type}` has invalid key type, enumerations must have a consistent member value type but several types found: {value_types}"
@@ -310,7 +336,7 @@ class CustomDeserializer(Deserializer):
         return self.converter(data)  # type: ignore
 
 
-class FieldDeserializer:
+class FieldDeserializer(abc.ABC):
     """
     Deserializes a JSON property into a Python object field.
 
@@ -330,8 +356,9 @@ class FieldDeserializer:
         self.field_name = field_name
         self.parser = parser
 
+    @abc.abstractmethod
     def parse_field(self, data: Dict[str, JsonType]) -> Any:
-        pass
+        ...
 
 
 class RequiredFieldDeserializer(FieldDeserializer):
@@ -458,7 +485,7 @@ class NamedTupleDeserializer(ClassDeserializer):
             RequiredFieldDeserializer(
                 field_name, field_name, create_deserializer(field_type)
             )
-            for field_name, field_type in typing.get_type_hints(class_type).items()
+            for field_name, field_type in get_resolved_hints(class_type).items()
         ]
 
     def create(self, **field_values) -> object:
@@ -509,14 +536,14 @@ class DataclassDeserializer(ClassDeserializer):
             self.property_parsers.append(field_parser)
 
 
-class RegularClassDeserializer(ClassDeserializer):
-    "De-serializes a regular class from a JSON `object` by iterating over class properties."
+class TypedClassDeserializer(ClassDeserializer):
+    "De-serializes a class with type annotations from a JSON `object` by iterating over class properties."
 
     def __init__(self, class_type: type) -> None:
         super().__init__(class_type)
 
         self.property_parsers = []
-        for field_name, field_type in get_class_properties(class_type):
+        for field_name, field_type in get_resolved_hints(class_type).items():
             property_name = python_field_to_json_property(field_name, field_type)
 
             is_optional = is_type_optional(field_type)
@@ -598,6 +625,20 @@ def _create_deserializer(typ: type) -> Deserializer:
     elif typ is uuid.UUID:
         return UUIDDeserializer()
 
+    # dynamically-typed collection types
+    if typ is list:
+        raise TypeError("explicit item type required: use `List[T]` instead of `list`")
+    if typ is dict:
+        raise TypeError(
+            "explicit key and value types required: use `Dict[K, V]` instead of `dict`"
+        )
+    if typ is set:
+        raise TypeError("explicit member type required: use `Set[T]` instead of `set`")
+    if typ is tuple:
+        raise TypeError(
+            "explicit item type list required: use `Tuple[T, ...]` instead of `tuple`"
+        )
+
     # generic types (e.g. list, dict, set, etc.)
     origin_type = typing.get_origin(typ)
     if origin_type is list:
@@ -614,11 +655,14 @@ def _create_deserializer(typ: type) -> Deserializer:
     elif origin_type is Union:
         return UnionDeserializer(typing.get_args(typ))
 
+    if is_type_annotated(typ):
+        return create_deserializer(unwrap_annotated_type(typ))
+
     if not inspect.isclass(typ):
         if is_dataclass_instance(typ):
             raise TypeError(f"dataclass type expected but got instance: {typ}")
         else:
-            raise TypeError(f"unable to de-serialize unrecognized type {typ}")
+            raise TypeError(f"unable to de-serialize unrecognized type: {typ}")
 
     if issubclass(typ, enum.Enum):
         return EnumDeserializer(typ)
@@ -634,4 +678,4 @@ def _create_deserializer(typ: type) -> Deserializer:
     if is_dataclass_type(typ):
         return DataclassDeserializer(typ)
     else:
-        return RegularClassDeserializer(typ)
+        return TypedClassDeserializer(typ)

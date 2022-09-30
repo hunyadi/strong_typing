@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections import namedtuple
 
 import datetime
 import enum
@@ -26,22 +27,37 @@ class Suit(enum.Enum):
     Spades = 4
 
 
+class SimpleTypedClass:
+    int_value: int
+    str_value: str
+
+    def __init__(self, int_value: int, str_value: str) -> None:
+        self.int_value = int_value
+        self.str_value = str_value
+
+
+class SimpleUntypedClass:
+    def __init__(self, int_value: int, str_value: str) -> None:
+        self.int_value = int_value
+        self.str_value = str_value
+
+
 @dataclass
-class SimpleValueExample:
+class SimpleValueWrapper:
     "A simple data class with a single property."
 
     value: int = 23
 
 
 @dataclass
-class OptionalValueExample:
+class OptionalValueWrapper:
     "A simple data class with an optional field."
 
     value: Optional[int]
 
 
 @dataclass
-class BinaryValueExample:
+class BinaryValueWrapper:
     value: bytes
 
 
@@ -66,7 +82,12 @@ class UID:
         return UID(value)
 
 
-class SimpleNamedTuple(NamedTuple):
+SimpleUntypedNamedTuple = namedtuple(
+    "SimpleUntypedNamedTuple", ["int_value", "str_value"]
+)
+
+
+class SimpleTypedNamedTuple(NamedTuple):
     "A simple named tuple."
 
     int_value: int
@@ -74,7 +95,7 @@ class SimpleNamedTuple(NamedTuple):
 
 
 @dataclass
-class SimpleObjectExample:
+class SimpleDataclass:
     "A simple data class with multiple properties."
 
     bool_value: bool = True
@@ -90,7 +111,7 @@ class SimpleObjectExample:
 
 
 @dataclass
-class AnnotatedSimpleObjectExample:
+class AnnotatedSimpleDataclass:
     "A simple data class with multiple properties."
 
     int_value: Annotated[int, IntegerRange(19, 82)] = 23
@@ -101,24 +122,24 @@ class AnnotatedSimpleObjectExample:
 
 
 @dataclass
-class CompositeObjectExample:
+class CompositeDataclass:
     list_value: List[str] = field(default_factory=list)
     dict_value: Dict[str, int] = field(default_factory=dict)
     set_value: Set[int] = field(default_factory=set)
     tuple_value: Tuple[bool, int, str] = (True, 2, "three")
-    named_tuple_value: SimpleNamedTuple = SimpleNamedTuple(1, "second")
+    named_tuple_value: SimpleTypedNamedTuple = SimpleTypedNamedTuple(1, "second")
     optional_value: Optional[str] = None
 
 
 @dataclass
-class SimpleInheritanceExample(SimpleObjectExample):
+class SimpleDerivedClass(SimpleDataclass):
     extra_int_value: int = 0
     extra_str_value: str = "zero"
     extra_optional_value: Optional[str] = "value"
 
 
 @dataclass
-class MultipleInheritanceExample(SimpleObjectExample, CompositeObjectExample):
+class MultipleInheritanceDerivedClass(SimpleDataclass, CompositeDataclass):
     extra_int_value: int = 0
     extra_str_value: str = "zero"
     extra_optional_value: Optional[str] = "value"
@@ -133,13 +154,13 @@ class ValueExample:
 
 
 @dataclass
-class NestedObjectExample:
-    obj_value: CompositeObjectExample
+class NestedDataclass:
+    obj_value: CompositeDataclass
     list_value: List[ValueExample]
     dict_value: Dict[str, ValueExample]
 
     def __init__(self):
-        self.obj_value = CompositeObjectExample(
+        self.obj_value = CompositeDataclass(
             list_value=["a", "b", "c"], dict_value={"key": 42}
         )
         self.list_value = [ValueExample(value=1), ValueExample(value=2)]

@@ -236,25 +236,25 @@ class TestInspection(unittest.TestCase):
         )
         self.assertTrue(
             check_recursive(
-                SimpleObjectExample(),
+                SimpleDataclass(),
                 pred=lambda typ, obj: isinstance(obj, typ),
             )
         )
         self.assertTrue(
             check_recursive(
-                CompositeObjectExample(),
+                CompositeDataclass(),
                 pred=lambda typ, obj: is_generic_instance(obj, typ),
             )
         )
         self.assertTrue(
             check_recursive(
-                NestedObjectExample(),
+                NestedDataclass(),
                 pred=lambda typ, obj: is_generic_instance(obj, typ),
             )
         )
         self.assertTrue(
             check_recursive(
-                SimpleObjectExample(),
+                SimpleDataclass(),
                 type_pred=lambda typ: typ is datetime.datetime,
                 value_pred=lambda obj: obj.tzinfo is not None,
             )

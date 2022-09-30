@@ -89,7 +89,7 @@ class TestSchema(unittest.TestCase):
             },
         )
         self.assertEqual(
-            generator.type_to_schema(SimpleValueExample),
+            generator.type_to_schema(SimpleValueWrapper),
             {
                 "type": "object",
                 "properties": {"value": {"type": "integer", "default": 23}},
@@ -99,7 +99,7 @@ class TestSchema(unittest.TestCase):
             },
         )
         self.assertEqual(
-            generator.type_to_schema(SimpleNamedTuple),
+            generator.type_to_schema(SimpleTypedNamedTuple),
             {
                 "type": "object",
                 "properties": {
@@ -217,7 +217,7 @@ class TestSchema(unittest.TestCase):
             },
         )
         self.assertEqual(
-            generator.type_to_schema(AnnotatedSimpleObjectExample),
+            generator.type_to_schema(AnnotatedSimpleDataclass),
             {
                 "type": "object",
                 "properties": {
@@ -293,7 +293,7 @@ class TestSchema(unittest.TestCase):
 
         # parse docstring for complex types
         self._assert_docstring_equal(generator, Suit)
-        self._assert_docstring_equal(generator, SimpleObjectExample)
+        self._assert_docstring_equal(generator, SimpleDataclass)
 
 
 if __name__ == "__main__":
