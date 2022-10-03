@@ -13,6 +13,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     NamedTuple,
     Optional,
     Tuple,
@@ -179,6 +180,36 @@ def _unwrap_union_types(typ: type) -> Tuple[type, ...]:
 
     # will automatically unwrap Union[T] into T
     return typing.get_args(typ)
+
+
+def is_type_literal(typ: type) -> bool:
+    "True if the specified type is a literal of one or more constant values, e.g. `Literal['string']` or `Literal[42]`."
+
+    typ = unwrap_annotated_type(typ)
+    return typing.get_origin(typ) is Literal
+
+
+def unwrap_literal_values(typ: type) -> Tuple[Any, ...]:
+    """
+    Extracts the constant values captured by a literal type.
+
+    :param typ: The literal type `Literal[value, ...]`.
+    :returns: A tuple of values captured by the literal type.
+    """
+
+    typ = unwrap_annotated_type(typ)
+    return typing.get_args(typ)
+
+
+def unwrap_literal_types(typ: type) -> Tuple[type, ...]:
+    """
+    Extracts the types of the constant values captured by a literal type.
+
+    :param typ: The literal type `Literal[value, ...]`.
+    :returns: A tuple of item types `T` such that `type(value) == T`.
+    """
+
+    return tuple(type(t) for t in unwrap_literal_values(typ))
 
 
 def is_generic_list(typ: type) -> TypeGuard[Type[list]]:

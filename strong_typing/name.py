@@ -1,5 +1,5 @@
 import typing
-from typing import Union
+from typing import Literal, Union
 
 from .auxiliary import _auxiliary_types
 from .inspection import (
@@ -28,12 +28,15 @@ def _python_type_to_str(data_type: type) -> str:
         elif origin is set:  # Set[T]
             origin_name = "Set"
         elif origin is Union:
-            if type(None) in data_type_args:
+            if len(data_type_args) == 2 and type(None) in data_type_args:
                 # Optional[T] is represented as Union[T, None]
                 origin_name = "Optional"
                 data_type_args = tuple(t for t in data_type_args if t is not type(None))
             else:
                 origin_name = "Union"
+        elif origin is Literal:
+            args = ", ".join(repr(arg) for arg in data_type_args)
+            return f"Literal[{args}]"
         else:
             origin_name = origin.__name__
 
