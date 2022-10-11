@@ -665,11 +665,13 @@ def json_schema_type(
     ...
 
 
-def json_schema_type(cls: Type[T] = None, *, schema: Schema = None):
+def json_schema_type(
+    cls: Type[T] = None, *, schema: Schema = None, examples: List[JsonType] = None
+):
     """Decorator to add user-defined schema definition to a class."""
 
     def wrap(cls: Type[T]) -> Type[T]:
-        return register_schema(cls, schema)
+        return register_schema(cls, schema, examples=examples)
 
     # see if decorator is used as @json_schema_type or @json_schema_type()
     if cls is None:
