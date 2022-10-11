@@ -30,6 +30,15 @@ class TestName(unittest.TestCase):
             "Union__str__int__NoneType",
         )
 
+        with self.assertRaises(TypeError):
+            python_type_to_name(Optional[str])
+        with self.assertRaises(TypeError):
+            python_type_to_name(List[int])
+        with self.assertRaises(TypeError):
+            python_type_to_name(Dict[str, int])
+        with self.assertRaises(TypeError):
+            python_type_to_name(Union[str, int, None])
+
     def test_alias(self):
         self.assertEqual(python_field_to_json_property("id"), "id")
         self.assertEqual(

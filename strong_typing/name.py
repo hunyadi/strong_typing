@@ -113,7 +113,7 @@ def python_type_to_name(data_type: type, force: bool = False) -> str:
             return f"Union__{member_names}"
 
     # named system or user-defined type
-    if hasattr(data_type, "__name__"):
+    if hasattr(data_type, "__name__") and not typing.get_args(data_type):
         return data_type.__name__
 
     raise TypeError(f"cannot assign a simple name to type: {data_type}")

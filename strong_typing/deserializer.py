@@ -336,6 +336,23 @@ class CustomDeserializer(Deserializer):
         return self.converter(data)  # type: ignore
 
 
+class DeferredDeserializer(Deserializer):
+    """
+    Dynamically instantiates a deserializer to parse a JSON value.
+
+    Required for de-serializing recursively defined types (e.g. tree structures).
+    """
+
+    evaluated_type: type
+
+    def __init__(self, evaluated_type: type) -> None:
+        self.evaluated_type = evaluated_type
+
+    def parse(self, data: JsonType) -> Any:
+        deserializer = create_deserializer(self.evaluated_type)
+        return deserializer.parse(data)
+
+
 class FieldDeserializer(abc.ABC):
     """
     Deserializes a JSON property into a Python object field.
@@ -657,6 +674,12 @@ def _create_deserializer(typ: type) -> Deserializer:
 
     if is_type_annotated(typ):
         return create_deserializer(unwrap_annotated_type(typ))
+
+    if isinstance(typ, typing.ForwardRef):
+        fwd: typing.ForwardRef = typ
+        identifier = fwd.__forward_arg__
+        evaluated_type = eval(identifier)
+        return DeferredDeserializer(evaluated_type)
 
     if not inspect.isclass(typ):
         if is_dataclass_instance(typ):
