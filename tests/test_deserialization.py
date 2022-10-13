@@ -103,6 +103,33 @@ class TestDeserialization(unittest.TestCase):
         with self.assertRaises(JsonKeyError):
             json_to_object(OptionalValueWrapper, {"value": 23, "extra": 42})
 
+    def test_deserialization_literal(self):
+        self.assertEqual(
+            json_to_object(Literal["val1", "val2", "val3"], "val1"), "val1"
+        )
+        self.assertEqual(
+            json_to_object(Literal["val1", "val2", "val3"], "val3"), "val3"
+        )
+        self.assertEqual(json_to_object(Literal[1, 2, 3], 1), 1)
+        self.assertEqual(json_to_object(Literal[1, 2, 3], 3), 3)
+
+        self.assertEqual(
+            json_to_object(LiteralWrapper, {"value": "val1"}), LiteralWrapper("val1")
+        )
+        self.assertEqual(
+            json_to_object(LiteralWrapper, {"value": "val2"}), LiteralWrapper("val2")
+        )
+        self.assertEqual(
+            json_to_object(LiteralWrapper, {"value": "val3"}), LiteralWrapper("val3")
+        )
+
+        with self.assertRaises(TypeError):
+            json_to_object(Literal["value", 1], "value")
+        with self.assertRaises(TypeError):
+            json_to_object(Literal[1, "value"], "value")
+        with self.assertRaises(JsonTypeError):
+            json_to_object(Literal["val1", "val2", "val3"], "value")
+
     def test_deserialization_union(self):
         # built-in types
         self.assertEqual(json_to_object(Union[int, str], 42), 42)

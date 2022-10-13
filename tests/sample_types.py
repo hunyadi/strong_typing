@@ -5,7 +5,7 @@ import datetime
 import enum
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, NamedTuple, Optional, Set, Tuple
+from typing import Dict, List, Literal, NamedTuple, Optional, Set, Tuple
 
 from strong_typing.auxiliary import Annotated, IntegerRange, MaxLength, Precision
 from strong_typing.schema import json_schema_type
@@ -59,6 +59,11 @@ class OptionalValueWrapper:
 @dataclass
 class BinaryValueWrapper:
     value: bytes
+
+
+@dataclass
+class LiteralWrapper:
+    value: Literal["val1", "val2", "val3"]
 
 
 @json_schema_type(  # type: ignore

@@ -67,7 +67,10 @@ def is_named_tuple_type(typ: type) -> TypeGuard[Type[NamedTuple]]:
 
     typ = unwrap_annotated_type(typ)
 
-    b = typ.__bases__
+    b = getattr(typ, "__bases__", None)
+    if b is None:
+        return False
+
     if len(b) != 1 or b[0] != tuple:
         return False
 

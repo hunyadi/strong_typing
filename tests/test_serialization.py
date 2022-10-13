@@ -62,6 +62,11 @@ class TestSerialization(unittest.TestCase):
         with self.assertRaises(JsonValueError):
             object_to_json(datetime.datetime(1989, 10, 23, 1, 45, 50))
 
+    def test_serialization_literal(self):
+        self.assertEqual(object_to_json(LiteralWrapper("val1")), {"value": "val1"})
+        self.assertEqual(object_to_json(LiteralWrapper("val2")), {"value": "val2"})
+        self.assertEqual(object_to_json(LiteralWrapper("val3")), {"value": "val3"})
+
     def test_serialization_namedtuple(self):
         self.assertEqual(
             object_to_json(SimpleTypedNamedTuple(42, "string")),

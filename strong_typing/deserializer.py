@@ -7,7 +7,7 @@ import functools
 import inspect
 import typing
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Union
 
 from .core import JsonType
 from .exception import JsonKeyError, JsonTypeError, JsonValueError
@@ -310,6 +310,34 @@ class UnionDeserializer(Deserializer):
         raise JsonKeyError(
             f"type `Union[{type_names}]` could not be instantiated from: {data}"
         )
+
+
+class LiteralDeserializer(Deserializer):
+    values: Tuple[Any, ...]
+    parser: Deserializer
+
+    def __init__(self, values: Tuple[Any, ...]) -> None:
+        self.values = values
+
+        literal_type_tuple = tuple(type(value) for value in values)
+        literal_type_set = set(literal_type_tuple)
+        if len(literal_type_set) != 1:
+            value_names = ", ".join(repr(value) for value in values)
+            raise TypeError(
+                f"type `Literal[{value_names}]` expects consistent literal value types but got: {literal_type_tuple}"
+            )
+
+        literal_type = literal_type_set.pop()
+        self.parser = create_deserializer(literal_type)
+
+    def parse(self, data: JsonType) -> Any:
+        value = self.parser.parse(data)
+        if value not in self.values:
+            value_names = ", ".join(repr(value) for value in self.values)
+            raise JsonTypeError(
+                f"type `Literal[{value_names}]` could not be instantiated from: {data}"
+            )
+        return value
 
 
 class EnumDeserializer(Deserializer):
@@ -671,6 +699,8 @@ def _create_deserializer(typ: type) -> Deserializer:
         return TupleDeserializer(typing.get_args(typ))
     elif origin_type is Union:
         return UnionDeserializer(typing.get_args(typ))
+    elif origin_type is Literal:
+        return LiteralDeserializer(typing.get_args(typ))
 
     if is_type_annotated(typ):
         return create_deserializer(unwrap_annotated_type(typ))

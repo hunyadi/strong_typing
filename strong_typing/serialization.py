@@ -13,6 +13,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Literal,
     NamedTuple,
     TextIO,
     Tuple,
@@ -32,6 +33,7 @@ from .inspection import (
     is_named_tuple_type,
     is_reserved_property,
     is_type_annotated,
+    is_type_enum,
     unwrap_annotated_type,
 )
 from .mapping import python_field_to_json_property
@@ -270,6 +272,25 @@ class UnionSerializer(Serializer):
         return object_to_json(obj)
 
 
+class LiteralSerializer(Serializer):
+    generator: Serializer
+
+    def __init__(self, values: Tuple[Any, ...]) -> None:
+        literal_type_tuple = tuple(type(value) for value in values)
+        literal_type_set = set(literal_type_tuple)
+        if len(literal_type_set) != 1:
+            value_names = ", ".join(repr(value) for value in values)
+            raise TypeError(
+                f"type `Literal[{value_names}]` expects consistent literal value types but got: {literal_type_tuple}"
+            )
+
+        literal_type = literal_type_set.pop()
+        self.generator = create_serializer(literal_type)
+
+    def generate(self, obj: Any) -> JsonType:
+        return self.generator.generate(obj)
+
+
 class UntypedNamedTupleSerializer(Serializer):
     fields: Dict[str, str]
 
@@ -374,6 +395,8 @@ def _create_serializer(typ: type) -> Serializer:
         return TypedTupleSerializer(typing.get_args(typ))
     elif origin_type is Union:
         return UnionSerializer()
+    elif origin_type is Literal:
+        return LiteralSerializer(typing.get_args(typ))
 
     if is_type_annotated(typ):
         return create_serializer(unwrap_annotated_type(typ))
@@ -383,7 +406,7 @@ def _create_serializer(typ: type) -> Serializer:
     if callable(convert_func):
         return CustomSerializer(convert_func)
 
-    if issubclass(typ, enum.Enum):
+    if is_type_enum(typ):
         return EnumSerializer()
     if is_dataclass_type(typ):
         return DataclassSerializer(typ)
