@@ -5,4 +5,4 @@ Provides auxiliary services for working with Python type annotations, converting
 and generating a JSON schema for a complex type.
 """
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
