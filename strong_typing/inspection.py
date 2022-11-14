@@ -192,6 +192,21 @@ def is_type_literal(typ: type) -> bool:
     return typing.get_origin(typ) is Literal
 
 
+def unwrap_literal_value(typ: type) -> Any:
+    """
+    Extracts the single constant value captured by a literal type.
+
+    :param typ: The literal type `Literal[value]`.
+    :returns: The values captured by the literal type.
+    """
+
+    args = unwrap_literal_values(typ)
+    if len(args) != 1:
+        raise TypeError("too many values in literal type")
+
+    return args[0]
+
+
 def unwrap_literal_values(typ: type) -> Tuple[Any, ...]:
     """
     Extracts the constant values captured by a literal type.
@@ -354,6 +369,15 @@ def get_class_properties(typ: type) -> Iterable[Tuple[str, type]]:
         )
     else:
         return resolved_hints.items()
+
+
+def get_class_property(typ: type, name: str) -> Optional[type]:
+    "Looks up the annotated type of a property in a class by its property name."
+
+    for property_name, property_type in get_class_properties(typ):
+        if name == property_name:
+            return property_type
+    return None
 
 
 def get_referenced_types(typ: type) -> List[type]:

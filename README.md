@@ -325,6 +325,35 @@ class Study:
 
 Here, the two properties of `Study` (`left` and `right`) will refer to the same subtype `#/definitions/Image`.
 
+## Union types
+
+Serializing a union type entails serializing the active member type.
+
+De-serializing discriminated (tagged) union types is based on a disjoint set of property values with type annotation `Literal[...]`. Consider the following example:
+
+```python
+@dataclass
+class ClassA:
+    name: Literal["A", "a"]
+    value: str
+
+
+@dataclass
+class ClassB:
+    name: Literal["B", "b"]
+    value: str
+```
+
+Here, JSON representations of `ClassA` and `ClassB` are indistinguishable based on property names alone. However, the property `name` for `ClassA` can only take values `"A"` and `"a"`, and property `name` for `ClassB` can only take values `"B"` and `"b"`, hence a JSON object such as
+```json
+{ "name": "A", "value": "string" }
+```
+uniquely identifies `ClassA`, and can never match `ClassB`. The de-serializer can instantiate the appropriate class, and populate properties of the newly created instance.
+
+Tagged union types must have at least one property of a literal type, and the values for that type must be all different.
+
+When de-serializing regular union types that have no type tags, the first successfully matching type is selected. It is a parse error if all union member types have been exhausted without a finding match.
+
 ## Name mangling
 
 If a Python class has a property augmented with an underscore (`_`) as per [PEP 8](https://www.python.org/dev/peps/pep-0008/#descriptive-naming-styles) to avoid conflict with a Python keyword (e.g. `for` or `in`), the underscore is removed when reading from or writing to JSON.

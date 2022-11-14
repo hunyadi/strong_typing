@@ -7,7 +7,7 @@ import functools
 import inspect
 import typing
 import uuid
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Type, Union
 
 from .core import JsonType
 from .exception import JsonKeyError, JsonTypeError, JsonValueError
@@ -15,13 +15,16 @@ from .inspection import (
     create_object,
     enum_value_types,
     get_class_properties,
+    get_class_property,
     get_resolved_hints,
     is_dataclass_instance,
     is_dataclass_type,
     is_named_tuple_type,
     is_type_annotated,
+    is_type_literal,
     is_type_optional,
     unwrap_annotated_type,
+    unwrap_literal_values,
     unwrap_optional_type,
 )
 from .mapping import python_field_to_json_property
@@ -312,7 +315,91 @@ class UnionDeserializer(Deserializer):
         )
 
 
+def get_literal_properties(typ: type) -> Set[str]:
+    "Returns the names of all properties in a class that are of a literal type."
+
+    return set(
+        property_name
+        for property_name, property_type in get_class_properties(typ)
+        if is_type_literal(property_type)
+    )
+
+
+def get_discriminating_properties(types: Tuple[type, ...]) -> Set[str]:
+    "Returns a set of properties with literal type that are common across all specified classes."
+
+    if not types or not all(isinstance(typ, type) for typ in types):
+        return set()
+
+    props = get_literal_properties(types[0])
+    for typ in types[1:]:
+        props = props & get_literal_properties(typ)
+
+    return props
+
+
+class TaggedUnionDeserializer(Deserializer):
+    "De-serializes a JSON value with one or more disambiguating properties into a Python union type."
+
+    member_types: Tuple[type, ...]
+    disambiguating_properties: Set[str]
+    member_parsers: Dict[Tuple[str, Any], Deserializer]
+
+    def __init__(self, member_types: Tuple[type, ...]) -> None:
+        self.member_types = member_types
+        self.disambiguating_properties = get_discriminating_properties(member_types)
+        self.member_parsers = {}
+        for member_type in member_types:
+            for property_name in self.disambiguating_properties:
+                literal_type = get_class_property(member_type, property_name)
+                if not literal_type:
+                    continue
+
+                for literal_value in unwrap_literal_values(literal_type):
+                    tpl = (property_name, literal_value)
+                    if tpl in self.member_parsers:
+                        raise JsonTypeError(
+                            f"disambiguating property `{property_name}` in type `{self.union_type}` has a duplicate value: {literal_value}"
+                        )
+
+                    self.member_parsers[tpl] = create_deserializer(member_type)
+
+    @property
+    def union_type(self) -> str:
+        type_names = ", ".join(
+            python_type_to_str(member_type) for member_type in self.member_types
+        )
+        return f"Union[{type_names}]"
+
+    def parse(self, data: JsonType) -> Any:
+        if not isinstance(data, dict):
+            raise JsonTypeError(
+                f"tagged union type `{self.union_type}` expects JSON `object` data but instead received: {data}"
+            )
+
+        for property_name in self.disambiguating_properties:
+            disambiguating_value = data.get(property_name)
+            if disambiguating_value is None:
+                continue
+
+            member_parser = self.member_parsers.get(
+                (property_name, disambiguating_value)
+            )
+            if member_parser is None:
+                raise JsonTypeError(
+                    f"disambiguating property value is invalid for tagged union type `{self.union_type}`: {data}"
+                )
+
+            return member_parser.parse(data)
+
+        raise JsonTypeError(
+            f"disambiguating property value is missing for tagged union type `{self.union_type}`: {data}"
+        )
+
+
 class LiteralDeserializer(Deserializer):
+    "De-serializes a JSON value into a Python literal type."
+
     values: Tuple[Any, ...]
     parser: Deserializer
 
@@ -698,7 +785,11 @@ def _create_deserializer(typ: type) -> Deserializer:
     elif origin_type is tuple:
         return TupleDeserializer(typing.get_args(typ))
     elif origin_type is Union:
-        return UnionDeserializer(typing.get_args(typ))
+        union_args = typing.get_args(typ)
+        if get_discriminating_properties(union_args):
+            return TaggedUnionDeserializer(union_args)
+        else:
+            return UnionDeserializer(union_args)
     elif origin_type is Literal:
         return LiteralDeserializer(typing.get_args(typ))
 

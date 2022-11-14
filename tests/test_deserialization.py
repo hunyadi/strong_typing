@@ -186,6 +186,36 @@ class TestDeserialization(unittest.TestCase):
             SimpleDataclass(int_value=2004),
         )
 
+        # class types with literal-based disambiguation
+        self.assertEqual(
+            json_to_object(
+                Union[ClassA, ClassB, ClassC],
+                {"type": "A", "name": "A", "value": "string"},
+            ),
+            ClassA(name="A", type="A", value="string"),
+        )
+        self.assertEqual(
+            json_to_object(
+                Union[ClassA, ClassB, ClassC],
+                {"type": "B", "name": "B", "value": "string"},
+            ),
+            ClassB(name="B", type="B", value="string"),
+        )
+        self.assertEqual(
+            json_to_object(
+                Union[ClassA, ClassB, ClassC],
+                {"type": "A", "name": "a", "value": "string"},
+            ),
+            ClassA(name="a", type="A", value="string"),
+        )
+        self.assertEqual(
+            json_to_object(
+                Union[ClassA, ClassB, ClassC],
+                {"type": "B", "name": "b", "value": "string"},
+            ),
+            ClassB(name="b", type="B", value="string"),
+        )
+
     def test_object_deserialization(self):
         """Test composition and inheritance with object de-serialization."""
 

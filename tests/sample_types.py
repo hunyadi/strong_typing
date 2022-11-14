@@ -174,3 +174,23 @@ class NestedDataclass:
             "b": ValueExample(value=4),
             "c": ValueExample(value=5),
         }
+
+
+@dataclass
+class ClassA:
+    name: Literal["A", "a"]
+    type: Literal["A"]
+    value: str
+
+
+@dataclass
+class ClassB:
+    name: Literal["B", "b"]
+    type: Literal["B"]
+    value: str
+
+
+@dataclass
+class ClassC:
+    name: Literal["C", "c"]
+    type: Literal["C"]
