@@ -1,3 +1,10 @@
+"""
+Type-safe data interchange for Python data classes.
+
+:see: https://github.com/hunyadi/strong_typing
+"""
+
+
 class JsonKeyError(Exception):
     "Raised when deserialization for a class or union type has failed because a matching member was not found."
 

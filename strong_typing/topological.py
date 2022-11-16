@@ -1,3 +1,9 @@
+"""
+Type-safe data interchange for Python data classes.
+
+:see: https://github.com/hunyadi/strong_typing
+"""
+
 from typing import Callable, Dict, Iterable, List, Set, TypeVar
 
 from .inspection import get_class_properties, get_referenced_types

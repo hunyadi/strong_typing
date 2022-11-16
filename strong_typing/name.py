@@ -1,3 +1,9 @@
+"""
+Type-safe data interchange for Python data classes.
+
+:see: https://github.com/hunyadi/strong_typing
+"""
+
 import typing
 from typing import Literal, Union
 
