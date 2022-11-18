@@ -281,7 +281,11 @@ def has_default_docstring(typ: type) -> bool:
         is_dataclass_type(typ)
         and typ.__doc__ is not None
         and re.match(f"^{re.escape(typ.__name__)}[(].*[)]$", typ.__doc__) is not None
-    ) or (is_type_enum(typ) and typ.__doc__ == "An enumeration.")
+    ) or (
+        is_type_enum(typ)
+        and typ.__doc__ is not None
+        and typ.__doc__ == "An enumeration."
+    )
 
 
 def has_docstring(typ: type) -> bool:

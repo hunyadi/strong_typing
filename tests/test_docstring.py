@@ -1,5 +1,6 @@
 import enum
 import inspect
+import sys
 import unittest
 from dataclasses import dataclass
 from typing import Optional
@@ -94,6 +95,7 @@ class SampleClass:
         :raise ValueError: A value exception rarely raised.
         :raise CustomException: A custom exception.
         """
+        return ""
 
     def other_instance_method(self, a: str, b: Optional[int]) -> str:
         """
@@ -106,6 +108,7 @@ class SampleClass:
         :raises ValueError: A value exception rarely raised.
         :raises CustomException: A custom exception.
         """
+        return ""
 
     @classmethod
     def class_method(cls, a: str) -> str:
@@ -115,6 +118,7 @@ class SampleClass:
         :param a: Short description for `a`.
         :returns: A return value.
         """
+        return ""
 
     @staticmethod
     def static_method(a: str) -> None:
@@ -123,6 +127,7 @@ class SampleClass:
 
         :param a: Short description for `a`.
         """
+        pass
 
     def no_type_annotation_method(self):
         """
@@ -130,14 +135,18 @@ class SampleClass:
 
         :returns: A return value.
         """
+        pass
 
 
 class TestDocstring(unittest.TestCase):
     def test_default_docstring(self):
         self.assertFalse(has_default_docstring(NoDescriptionClass))
         self.assertTrue(has_default_docstring(NoDescriptionDataclass))
-        self.assertTrue(has_default_docstring(NoDescriptionEnumeration))
         self.assertFalse(has_default_docstring(ShortDescriptionClass))
+        if sys.version_info >= (3, 11):
+            self.assertFalse(has_default_docstring(NoDescriptionEnumeration))
+        else:
+            self.assertTrue(has_default_docstring(NoDescriptionEnumeration))
 
     def test_any_docstring(self):
         self.assertFalse(has_docstring(NoDescriptionClass))

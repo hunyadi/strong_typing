@@ -4,7 +4,7 @@ Type-safe data interchange for Python data classes.
 :see: https://github.com/hunyadi/strong_typing
 """
 
-from typing import Callable, Dict, Iterable, List, Set, TypeVar
+from typing import Callable, Dict, Iterable, List, Optional, Set, TypeVar
 
 from .inspection import get_class_properties, get_referenced_types
 
@@ -50,7 +50,8 @@ def topological_sort(graph: Dict[T, Set[T]]) -> List[T]:
 
 
 def type_topological_sort(
-    types: Iterable[type], dependency_fn: Callable[[type], Iterable[type]] = None
+    types: Iterable[type],
+    dependency_fn: Optional[Callable[[type], Iterable[type]]] = None,
 ) -> List[type]:
     """
     Performs a topological sort of a list of types.

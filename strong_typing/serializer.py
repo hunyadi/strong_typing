@@ -207,10 +207,10 @@ class CustomSerializer(Serializer):
     converter: Callable[[object], JsonType]
 
     def __init__(self, converter: Callable[[object], JsonType]) -> None:
-        self.converter = converter  # type: ignore
+        self.converter = converter
 
     def generate(self, obj: object) -> JsonType:
-        return self.converter(obj)  # type: ignore
+        return self.converter(obj)
 
 
 class FieldSerializer:

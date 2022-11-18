@@ -97,7 +97,7 @@ def get_class_docstrings(data_type: type) -> Tuple[Optional[str], Optional[str]]
 
 
 def get_class_property_docstrings(
-    data_type: type, transform_fun: Callable[[type, str, str], str] = None
+    data_type: type, transform_fun: Optional[Callable[[type, str, str], str]] = None
 ) -> Dict[str, str]:
     """
     Extracts the documentation strings associated with the properties of a composite type.
@@ -165,7 +165,7 @@ class TypeCatalog:
         data_type: type,
         schema: Optional[Schema],
         identifier: str,
-        examples: List[JsonType] = None,
+        examples: Optional[List[JsonType]] = None,
     ) -> None:
 
         if isinstance(data_type, typing.ForwardRef):
@@ -202,7 +202,7 @@ class JsonSchemaGenerator:
     types_used: Dict[str, type]
     options: SchemaOptions
 
-    def __init__(self, options: SchemaOptions = None):
+    def __init__(self, options: Optional[SchemaOptions] = None):
         if options is None:
             self.options = SchemaOptions()
         else:
@@ -490,10 +490,10 @@ class JsonSchemaGenerator:
 
         schema = {"type": "object"}
         if len(properties) > 0:
-            schema["properties"] = properties
+            schema["properties"] = properties  # type: ignore
             schema["additionalProperties"] = False
         if len(required) > 0:
-            schema["required"] = required
+            schema["required"] = required  # type: ignore
         if self.options.use_descriptions:
             schema.update(docstring_to_schema(typ))
         return schema
@@ -569,7 +569,7 @@ class Validator(enum.Enum):
 
 def classdef_to_schema(
     data_type: type,
-    options: SchemaOptions = None,
+    options: Optional[SchemaOptions] = None,
     validator: Validator = Validator.Latest,
 ) -> Schema:
     """
@@ -588,7 +588,7 @@ def classdef_to_schema(
 
     class_schema: Schema = {}
     if type_definitions:
-        class_schema["definitions"] = type_definitions
+        class_schema["definitions"] = type_definitions  # type: ignore
     class_schema.update(type_schema)
 
     validator_id = validator.value.META_SCHEMA["$id"]
@@ -636,9 +636,9 @@ def get_schema_identifier(data_type: type) -> Optional[str]:
 
 def register_schema(
     data_type: Type[T],
-    schema: Schema = None,
-    name: str = None,
-    examples: List[JsonType] = None,
+    schema: Optional[Schema] = None,
+    name: Optional[str] = None,
+    examples: Optional[List[JsonType]] = None,
 ) -> Type[T]:
     """
     Associates a type with a JSON schema definition.
@@ -666,13 +666,16 @@ def json_schema_type(cls: Type[T], /) -> Type[T]:
 
 @overload
 def json_schema_type(
-    cls: None, *, schema: Schema = None
+    cls: None, *, schema: Optional[Schema] = None
 ) -> Callable[[Type[T]], Type[T]]:
     ...
 
 
 def json_schema_type(
-    cls: Type[T] = None, *, schema: Schema = None, examples: List[JsonType] = None
+    cls: Optional[Type[T]] = None,
+    *,
+    schema: Optional[Schema] = None,
+    examples: Optional[List[JsonType]] = None,
 ):
     """Decorator to add user-defined schema definition to a class."""
 

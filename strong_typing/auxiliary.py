@@ -50,7 +50,7 @@ def typeannotation(
     ...
 
 
-def typeannotation(cls: Type[T] = None, *, eq=True, order=False):
+def typeannotation(cls: Optional[Type[T]] = None, *, eq=True, order=False):
     "Returns the same class as was passed in, with dunder methods added based on the fields defined in the class."
 
     def wrap(cls: Type[T]) -> Type[T]:

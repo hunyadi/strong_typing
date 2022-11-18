@@ -451,10 +451,10 @@ class CustomDeserializer(Deserializer):
     converter: Callable[[JsonType], Any]
 
     def __init__(self, converter: Callable[[JsonType], Any]) -> None:
-        self.converter = converter  # type: ignore
+        self.converter = converter
 
     def parse(self, data: JsonType) -> Any:
-        return self.converter(data)  # type: ignore
+        return self.converter(data)
 
 
 class DeferredDeserializer(Deserializer):
@@ -558,14 +558,14 @@ class DefaultFactoryFieldDeserializer(FieldDeserializer):
         default_factory: Callable[[], Any],
     ) -> None:
         super().__init__(property_name, field_name, parser)
-        self.default_factory = default_factory  # type: ignore
+        self.default_factory = default_factory
 
     def parse_field(self, data: Dict[str, JsonType]) -> Any:
         value = data.get(self.property_name)
         if value is not None:
             return self.parser.parse(value)
         else:
-            return self.default_factory()  # type: ignore
+            return self.default_factory()
 
 
 class ClassDeserializer(Deserializer):

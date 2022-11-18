@@ -16,25 +16,25 @@ class JsonArray:
 
 
 # a JSON type with possible `null` values
-JsonType = Union[  # type: ignore
+JsonType = Union[
     None,
     bool,
     int,
     float,
     str,
-    Dict[str, "JsonType"],  # type: ignore
-    List["JsonType"],  # type: ignore
+    Dict[str, "JsonType"],
+    List["JsonType"],
 ]
 
 # a JSON type that cannot contain `null` values
-StrictJsonType = Union[  # type: ignore
+StrictJsonType = Union[
     bool,
     int,
     float,
     str,
-    Dict[str, "StrictJsonType"],  # type: ignore
-    List["StrictJsonType"],  # type: ignore
+    Dict[str, "StrictJsonType"],
+    List["StrictJsonType"],
 ]
 
 # a meta-type that captures the object type in a JSON schema
-Schema = Dict[str, "JsonType"]  # type: ignore
+Schema = Dict[str, "JsonType"]
