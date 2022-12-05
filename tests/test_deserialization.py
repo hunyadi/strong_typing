@@ -1,7 +1,7 @@
 import datetime
 import unittest
 import uuid
-from typing import Dict, List, Optional, Set, Union
+from typing import Optional, Union
 
 from strong_typing.exception import JsonKeyError, JsonTypeError, JsonValueError
 from strong_typing.serialization import json_to_object, object_to_json
@@ -64,19 +64,19 @@ class TestDeserialization(unittest.TestCase):
         )
 
     def test_deserialization_collection(self):
-        self.assertEqual(json_to_object(List[int], [1, 2, 3]), [1, 2, 3])
+        self.assertEqual(json_to_object(list[int], [1, 2, 3]), [1, 2, 3])
         self.assertEqual(
-            json_to_object(Dict[str, int], {"a": 1, "b": 2, "c": 3}),
+            json_to_object(dict[str, int], {"a": 1, "b": 2, "c": 3}),
             {"a": 1, "b": 2, "c": 3},
         )
-        self.assertEqual(json_to_object(Set[int], [1, 2, 3]), set([1, 2, 3]))
+        self.assertEqual(json_to_object(set[int], [1, 2, 3]), set([1, 2, 3]))
 
         with self.assertRaises(JsonTypeError):
-            json_to_object(List[int], 23)
+            json_to_object(list[int], 23)
         with self.assertRaises(JsonTypeError):
-            json_to_object(Dict[str, int], "string")
+            json_to_object(dict[str, int], "string")
         with self.assertRaises(JsonTypeError):
-            json_to_object(Set[int], 42)
+            json_to_object(set[int], 42)
 
         with self.assertRaises(TypeError):
             json_to_object(list, [1, 2, 3])

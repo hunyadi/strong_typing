@@ -16,14 +16,10 @@ import uuid
 from typing import (
     Any,
     Callable,
-    Dict,
     Iterable,
-    List,
     Literal,
     NamedTuple,
     Optional,
-    Tuple,
-    Type,
     TypeVar,
     Union,
 )
@@ -63,7 +59,7 @@ def is_named_tuple_instance(obj: object) -> TypeGuard[NamedTuple]:
     return is_named_tuple_type(type(obj))
 
 
-def is_named_tuple_type(typ: type) -> TypeGuard[Type[NamedTuple]]:
+def is_named_tuple_type(typ: type[T]) -> TypeGuard[type[NamedTuple]]:
     """
     True if the argument corresponds to a named tuple type.
 
@@ -87,7 +83,7 @@ def is_named_tuple_type(typ: type) -> TypeGuard[Type[NamedTuple]]:
     return all(type(n) == str for n in f)
 
 
-def is_type_enum(typ: type) -> TypeGuard[Type[enum.Enum]]:
+def is_type_enum(typ: type) -> TypeGuard[type[enum.Enum]]:
     "True if the specified type is an enumeration type."
 
     typ = unwrap_annotated_type(typ)
@@ -96,7 +92,7 @@ def is_type_enum(typ: type) -> TypeGuard[Type[enum.Enum]]:
     return isinstance(typ, type) and issubclass(typ, enum.Enum)
 
 
-def enum_value_types(enum_type: Type[enum.Enum]) -> List[type]:
+def enum_value_types(enum_type: type[enum.Enum]) -> list[type]:
     """
     Returns all unique value types of the `enum.Enum` type in definition order.
     """
@@ -113,7 +109,7 @@ def _is_union_like(typ: type) -> bool:
     return is_generic_union or is_union_expr
 
 
-def is_type_optional(typ: type, strict: bool = False) -> TypeGuard[Type[Optional[Any]]]:
+def is_type_optional(typ: type, strict: bool = False) -> TypeGuard[type[Optional[Any]]]:
     """
     True if the type annotation corresponds to an optional type (e.g. `Optional[T]` or `Union[T1,T2,None]`).
 
@@ -134,7 +130,7 @@ def is_type_optional(typ: type, strict: bool = False) -> TypeGuard[Type[Optional
     return False
 
 
-def unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
+def unwrap_optional_type(typ: type[Optional[T]]) -> type[T]:
     """
     Extracts the inner type of an optional type.
 
@@ -145,7 +141,7 @@ def unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
     return rewrap_annotated_type(_unwrap_optional_type, typ)
 
 
-def _unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
+def _unwrap_optional_type(typ: type[Optional[T]]) -> type[T]:
     "Extracts the type qualified as optional (e.g. returns `T` for `Optional[T]`)."
 
     # Optional[T] is represented internally as Union[T, None]
@@ -170,7 +166,7 @@ def is_type_union(typ: type) -> bool:
     return False
 
 
-def unwrap_union_types(typ: type) -> Tuple[type, ...]:
+def unwrap_union_types(typ: type) -> tuple[type, ...]:
     """
     Extracts the inner types of a union type.
 
@@ -181,7 +177,7 @@ def unwrap_union_types(typ: type) -> Tuple[type, ...]:
     return _unwrap_union_types(typ)
 
 
-def _unwrap_union_types(typ: type) -> Tuple[type, ...]:
+def _unwrap_union_types(typ: type) -> tuple[type, ...]:
     "Extracts the types in a union (e.g. returns a tuple of types `T1` and `T2` for `Union[T1, T2]`)."
 
     if typing.get_origin(typ) is not Union:
@@ -213,7 +209,7 @@ def unwrap_literal_value(typ: type) -> Any:
     return args[0]
 
 
-def unwrap_literal_values(typ: type) -> Tuple[Any, ...]:
+def unwrap_literal_values(typ: type) -> tuple[Any, ...]:
     """
     Extracts the constant values captured by a literal type.
 
@@ -225,7 +221,7 @@ def unwrap_literal_values(typ: type) -> Tuple[Any, ...]:
     return typing.get_args(typ)
 
 
-def unwrap_literal_types(typ: type) -> Tuple[type, ...]:
+def unwrap_literal_types(typ: type) -> tuple[type, ...]:
     """
     Extracts the types of the constant values captured by a literal type.
 
@@ -236,51 +232,51 @@ def unwrap_literal_types(typ: type) -> Tuple[type, ...]:
     return tuple(type(t) for t in unwrap_literal_values(typ))
 
 
-def is_generic_list(typ: type) -> TypeGuard[Type[list]]:
-    "True if the specified type is a generic list, i.e. `List[T]`."
+def is_generic_list(typ: type) -> TypeGuard[type[list]]:
+    "True if the specified type is a generic list, i.e. `list[T]`."
 
     typ = unwrap_annotated_type(typ)
     return typing.get_origin(typ) is list
 
 
-def unwrap_generic_list(typ: Type[List[T]]) -> Type[T]:
+def unwrap_generic_list(typ: type[list[T]]) -> type[T]:
     """
     Extracts the item type of a list type.
 
-    :param typ: The list type `List[T]`.
+    :param typ: The list type `list[T]`.
     :returns: The item type `T`.
     """
 
     return rewrap_annotated_type(_unwrap_generic_list, typ)
 
 
-def _unwrap_generic_list(typ: Type[List[T]]) -> Type[T]:
-    "Extracts the item type of a list type (e.g. returns `T` for `List[T]`)."
+def _unwrap_generic_list(typ: type[list[T]]) -> type[T]:
+    "Extracts the item type of a list type (e.g. returns `T` for `list[T]`)."
 
     (list_type,) = typing.get_args(typ)  # unpack single tuple element
     return list_type
 
 
-def is_generic_dict(typ: type) -> TypeGuard[Type[dict]]:
-    "True if the specified type is a generic dictionary, i.e. `Dict[KeyType, ValueType]`."
+def is_generic_dict(typ: type) -> TypeGuard[type[dict]]:
+    "True if the specified type is a generic dictionary, i.e. `dict[KeyType, ValueType]`."
 
     typ = unwrap_annotated_type(typ)
     return typing.get_origin(typ) is dict
 
 
-def unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
+def unwrap_generic_dict(typ: type[dict[K, V]]) -> tuple[type[K], type[V]]:
     """
     Extracts the key and value types of a dictionary type as a tuple.
 
-    :param typ: The dictionary type `Dict[K, V]`.
+    :param typ: The dictionary type `dict[K, V]`.
     :returns: The key and value types `K` and `V`.
     """
 
     return _unwrap_generic_dict(unwrap_annotated_type(typ))
 
 
-def _unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
-    "Extracts the key and value types of a dict type (e.g. returns (`K`, `V`) for `Dict[K, V]`)."
+def _unwrap_generic_dict(typ: type[dict[K, V]]) -> tuple[type[K], type[V]]:
+    "Extracts the key and value types of a dict type (e.g. returns (`K`, `V`) for `dict[K, V]`)."
 
     key_type, value_type = typing.get_args(typ)
     return key_type, value_type
@@ -292,7 +288,7 @@ def is_type_annotated(typ: type) -> bool:
     return getattr(typ, "__metadata__", None) is not None
 
 
-def get_annotation(data_type: type, annotation_type: Type[T]) -> Optional[T]:
+def get_annotation(data_type: type, annotation_type: type[T]) -> Optional[T]:
     """
     Returns the first annotation on a data type that matches the expected annotation type.
 
@@ -310,7 +306,7 @@ def get_annotation(data_type: type, annotation_type: Type[T]) -> Optional[T]:
     return None
 
 
-def unwrap_annotated_type(typ: type) -> type:
+def unwrap_annotated_type(typ: type[T]) -> type[T]:
     "Extracts the wrapped type from an annotated type (e.g. returns `T` for `Annotated[T, ...]`)."
 
     if is_type_annotated(typ):
@@ -322,8 +318,8 @@ def unwrap_annotated_type(typ: type) -> type:
 
 
 def rewrap_annotated_type(
-    transform: Callable[[Type[S]], Type[T]], typ: Type[S]
-) -> Type[T]:
+    transform: Callable[[type[S]], type[T]], typ: type[S]
+) -> type[T]:
     """
     Un-boxes, transforms and re-boxes an optionally annotated type.
 
@@ -347,7 +343,7 @@ def rewrap_annotated_type(
         return transformed_type
 
 
-def get_module_classes(module: types.ModuleType) -> List[type]:
+def get_module_classes(module: types.ModuleType) -> list[type]:
     "Returns all classes declared directly in a module."
 
     is_class_member = (
@@ -356,14 +352,14 @@ def get_module_classes(module: types.ModuleType) -> List[type]:
     return [class_type for _, class_type in inspect.getmembers(module, is_class_member)]
 
 
-def get_resolved_hints(typ: type) -> Dict[str, type]:
+def get_resolved_hints(typ: type) -> dict[str, type]:
     if sys.version_info >= (3, 9):
         return typing.get_type_hints(typ, include_extras=True)
     else:
         return typing.get_type_hints(typ)
 
 
-def get_class_properties(typ: type) -> Iterable[Tuple[str, type]]:
+def get_class_properties(typ: type) -> Iterable[tuple[str, type]]:
     "Returns all properties of a class."
 
     resolved_hints = get_resolved_hints(typ)
@@ -386,11 +382,11 @@ def get_class_property(typ: type, name: str) -> Optional[type]:
     return None
 
 
-def get_referenced_types(typ: type) -> List[type]:
+def get_referenced_types(typ: type) -> list[type]:
     """
     Extracts types indirectly referenced by this type.
 
-    For example, extract `T` from `List[T]`, `Optional[T]` or `Annotated[T, ...]`, `K` and `V` from `Dict[K,V]`,
+    For example, extract `T` from `list[T]`, `Optional[T]` or `Annotated[T, ...]`, `K` and `V` from `dict[K,V]`,
     `A` and `B` from `Union[A,B]`.
     """
 
@@ -435,8 +431,11 @@ def is_reserved_property(name: str) -> bool:
     return False
 
 
-def create_object(typ: Type[T]) -> T:
+def create_object(typ: type[T]) -> T:
+    "Creates an instance of a type."
+
     if issubclass(typ, Exception):
+        # exception types need special treatment
         e = typ.__new__(typ)
         return typing.cast(T, e)
     else:
@@ -622,8 +621,8 @@ def check_recursive(
     obj: Any,
     /,
     *,
-    pred: Optional[Callable[[Type[T], T], bool]] = None,
-    type_pred: Optional[Callable[[Type[T]], bool]] = None,
+    pred: Optional[Callable[[type[T], T], bool]] = None,
+    type_pred: Optional[Callable[[type[T]], bool]] = None,
     value_pred: Optional[Callable[[T], bool]] = None,
 ) -> bool:
     """
@@ -643,7 +642,7 @@ def check_recursive(
                 "filter predicate not permitted when type and value predicates are present"
             )
 
-        type_p: Callable[[Type[T]], bool] = type_pred
+        type_p: Callable[[type[T]], bool] = type_pred
         value_p: Callable[[T], bool] = value_pred
         pred = lambda typ, obj: not type_p(typ) or value_p(obj)
 

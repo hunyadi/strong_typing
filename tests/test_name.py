@@ -1,5 +1,5 @@
 import unittest
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 from strong_typing.auxiliary import Alias, Annotated
 from strong_typing.mapping import python_field_to_json_property
@@ -18,11 +18,11 @@ class TestName(unittest.TestCase):
             "Optional__str",
         )
         self.assertEqual(
-            python_type_to_name(List[int], force=True),
+            python_type_to_name(list[int], force=True),
             "List__int",
         )
         self.assertEqual(
-            python_type_to_name(Dict[str, int], force=True),
+            python_type_to_name(dict[str, int], force=True),
             "Dict__str__int",
         )
         self.assertEqual(
@@ -33,9 +33,9 @@ class TestName(unittest.TestCase):
         with self.assertRaises(TypeError):
             python_type_to_name(Optional[str])
         with self.assertRaises(TypeError):
-            python_type_to_name(List[int])
+            python_type_to_name(list[int])
         with self.assertRaises(TypeError):
-            python_type_to_name(Dict[str, int])
+            python_type_to_name(dict[str, int])
         with self.assertRaises(TypeError):
             python_type_to_name(Union[str, int, None])
 

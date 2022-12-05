@@ -3,7 +3,7 @@ import decimal
 import unittest
 import uuid
 from dataclasses import dataclass
-from typing import List, TypeVar
+from typing import TypeVar
 
 from strong_typing.inspection import is_dataclass_type
 from strong_typing.topological import topological_sort, type_topological_sort
@@ -42,7 +42,7 @@ class CompositeClass:
 
 
 class TestTopological(unittest.TestCase):
-    def assertOrder(self, order: List[T], first: T, second: T) -> None:
+    def assertOrder(self, order: list[T], first: T, second: T) -> None:
         self.assertIn(first, order)
         self.assertIn(second, order)
         self.assertLess(order.index(first), order.index(second))

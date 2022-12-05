@@ -2,7 +2,7 @@ import datetime
 import decimal
 import unittest
 import uuid
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, Union
 
 from strong_typing.auxiliary import Annotated, IntegerRange, Precision, int32, uint64
 from strong_typing.schema import (
@@ -60,15 +60,15 @@ class TestSchema(unittest.TestCase):
             },
         )
         self.assertEqual(
-            generator.type_to_schema(List[int]),
+            generator.type_to_schema(list[int]),
             {"type": "array", "items": {"type": "integer"}},
         )
         self.assertEqual(
-            generator.type_to_schema(Dict[str, int]),
+            generator.type_to_schema(dict[str, int]),
             {"type": "object", "additionalProperties": {"type": "integer"}},
         )
         self.assertEqual(
-            generator.type_to_schema(Set[int]),
+            generator.type_to_schema(set[int]),
             {"type": "array", "items": {"type": "integer"}, "uniqueItems": True},
         )
         self.assertEqual(
@@ -76,7 +76,7 @@ class TestSchema(unittest.TestCase):
             {"oneOf": [{"type": "integer"}, {"type": "string"}]},
         )
         self.assertEqual(
-            generator.type_to_schema(Tuple[bool, int, str]),
+            generator.type_to_schema(tuple[bool, int, str]),
             {
                 "type": "array",
                 "minItems": 3,
@@ -146,10 +146,47 @@ class TestSchema(unittest.TestCase):
             },
         )
 
-    def test_registered(self):
-        self.maxDiff = None
+    def test_recursive(self):
+        options = SchemaOptions(use_descriptions=False)
+        generator = JsonSchemaGenerator(options)
         self.assertEqual(
-            classdef_to_schema(JsonType),
+            generator.type_to_schema(BinaryTree, force_expand=True),
+            {
+                "type": "object",
+                "properties": {
+                    "left": {"$ref": "#/definitions/BinaryTree"},
+                    "right": {"$ref": "#/definitions/BinaryTree"},
+                },
+                "additionalProperties": False,
+            },
+        )
+
+    def test_registered(self):
+        options = SchemaOptions(use_descriptions=False)
+        generator = JsonSchemaGenerator(options)
+        self.assertEqual(
+            generator.type_to_schema(JsonType, force_expand=True),
+            {
+                "oneOf": [
+                    {"type": "null"},
+                    {"type": "boolean"},
+                    {"type": "integer"},
+                    {"type": "number"},
+                    {"type": "string"},
+                    {
+                        "type": "object",
+                        "additionalProperties": {"$ref": "#/definitions/JsonType"},
+                    },
+                    {
+                        "type": "array",
+                        "items": {"$ref": "#/definitions/JsonType"},
+                    },
+                ],
+            },
+        )
+
+        self.assertEqual(
+            classdef_to_schema(JsonType, options),
             {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "definitions": {

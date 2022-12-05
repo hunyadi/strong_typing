@@ -11,7 +11,7 @@ import re
 import types
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable, Optional
 
 from .inspection import (
     get_class_properties,
@@ -95,9 +95,9 @@ class Docstring:
 
     short_description: Optional[str] = None
     long_description: Optional[str] = None
-    params: Dict[str, DocstringParam] = dataclasses.field(default_factory=dict)
+    params: dict[str, DocstringParam] = dataclasses.field(default_factory=dict)
     returns: Optional[DocstringReturns] = None
-    raises: Dict[str, DocstringRaises] = dataclasses.field(default_factory=dict)
+    raises: dict[str, DocstringRaises] = dataclasses.field(default_factory=dict)
 
     @property
     def full_description(self) -> Optional[str]:
@@ -141,7 +141,7 @@ class Docstring:
         return s
 
 
-def get_exceptions(module: types.ModuleType) -> Dict[str, Type[BaseException]]:
+def get_exceptions(module: types.ModuleType) -> dict[str, type[BaseException]]:
     "Returns all exception classes declared in a module."
 
     is_exception = lambda member: isinstance(member, type) and issubclass(
@@ -185,7 +185,7 @@ def parse_type(typ: type) -> Docstring:
     # assign exception types
     defining_module = inspect.getmodule(typ)
     if defining_module:
-        context: Dict[str, type] = {}
+        context: dict[str, type] = {}
         context.update(get_exceptions(builtins))
         context.update(get_exceptions(defining_module))
         for name, exception in docstring.raises.items():
@@ -233,8 +233,8 @@ def parse_text(text: str) -> Docstring:
     else:
         long_description = None
 
-    params: Dict[str, DocstringParam] = {}
-    raises: Dict[str, DocstringRaises] = {}
+    params: dict[str, DocstringParam] = {}
+    raises: dict[str, DocstringRaises] = {}
     returns = None
     for match in re.finditer(
         r"(^:.*?)(?=^:|\Z)", meta_chunk, flags=re.DOTALL | re.MULTILINE

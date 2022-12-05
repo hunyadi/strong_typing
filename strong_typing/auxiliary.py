@@ -7,12 +7,7 @@ Type-safe data interchange for Python data classes.
 import dataclasses
 import sys
 from dataclasses import dataclass
-from typing import Callable, Optional, Type, TypeVar, overload
-
-if sys.version_info >= (3, 9):
-    from typing import Annotated
-else:
-    from typing_extensions import Annotated
+from typing import Annotated, Callable, Optional, TypeVar, overload
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias
@@ -39,21 +34,21 @@ class CompactDataClass:
 
 
 @overload
-def typeannotation(cls: Type[T], /) -> Type[T]:
+def typeannotation(cls: type[T], /) -> type[T]:
     ...
 
 
 @overload
 def typeannotation(
     cls: None, *, eq: bool = True, order: bool = False
-) -> Callable[[Type[T]], Type[T]]:
+) -> Callable[[type[T]], type[T]]:
     ...
 
 
-def typeannotation(cls: Optional[Type[T]] = None, *, eq=True, order=False):
+def typeannotation(cls: Optional[type[T]] = None, *, eq=True, order=False):
     "Returns the same class as was passed in, with dunder methods added based on the fields defined in the class."
 
-    def wrap(cls: Type[T]) -> Type[T]:
+    def wrap(cls: type[T]) -> type[T]:
         setattr(cls, "__repr__", _compact_dataclass_repr)
         if not dataclasses.is_dataclass(cls):
             cls = dataclasses.dataclass(  # type: ignore

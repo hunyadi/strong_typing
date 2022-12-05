@@ -16,12 +16,10 @@ import uuid
 from typing import (
     Any,
     Callable,
-    Dict,
-    List,
+    Generic,
     Literal,
     NamedTuple,
     Tuple,
-    Type,
     TypeVar,
     Union,
 )
@@ -44,48 +42,48 @@ from .mapping import python_field_to_json_property
 T = TypeVar("T")
 
 
-class Serializer(abc.ABC):
+class Serializer(abc.ABC, Generic[T]):
     @abc.abstractmethod
-    def generate(self, data: Any) -> JsonType:
+    def generate(self, data: T) -> JsonType:
         ...
 
 
-class NoneSerializer(Serializer):
+class NoneSerializer(Serializer[None]):
     def generate(self, data: None) -> None:
         # can be directly represented in JSON
         return None
 
 
-class BoolSerializer(Serializer):
+class BoolSerializer(Serializer[bool]):
     def generate(self, data: bool) -> bool:
         # can be directly represented in JSON
         return data
 
 
-class IntSerializer(Serializer):
+class IntSerializer(Serializer[int]):
     def generate(self, data: int) -> int:
         # can be directly represented in JSON
         return data
 
 
-class FloatSerializer(Serializer):
+class FloatSerializer(Serializer[float]):
     def generate(self, data: float) -> float:
         # can be directly represented in JSON
         return data
 
 
-class StringSerializer(Serializer):
+class StringSerializer(Serializer[str]):
     def generate(self, data: str) -> str:
         # can be directly represented in JSON
         return data
 
 
-class BytesSerializer(Serializer):
+class BytesSerializer(Serializer[bytes]):
     def generate(self, data: bytes) -> str:
         return base64.b64encode(data).decode("ascii")
 
 
-class DateTimeSerializer(Serializer):
+class DateTimeSerializer(Serializer[datetime.datetime]):
     def generate(self, obj: datetime.datetime) -> str:
         if obj.tzinfo is None:
             raise JsonValueError(
@@ -97,33 +95,33 @@ class DateTimeSerializer(Serializer):
         return fmt
 
 
-class DateSerializer(Serializer):
+class DateSerializer(Serializer[datetime.date]):
     def generate(self, obj: datetime.date) -> str:
         return obj.isoformat()
 
 
-class TimeSerializer(Serializer):
+class TimeSerializer(Serializer[datetime.time]):
     def generate(self, obj: datetime.time) -> str:
         return obj.isoformat()
 
 
-class UUIDSerializer(Serializer):
+class UUIDSerializer(Serializer[uuid.UUID]):
     def generate(self, obj: uuid.UUID) -> str:
         return str(obj)
 
 
-class EnumSerializer(Serializer):
+class EnumSerializer(Serializer[enum.Enum]):
     def generate(self, obj: enum.Enum) -> Union[int, str]:
         return obj.value
 
 
-class UntypedListSerializer(Serializer):
-    def generate(self, obj: list) -> JsonType:
+class UntypedListSerializer(Serializer[list]):
+    def generate(self, obj: list) -> list[JsonType]:
         return [object_to_json(item) for item in obj]
 
 
-class UntypedDictSerializer(Serializer):
-    def generate(self, obj: dict) -> JsonType:
+class UntypedDictSerializer(Serializer[dict]):
+    def generate(self, obj: dict) -> dict[str, JsonType]:
         if obj and isinstance(next(iter(obj.keys())), enum.Enum):
             iterator = (
                 (key.value, object_to_json(value)) for key, value in obj.items()
@@ -133,38 +131,38 @@ class UntypedDictSerializer(Serializer):
         return dict(iterator)
 
 
-class UntypedSetSerializer(Serializer):
-    def generate(self, obj: set) -> JsonType:
+class UntypedSetSerializer(Serializer[set]):
+    def generate(self, obj: set) -> list[JsonType]:
         return [object_to_json(item) for item in obj]
 
 
-class UntypedTupleSerializer(Serializer):
-    def generate(self, obj: tuple) -> JsonType:
+class UntypedTupleSerializer(Serializer[tuple]):
+    def generate(self, obj: tuple) -> list[JsonType]:
         return [object_to_json(item) for item in obj]
 
 
-class TypedCollectionSerializer(Serializer):
-    generator: Serializer
+class TypedCollectionSerializer(Serializer, Generic[T]):
+    generator: Serializer[T]
 
-    def __init__(self, item_type: type) -> None:
+    def __init__(self, item_type: type[T]) -> None:
         self.generator = create_serializer(item_type)
 
 
-class TypedListSerializer(TypedCollectionSerializer):
-    def generate(self, obj: list) -> JsonType:
+class TypedListSerializer(TypedCollectionSerializer[T]):
+    def generate(self, obj: list[T]) -> list[JsonType]:
         return [self.generator.generate(item) for item in obj]
 
 
-class TypedStringDictSerializer(TypedCollectionSerializer):
-    def __init__(self, value_type: type) -> None:
+class TypedStringDictSerializer(TypedCollectionSerializer[T]):
+    def __init__(self, value_type: type[T]) -> None:
         super().__init__(value_type)
 
-    def generate(self, obj: dict) -> JsonType:
+    def generate(self, obj: dict[str, T]) -> dict[str, JsonType]:
         return {key: self.generator.generate(value) for key, value in obj.items()}
 
 
-class TypedEnumDictSerializer(TypedCollectionSerializer):
-    def __init__(self, key_type: Type[enum.Enum], value_type: type) -> None:
+class TypedEnumDictSerializer(TypedCollectionSerializer[T]):
+    def __init__(self, key_type: type[enum.Enum], value_type: type[T]) -> None:
         super().__init__(value_type)
 
         value_types = enum_value_types(key_type)
@@ -179,24 +177,24 @@ class TypedEnumDictSerializer(TypedCollectionSerializer):
                 "invalid enumeration key type, expected `enum.Enum` with string values"
             )
 
-    def generate(self, obj: dict) -> JsonType:
+    def generate(self, obj: dict[enum.Enum, T]) -> dict[str, JsonType]:
         return {key.value: self.generator.generate(value) for key, value in obj.items()}
 
 
-class TypedSetSerializer(TypedCollectionSerializer):
-    def generate(self, obj: set) -> JsonType:
+class TypedSetSerializer(TypedCollectionSerializer[T]):
+    def generate(self, obj: set[T]) -> JsonType:
         return [self.generator.generate(item) for item in obj]
 
 
-class TypedTupleSerializer(Serializer):
-    item_generators: Tuple[Serializer, ...]
+class TypedTupleSerializer(Serializer[tuple]):
+    item_generators: tuple[Serializer, ...]
 
-    def __init__(self, item_types: Tuple[type, ...]) -> None:
+    def __init__(self, item_types: tuple[type, ...]) -> None:
         self.item_generators = tuple(
             create_serializer(item_type) for item_type in item_types
         )
 
-    def generate(self, obj: set) -> JsonType:
+    def generate(self, obj: tuple) -> list[JsonType]:
         return [
             item_generator.generate(item)
             for item_generator, item in zip(self.item_generators, obj)
@@ -213,7 +211,7 @@ class CustomSerializer(Serializer):
         return self.converter(obj)
 
 
-class FieldSerializer:
+class FieldSerializer(Generic[T]):
     """
     Serializes a Python object field into a JSON property.
 
@@ -227,22 +225,22 @@ class FieldSerializer:
     generator: Serializer
 
     def __init__(
-        self, field_name: str, property_name: str, generator: Serializer
+        self, field_name: str, property_name: str, generator: Serializer[T]
     ) -> None:
         self.field_name = field_name
         self.property_name = property_name
         self.generator = generator
 
-    def generate_field(self, obj: object, object_dict: Dict[str, JsonType]) -> None:
+    def generate_field(self, obj: object, object_dict: dict[str, JsonType]) -> None:
         value = getattr(obj, self.field_name)
         if value is not None:
             object_dict[self.property_name] = self.generator.generate(value)
 
 
-class TypedClassSerializer(Serializer):
-    property_generators: List[FieldSerializer]
+class TypedClassSerializer(Serializer[T]):
+    property_generators: list[FieldSerializer]
 
-    def __init__(self, class_type: type) -> None:
+    def __init__(self, class_type: type[T]) -> None:
         self.property_generators = [
             FieldSerializer(
                 field_name,
@@ -252,21 +250,21 @@ class TypedClassSerializer(Serializer):
             for field_name, field_type in get_class_properties(class_type)
         ]
 
-    def generate(self, obj: object) -> JsonType:
-        object_dict: Dict[str, JsonType] = {}
+    def generate(self, obj: T) -> dict[str, JsonType]:
+        object_dict: dict[str, JsonType] = {}
         for property_generator in self.property_generators:
             property_generator.generate_field(obj, object_dict)
 
         return object_dict
 
 
-class TypedNamedTupleSerializer(TypedClassSerializer):
-    def __init__(self, class_type: Type[NamedTuple]) -> None:
+class TypedNamedTupleSerializer(TypedClassSerializer[NamedTuple]):
+    def __init__(self, class_type: type[NamedTuple]) -> None:
         super().__init__(class_type)
 
 
-class DataclassSerializer(TypedClassSerializer):
-    def __init__(self, class_type: type) -> None:
+class DataclassSerializer(TypedClassSerializer[T]):
+    def __init__(self, class_type: type[T]) -> None:
         super().__init__(class_type)
 
 
@@ -295,16 +293,16 @@ class LiteralSerializer(Serializer):
 
 
 class UntypedNamedTupleSerializer(Serializer):
-    fields: Dict[str, str]
+    fields: dict[str, str]
 
-    def __init__(self, class_type: Type[NamedTuple]) -> None:
+    def __init__(self, class_type: type[NamedTuple]) -> None:
         # named tuples are also instances of tuple
         self.fields = {}
         field_names: Tuple[str, ...] = class_type._fields
         for field_name in field_names:
             self.fields[field_name] = python_field_to_json_property(field_name)
 
-    def generate(self, obj: object) -> JsonType:
+    def generate(self, obj: NamedTuple) -> JsonType:
         object_dict = {}
         for field_name, property_name in self.fields.items():
             value = getattr(obj, field_name)

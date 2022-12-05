@@ -4,14 +4,14 @@ Type-safe data interchange for Python data classes.
 :see: https://github.com/hunyadi/strong_typing
 """
 
-from typing import Callable, Dict, Iterable, List, Optional, Set, TypeVar
+from typing import Callable, Iterable, Optional, TypeVar
 
 from .inspection import get_class_properties, get_referenced_types
 
 T = TypeVar("T")
 
 
-def topological_sort(graph: Dict[T, Set[T]]) -> List[T]:
+def topological_sort(graph: dict[T, set[T]]) -> list[T]:
     """
     Performs a topological sort of a graph.
 
@@ -23,9 +23,9 @@ def topological_sort(graph: Dict[T, Set[T]]) -> List[T]:
     """
 
     # empty list that will contain the sorted nodes (in reverse order)
-    ordered: List[T] = []
+    ordered: list[T] = []
 
-    seen: Dict[T, bool] = {}
+    seen: dict[T, bool] = {}
 
     def _visit(n):
         status = seen.get(n)
@@ -52,7 +52,7 @@ def topological_sort(graph: Dict[T, Set[T]]) -> List[T]:
 def type_topological_sort(
     types: Iterable[type],
     dependency_fn: Optional[Callable[[type], Iterable[type]]] = None,
-) -> List[type]:
+) -> list[type]:
     """
     Performs a topological sort of a list of types.
 
@@ -67,13 +67,13 @@ def type_topological_sort(
     if not all(isinstance(typ, type) for typ in types):
         raise TypeError("expected a list of types")
 
-    graph: Dict[type, Set[type]] = {}
+    graph: dict[type, set[type]] = {}
 
     queue = list(types)
     while queue:
         cls = queue.pop()
 
-        references: Set[type] = set()
+        references: set[type] = set()
         graph[cls] = references
         for _, typ in get_class_properties(cls):
             for arg in get_referenced_types(typ):

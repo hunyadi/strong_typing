@@ -8,7 +8,6 @@ import json
 from typing import (
     Any,
     TextIO,
-    Type,
     TypeVar,
 )
 
@@ -37,7 +36,7 @@ def object_to_json(obj: Any) -> JsonType:
     return generator.generate(obj)
 
 
-def json_to_object(typ: Type[T], data: JsonType) -> T:
+def json_to_object(typ: type[T], data: JsonType) -> T:
     """
     Creates an object from a representation that has been de-serialized from JSON.
 
