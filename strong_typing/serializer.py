@@ -415,7 +415,7 @@ def _create_serializer(typ: type) -> Serializer:
     if is_dataclass_type(typ):
         return DataclassSerializer(typ)
     if is_named_tuple_type(typ):
-        if typ.__annotations__:
+        if getattr(typ, "__annotations__", None):
             return TypedNamedTupleSerializer(typ)
         else:
             return UntypedNamedTupleSerializer(typ)

@@ -14,6 +14,7 @@ import types
 import typing
 import uuid
 from typing import (
+    Annotated,
     Any,
     Callable,
     Iterable,
@@ -23,11 +24,6 @@ from typing import (
     TypeVar,
     Union,
 )
-
-if sys.version_info >= (3, 9):
-    from typing import Annotated
-else:
-    from typing_extensions import Annotated
 
 if sys.version_info >= (3, 10):
     from typing import TypeGuard
@@ -353,10 +349,7 @@ def get_module_classes(module: types.ModuleType) -> list[type]:
 
 
 def get_resolved_hints(typ: type) -> dict[str, type]:
-    if sys.version_info >= (3, 9):
-        return typing.get_type_hints(typ, include_extras=True)
-    else:
-        return typing.get_type_hints(typ)
+    return typing.get_type_hints(typ, include_extras=True)
 
 
 def get_class_properties(typ: type) -> Iterable[tuple[str, type]]:
