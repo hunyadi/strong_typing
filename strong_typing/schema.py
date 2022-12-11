@@ -131,6 +131,18 @@ def docstring_to_schema(data_type: type) -> Schema:
     return schema
 
 
+def id_from_ref(data_type: Union[typing.ForwardRef, str, type]) -> str:
+    "Extracts the name of a possibly forward-referenced type."
+
+    if isinstance(data_type, typing.ForwardRef):
+        forward_type: typing.ForwardRef = data_type
+        return forward_type.__forward_arg__
+    elif isinstance(data_type, str):
+        return data_type
+    else:
+        return data_type.__name__
+
+
 def type_from_ref(data_type: Union[typing.ForwardRef, str, type]) -> tuple[str, type]:
     "Creates a type from a forward reference."
 
@@ -346,11 +358,16 @@ class JsonSchemaGenerator:
             typ = data_type
 
         if isinstance(typ, typing.ForwardRef) or isinstance(typ, str):
-            identifier, true_type = type_from_ref(typ)
             if force_expand:
+                identifier, true_type = type_from_ref(typ)
                 return self.type_to_schema(true_type, force_expand=True)
             else:
-                self.types_used[identifier] = true_type
+                try:
+                    identifier, true_type = type_from_ref(typ)
+                    self.types_used[identifier] = true_type
+                except NameError:
+                    identifier = id_from_ref(typ)
+
                 return {"$ref": f"{self.options.definitions_path}{identifier}"}
 
         if is_type_enum(typ):
@@ -361,24 +378,35 @@ class JsonSchemaGenerator:
                     f"enumerations must have a consistent member value type but several types found: {value_types}"
                 )
             enum_value_type = value_types.pop()
-            if enum_value_type is bool:
-                enum_schema_type = "boolean"
-            elif enum_value_type is int:
-                enum_schema_type = "integer"
-            elif enum_value_type is float:
-                enum_schema_type = "number"
-            elif enum_value_type is str:
-                enum_schema_type = "string"
-            else:
-                raise ValueError(
-                    f"unsupported enumeration member value type: {enum_value_type}"
-                )
 
-            enum_values = [e.value for e in enum_type]
-            enum_schema: Schema = {"type": enum_schema_type, "enum": enum_values}
-            if self.options.use_descriptions:
-                enum_schema.update(docstring_to_schema(typ))
-            return enum_schema
+            enum_schema: Schema
+            if (
+                enum_value_type is bool
+                or enum_value_type is int
+                or enum_value_type is float
+                or enum_value_type is str
+            ):
+                if enum_value_type is bool:
+                    enum_schema_type = "boolean"
+                elif enum_value_type is int:
+                    enum_schema_type = "integer"
+                elif enum_value_type is float:
+                    enum_schema_type = "number"
+                elif enum_value_type is str:
+                    enum_schema_type = "string"
+
+                enum_schema = {
+                    "type": enum_schema_type,
+                    "enum": [object_to_json(e.value) for e in enum_type],
+                }
+                if self.options.use_descriptions:
+                    enum_schema.update(docstring_to_schema(typ))
+                return enum_schema
+            else:
+                enum_schema = self.type_to_schema(enum_value_type)
+                if self.options.use_descriptions:
+                    enum_schema.update(docstring_to_schema(typ))
+                return enum_schema
 
         origin_type = typing.get_origin(typ)
         if origin_type is list:
@@ -394,7 +422,7 @@ class JsonSchemaGenerator:
             dict_schema: Schema
             value_schema = self.type_to_schema(value_type)
             if is_type_enum(key_type):
-                enum_values = [e.value for e in key_type]
+                enum_values = [str(e.value) for e in key_type]
                 if len(enum_values) > OBJECT_ENUM_EXPANSION_LIMIT:
                     dict_schema = {
                         "propertyNames": {
@@ -404,9 +432,7 @@ class JsonSchemaGenerator:
                     }
                 else:
                     dict_schema = {
-                        "properties": dict(
-                            (str(value), value_schema) for value in enum_values
-                        ),
+                        "properties": {value: value_schema for value in enum_values},
                         "additionalProperties": False,
                     }
             else:

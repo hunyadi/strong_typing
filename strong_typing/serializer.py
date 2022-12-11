@@ -346,6 +346,9 @@ def _fetch_serializer(typ: type) -> Serializer:
 
 
 def _create_serializer(typ: type) -> Serializer:
+    if isinstance(typ, str):
+        raise TypeError(f"expected a type; got an instance of str")
+
     # check for well-known types
     if typ is type(None):
         return NoneSerializer()

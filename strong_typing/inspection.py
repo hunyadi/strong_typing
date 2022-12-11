@@ -362,14 +362,10 @@ def get_resolved_hints(typ: type) -> dict[str, type]:
 def get_class_properties(typ: type) -> Iterable[tuple[str, type]]:
     "Returns all properties of a class."
 
-    resolved_hints = get_resolved_hints(typ)
-
     if is_dataclass_type(typ):
-        return (
-            (field.name, resolved_hints[field.name])
-            for field in dataclasses.fields(typ)
-        )
+        return ((field.name, field.type) for field in dataclasses.fields(typ))
     else:
+        resolved_hints = get_resolved_hints(typ)
         return resolved_hints.items()
 
 
