@@ -2,6 +2,9 @@
     "terminal.integrated.env.osx": {
         "PYTHONPATH": "${workspaceFolder}"
     },
+    "terminal.integrated.env.windows": {
+        "PYTHONPATH": "${workspaceFolder}"
+    },
     "python.formatting.provider": "black",
     "python.linting.mypyEnabled": true
 }

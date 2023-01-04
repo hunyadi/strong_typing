@@ -84,8 +84,11 @@ def is_type_enum(typ: type) -> TypeGuard[type[enum.Enum]]:
 
     typ = unwrap_annotated_type(typ)
 
-    # use an explicit isinstance(..., type) check to filter out special forms like generics
-    return isinstance(typ, type) and issubclass(typ, enum.Enum)
+    if sys.version_info >= (3, 11):
+        return isinstance(typ, enum.EnumType)
+    else:
+        # use an explicit isinstance(..., type) check to filter out special forms like generics
+        return isinstance(typ, type) and issubclass(typ, enum.Enum)
 
 
 def enum_value_types(enum_type: type[enum.Enum]) -> list[type]:
