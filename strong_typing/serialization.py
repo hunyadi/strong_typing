@@ -5,11 +5,7 @@ Type-safe data interchange for Python data classes.
 """
 
 import json
-from typing import (
-    Any,
-    TextIO,
-    TypeVar,
-)
+from typing import Any, TextIO, Type, TypeVar
 
 from .core import JsonType
 from .deserializer import create_deserializer
@@ -36,7 +32,7 @@ def object_to_json(obj: Any) -> JsonType:
     return generator.generate(obj)
 
 
-def json_to_object(typ: type[T], data: JsonType) -> T:
+def json_to_object(typ: Type[T], data: JsonType) -> T:
     """
     Creates an object from a representation that has been de-serialized from JSON.
 

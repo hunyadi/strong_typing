@@ -2,7 +2,9 @@ import datetime
 import decimal
 import unittest
 import uuid
-from typing import Any, Union
+from typing import Any, Dict, List, Set, Tuple, Union
+
+from sample_types import *
 
 from strong_typing.auxiliary import Annotated, IntegerRange, Precision, int32, uint64
 from strong_typing.schema import (
@@ -13,8 +15,6 @@ from strong_typing.schema import (
     classdef_to_schema,
     get_class_docstrings,
 )
-
-from sample_types import *
 
 
 class TestSchema(unittest.TestCase):
@@ -60,15 +60,15 @@ class TestSchema(unittest.TestCase):
             },
         )
         self.assertEqual(
-            generator.type_to_schema(list[int]),
+            generator.type_to_schema(List[int]),
             {"type": "array", "items": {"type": "integer"}},
         )
         self.assertEqual(
-            generator.type_to_schema(dict[str, int]),
+            generator.type_to_schema(Dict[str, int]),
             {"type": "object", "additionalProperties": {"type": "integer"}},
         )
         self.assertEqual(
-            generator.type_to_schema(set[int]),
+            generator.type_to_schema(Set[int]),
             {"type": "array", "items": {"type": "integer"}, "uniqueItems": True},
         )
         self.assertEqual(
@@ -76,7 +76,7 @@ class TestSchema(unittest.TestCase):
             {"oneOf": [{"type": "integer"}, {"type": "string"}]},
         )
         self.assertEqual(
-            generator.type_to_schema(tuple[bool, int, str]),
+            generator.type_to_schema(Tuple[bool, int, str]),
             {
                 "type": "array",
                 "minItems": 3,

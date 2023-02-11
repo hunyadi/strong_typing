@@ -3,7 +3,9 @@ import enum
 import sys
 import unittest
 from dataclasses import dataclass
-from typing import NamedTuple, Optional, Union
+from typing import Dict, List, NamedTuple, Optional, Set, Tuple, Union
+
+from sample_types import *
 
 from strong_typing.auxiliary import Annotated, typeannotation
 from strong_typing.inspection import (
@@ -12,8 +14,8 @@ from strong_typing.inspection import (
     get_module_classes,
     get_referenced_types,
     is_dataclass_type,
-    is_generic_instance,
     is_generic_dict,
+    is_generic_instance,
     is_generic_list,
     is_named_tuple_type,
     is_type_enum,
@@ -22,8 +24,6 @@ from strong_typing.inspection import (
     unwrap_generic_dict,
     unwrap_generic_list,
 )
-
-from sample_types import *
 
 
 class Side(enum.Enum):
@@ -70,8 +70,8 @@ class TestInspection(unittest.TestCase):
         self.assertEqual(get_referenced_types(type(None)), [])
         self.assertEqual(get_referenced_types(int), [int])
         self.assertEqual(get_referenced_types(Optional[str]), [str])
-        self.assertEqual(get_referenced_types(list[str]), [str])
-        self.assertEqual(get_referenced_types(dict[int, bool]), [int, bool])
+        self.assertEqual(get_referenced_types(List[str]), [str])
+        self.assertEqual(get_referenced_types(Dict[int, bool]), [int, bool])
         self.assertEqual(get_referenced_types(Union[int, bool, str]), [int, bool, str])
         self.assertEqual(
             get_referenced_types(Union[None, int, datetime.datetime]),
@@ -122,35 +122,35 @@ class TestInspection(unittest.TestCase):
         self.assertFalse(is_type_union(int))
 
     def test_list(self):
-        self.assertTrue(is_generic_list(list[int]))
-        self.assertTrue(is_generic_list(list[str]))
-        self.assertTrue(is_generic_list(list[SimpleObject]))
+        self.assertTrue(is_generic_list(List[int]))
+        self.assertTrue(is_generic_list(List[str]))
+        self.assertTrue(is_generic_list(List[SimpleObject]))
         self.assertFalse(is_generic_list(list))
         self.assertFalse(is_generic_list([]))
 
-        self.assertEqual(unwrap_generic_list(list[int]), int)
-        self.assertEqual(unwrap_generic_list(list[str]), str)
-        self.assertEqual(unwrap_generic_list(list[list[str]]), list[str])
+        self.assertEqual(unwrap_generic_list(List[int]), int)
+        self.assertEqual(unwrap_generic_list(List[str]), str)
+        self.assertEqual(unwrap_generic_list(List[List[str]]), List[str])
 
     def test_dict(self):
-        self.assertTrue(is_generic_dict(dict[int, str]))
-        self.assertTrue(is_generic_dict(dict[str, SimpleObject]))
+        self.assertTrue(is_generic_dict(Dict[int, str]))
+        self.assertTrue(is_generic_dict(Dict[str, SimpleObject]))
         self.assertFalse(is_generic_dict(dict))
         self.assertFalse(is_generic_dict({}))
 
-        self.assertEqual(unwrap_generic_dict(dict[int, str]), (int, str))
+        self.assertEqual(unwrap_generic_dict(Dict[int, str]), (int, str))
         self.assertEqual(
-            unwrap_generic_dict(dict[str, SimpleObject]), (str, SimpleObject)
+            unwrap_generic_dict(Dict[str, SimpleObject]), (str, SimpleObject)
         )
         self.assertEqual(
-            unwrap_generic_dict(dict[str, list[SimpleObject]]),
-            (str, list[SimpleObject]),
+            unwrap_generic_dict(Dict[str, List[SimpleObject]]),
+            (str, List[SimpleObject]),
         )
 
     def test_annotated(self):
         self.assertTrue(is_type_enum(Annotated[Suit, SimpleAnnotation()]))
-        self.assertTrue(is_generic_list(Annotated[list[int], SimpleAnnotation()]))
-        self.assertTrue(is_generic_dict(Annotated[dict[int, str], SimpleAnnotation()]))
+        self.assertTrue(is_generic_list(Annotated[List[int], SimpleAnnotation()]))
+        self.assertTrue(is_generic_dict(Annotated[Dict[int, str], SimpleAnnotation()]))
 
     def test_classes(self):
         classes = get_module_classes(sys.modules[__name__])
@@ -194,24 +194,24 @@ class TestInspection(unittest.TestCase):
         self.assertFalse(is_generic_instance(42, SimpleObject))
         self.assertFalse(is_generic_instance("string", SimpleObject))
 
-        self.assertTrue(is_generic_instance([], list[int]))
-        self.assertTrue(is_generic_instance([1, 2, 3], list[int]))
-        self.assertTrue(is_generic_instance([obj], list[SimpleObject]))
-        self.assertFalse(is_generic_instance(None, list[int]))
-        self.assertFalse(is_generic_instance(42, list[int]))
+        self.assertTrue(is_generic_instance([], List[int]))
+        self.assertTrue(is_generic_instance([1, 2, 3], List[int]))
+        self.assertTrue(is_generic_instance([obj], List[SimpleObject]))
+        self.assertFalse(is_generic_instance(None, List[int]))
+        self.assertFalse(is_generic_instance(42, List[int]))
 
-        self.assertTrue(is_generic_instance({}, dict[str, int]))
-        self.assertTrue(is_generic_instance({"a": 1, "b": 2}, dict[str, int]))
-        self.assertFalse(is_generic_instance(None, dict[str, int]))
-        self.assertFalse(is_generic_instance("string", dict[str, int]))
+        self.assertTrue(is_generic_instance({}, Dict[str, int]))
+        self.assertTrue(is_generic_instance({"a": 1, "b": 2}, Dict[str, int]))
+        self.assertFalse(is_generic_instance(None, Dict[str, int]))
+        self.assertFalse(is_generic_instance("string", Dict[str, int]))
 
-        self.assertTrue(is_generic_instance(set(), set[int]))
-        self.assertTrue(is_generic_instance(set([1, 2, 3]), set[int]))
-        self.assertFalse(is_generic_instance(None, set[int]))
-        self.assertFalse(is_generic_instance(42, set[int]))
+        self.assertTrue(is_generic_instance(set(), Set[int]))
+        self.assertTrue(is_generic_instance(set([1, 2, 3]), Set[int]))
+        self.assertFalse(is_generic_instance(None, Set[int]))
+        self.assertFalse(is_generic_instance(42, Set[int]))
 
-        self.assertTrue(is_generic_instance(("a", 42), tuple[str, int]))
-        self.assertFalse(is_generic_instance(None, tuple[str, int]))
+        self.assertTrue(is_generic_instance(("a", 42), Tuple[str, int]))
+        self.assertFalse(is_generic_instance(None, Tuple[str, int]))
 
         self.assertTrue(is_generic_instance("string", Union[str, int]))
         self.assertTrue(is_generic_instance(42, Union[str, int]))

@@ -7,7 +7,12 @@ Type-safe data interchange for Python data classes.
 import dataclasses
 import sys
 from dataclasses import dataclass
-from typing import Annotated, Callable, Optional, TypeVar, overload
+from typing import Callable, Optional, Type, TypeVar, overload
+
+if sys.version_info >= (3, 9):
+    from typing import Annotated
+else:
+    from typing_extensions import Annotated
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias
@@ -34,21 +39,21 @@ class CompactDataClass:
 
 
 @overload
-def typeannotation(cls: type[T], /) -> type[T]:
+def typeannotation(cls: Type[T], /) -> Type[T]:
     ...
 
 
 @overload
 def typeannotation(
     cls: None, *, eq: bool = True, order: bool = False
-) -> Callable[[type[T]], type[T]]:
+) -> Callable[[Type[T]], Type[T]]:
     ...
 
 
-def typeannotation(cls: Optional[type[T]] = None, *, eq=True, order=False):
+def typeannotation(cls: Optional[Type[T]] = None, *, eq=True, order=False):
     "Returns the same class as was passed in, with dunder methods added based on the fields defined in the class."
 
-    def wrap(cls: type[T]) -> type[T]:
+    def wrap(cls: Type[T]) -> Type[T]:
         setattr(cls, "__repr__", _compact_dataclass_repr)
         if not dataclasses.is_dataclass(cls):
             cls = dataclasses.dataclass(  # type: ignore
@@ -184,13 +189,13 @@ uint64: TypeAlias = Annotated[
 float32: TypeAlias = Annotated[float, Storage(4)]
 float64: TypeAlias = Annotated[float, Storage(8)]
 
-# maps globals of type Annotation[T, ...] defined in this module to their string names
+# maps globals of type Annotated[T, ...] defined in this module to their string names
 _auxiliary_types = {}
 module = sys.modules[__name__]
 for var in dir(module):
     typ = getattr(module, var)
     if getattr(typ, "__metadata__", None) is not None:
-        # type is Annotation[T, ...]
+        # type is Annotated[T, ...]
         _auxiliary_types[typ] = var
 
 

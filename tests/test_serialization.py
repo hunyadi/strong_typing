@@ -2,11 +2,11 @@ import datetime
 import unittest
 import uuid
 
+from sample_types import *
+
 from strong_typing.exception import JsonValueError
 from strong_typing.schema import validate_object
 from strong_typing.serialization import object_to_json
-
-from sample_types import *
 
 
 def test_function():

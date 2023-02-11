@@ -1,10 +1,9 @@
-from collections import namedtuple
-
 import datetime
 import enum
 import uuid
+from collections import namedtuple
 from dataclasses import dataclass, field
-from typing import Literal, NamedTuple, Optional
+from typing import Dict, List, Literal, NamedTuple, Optional, Set, Tuple
 
 from strong_typing.auxiliary import Annotated, IntegerRange, MaxLength, Precision
 from strong_typing.schema import json_schema_type
@@ -127,10 +126,10 @@ class AnnotatedSimpleDataclass:
 
 @dataclass
 class CompositeDataclass:
-    list_value: list[str] = field(default_factory=list)
-    dict_value: dict[str, int] = field(default_factory=dict)
-    set_value: set[int] = field(default_factory=set)
-    tuple_value: tuple[bool, int, str] = (True, 2, "three")
+    list_value: List[str] = field(default_factory=list)
+    dict_value: Dict[str, int] = field(default_factory=dict)
+    set_value: Set[int] = field(default_factory=set)
+    tuple_value: Tuple[bool, int, str] = (True, 2, "three")
     named_tuple_value: SimpleTypedNamedTuple = SimpleTypedNamedTuple(1, "second")
     optional_value: Optional[str] = None
 
@@ -160,8 +159,8 @@ class ValueExample:
 @dataclass
 class NestedDataclass:
     obj_value: CompositeDataclass
-    list_value: list[ValueExample]
-    dict_value: dict[str, ValueExample]
+    list_value: List[ValueExample]
+    dict_value: Dict[str, ValueExample]
 
     def __init__(self):
         self.obj_value = CompositeDataclass(
