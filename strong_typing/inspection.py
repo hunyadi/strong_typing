@@ -434,6 +434,38 @@ def is_reserved_property(name: str) -> bool:
     return False
 
 
+def create_data_type(class_name: str, fields: List[Tuple[str, type]]) -> type:
+    """
+    Creates a new data-class type dynamically.
+
+    :param class_name: The name of new data-class type.
+    :param fields: A list of fields (and their type) that the new data-class type is expected to have.
+    :returns: The newly created data-class type.
+    """
+
+    if sys.version_info >= (3, 10):
+        # has the `slots` parameter
+        cls = dataclasses.make_dataclass(class_name, fields, slots=True)
+    else:
+        cls = dataclasses.make_dataclass(class_name, fields)
+
+        cls_dict = dict(cls.__dict__)
+        field_names = tuple(field.name for field in dataclasses.fields(cls))
+
+        cls_dict["__slots__"] = field_names
+
+        for field_name in field_names:
+            cls_dict.pop(field_name, None)
+        cls_dict.pop("__dict__", None)
+
+        qualname = getattr(cls, "__qualname__", None)
+        cls = type(cls)(cls.__name__, (), cls_dict)
+        if qualname is not None:
+            cls.__qualname__ = qualname
+
+    return cls
+
+
 def create_object(typ: Type[T]) -> T:
     "Creates an instance of a type."
 

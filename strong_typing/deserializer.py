@@ -593,9 +593,16 @@ class ClassDeserializer(Deserializer[T]):
 
     class_type: type
     property_parsers: List[FieldDeserializer]
+    property_fields: Set[str]
 
-    def __init__(self, class_type: Type[T]) -> None:
+    def __init__(
+        self, class_type: Type[T], property_parsers: List[FieldDeserializer]
+    ) -> None:
         self.class_type = class_type
+        self.property_parsers = property_parsers
+        self.property_fields = set(
+            property_parser.field_name for property_parser in property_parsers
+        )
 
     def parse(self, data: JsonType) -> T:
         if not isinstance(data, dict):
@@ -607,17 +614,15 @@ class ClassDeserializer(Deserializer[T]):
         object_data: Dict[str, JsonType] = typing.cast(Dict[str, JsonType], data)
 
         field_values = {}
-        parsed_properties = set()
         for property_parser in self.property_parsers:
             field_values[property_parser.field_name] = property_parser.parse_field(
                 object_data
             )
-            parsed_properties.add(property_parser.property_name)
 
-        unassigned_names = [
-            name for name in object_data if name not in parsed_properties
-        ]
-        if unassigned_names:
+        if not self.property_fields.issuperset(object_data):
+            unassigned_names = [
+                name for name in object_data if name not in self.property_fields
+            ]
             raise JsonKeyError(
                 f"unrecognized fields in JSON object: {unassigned_names}"
             )
@@ -637,14 +642,13 @@ class NamedTupleDeserializer(ClassDeserializer[NamedTuple]):
     "De-serializes a named tuple from a JSON `object`."
 
     def __init__(self, class_type: Type[NamedTuple]) -> None:
-        super().__init__(class_type)
-
-        self.property_parsers = [
+        property_parsers: List[FieldDeserializer] = [
             RequiredFieldDeserializer(
                 field_name, field_name, create_deserializer(field_type)
             )
             for field_name, field_type in get_resolved_hints(class_type).items()
         ]
+        super().__init__(class_type, property_parsers)
 
     def create(self, **field_values) -> NamedTuple:
         return self.class_type(**field_values)
@@ -654,9 +658,7 @@ class DataclassDeserializer(ClassDeserializer[T]):
     "De-serializes a data class from a JSON `object`."
 
     def __init__(self, class_type: Type[T]) -> None:
-        super().__init__(class_type)
-
-        self.property_parsers = []
+        property_parsers: List[FieldDeserializer] = []
         resolved_hints = get_resolved_hints(class_type)
         for field in dataclasses.fields(class_type):
             field_type = resolved_hints[field.name]
@@ -691,16 +693,16 @@ class DataclassDeserializer(ClassDeserializer[T]):
                     property_name, field.name, parser
                 )
 
-            self.property_parsers.append(field_parser)
+            property_parsers.append(field_parser)
+
+        super().__init__(class_type, property_parsers)
 
 
 class TypedClassDeserializer(ClassDeserializer[T]):
     "De-serializes a class with type annotations from a JSON `object` by iterating over class properties."
 
     def __init__(self, class_type: Type[T]) -> None:
-        super().__init__(class_type)
-
-        self.property_parsers = []
+        property_parsers: List[FieldDeserializer] = []
         for field_name, field_type in get_resolved_hints(class_type).items():
             property_name = python_field_to_json_property(field_name, field_type)
 
@@ -722,7 +724,9 @@ class TypedClassDeserializer(ClassDeserializer[T]):
                     property_name, field_name, parser
                 )
 
-            self.property_parsers.append(field_parser)
+            property_parsers.append(field_parser)
+
+        super().__init__(class_type, property_parsers)
 
 
 def create_deserializer(typ: Type[T]) -> Deserializer[T]:
