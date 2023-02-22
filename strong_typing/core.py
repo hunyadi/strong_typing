@@ -37,4 +37,4 @@ StrictJsonType = Union[
 ]
 
 # a meta-type that captures the object type in a JSON schema
-Schema = Dict[str, "JsonType"]
+Schema = Dict[str, JsonType]
