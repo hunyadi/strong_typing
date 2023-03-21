@@ -56,6 +56,15 @@ class TestDeserialization(unittest.TestCase):
         with self.assertRaises(JsonValueError):
             json_to_object(datetime.datetime, "1989-10-23T01:45:50")
 
+    def test_deserialization_class(self):
+        self.assertEqual(
+            json_to_object(SimpleValueWrapper, {"value": 42}), SimpleValueWrapper(42)
+        )
+        self.assertEqual(
+            json_to_object(FrozenValueWrapper, {"value": 42}),
+            FrozenValueWrapper(42),
+        )
+
     def test_deserialization_composite(self):
         self.assertEqual(json_to_object(UID, "1.2.3.4567.8900"), UID("1.2.3.4567.8900"))
         self.assertEqual(

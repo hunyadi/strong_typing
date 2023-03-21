@@ -633,6 +633,8 @@ class ClassDeserializer(Deserializer[T]):
         "Instantiates an object with a collection of property values."
 
         obj: T = create_object(self.class_type)
+
+        # use `setattr` on newly created object instance
         for field_name, field_value in field_values.items():
             setattr(obj, field_name, field_value)
         return obj
@@ -696,6 +698,20 @@ class DataclassDeserializer(ClassDeserializer[T]):
             property_parsers.append(field_parser)
 
         super().__init__(class_type, property_parsers)
+
+
+class FrozenDataclassDeserializer(DataclassDeserializer[T]):
+    "De-serializes a frozen data class from a JSON `object`."
+
+    def create(self, **field_values) -> T:
+        "Instantiates an object with a collection of property values."
+
+        # create object instance without calling `__init__`
+        obj: T = create_object(self.class_type)
+
+        # can't use `setattr` on frozen dataclasses, pass member variable values to `__init__`
+        obj.__init__(**field_values)  # type: ignore
+        return obj
 
 
 class TypedClassDeserializer(ClassDeserializer[T]):
@@ -855,6 +871,10 @@ def _create_deserializer_unsafe(typ: Type[T]) -> Deserializer:
         return CustomDeserializer(convert_func)
 
     if is_dataclass_type(typ):
-        return DataclassDeserializer(typ)
-    else:
-        return TypedClassDeserializer(typ)
+        dataclass_params = getattr(typ, "__dataclass_params__", None)
+        if dataclass_params is not None and dataclass_params.frozen:
+            return FrozenDataclassDeserializer(typ)
+        else:
+            return DataclassDeserializer(typ)
+
+    return TypedClassDeserializer(typ)

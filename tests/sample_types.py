@@ -47,6 +47,13 @@ class SimpleValueWrapper:
     value: int = 23
 
 
+@dataclass(frozen=True)
+class FrozenValueWrapper:
+    "A simple frozen data class with a single property."
+
+    value: int
+
+
 @dataclass
 class OptionalValueWrapper:
     "A simple data class with an optional field."

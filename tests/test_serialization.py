@@ -79,6 +79,7 @@ class TestSerialization(unittest.TestCase):
 
     def test_serialization_class(self):
         self.assertEqual(object_to_json(SimpleValueWrapper(42)), {"value": 42})
+        self.assertEqual(object_to_json(FrozenValueWrapper(42)), {"value": 42})
         self.assertEqual(
             object_to_json(SimpleTypedClass(42, "string")),
             {"int_value": 42, "str_value": "string"},
