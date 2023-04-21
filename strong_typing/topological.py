@@ -27,7 +27,7 @@ def topological_sort(graph: Dict[T, Set[T]]) -> List[T]:
 
     seen: Dict[T, bool] = {}
 
-    def _visit(n):
+    def _visit(n: T) -> None:
         status = seen.get(n)
         if status is not None:
             if status:  # node has a permanent mark

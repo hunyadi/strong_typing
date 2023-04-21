@@ -79,7 +79,7 @@ def python_type_to_str(data_type: type) -> str:
         return _python_type_to_str(data_type)
 
 
-def python_type_to_name(data_type: type, force: bool = False) -> str:
+def python_type_to_name(data_type: object, force: bool = False) -> str:
     """
     Returns the short name of a Python type.
 

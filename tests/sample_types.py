@@ -169,7 +169,7 @@ class NestedDataclass:
     list_value: List[ValueExample]
     dict_value: Dict[str, ValueExample]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.obj_value = CompositeDataclass(
             list_value=["a", "b", "c"], dict_value={"key": 42}
         )

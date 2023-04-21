@@ -4,9 +4,20 @@ import unittest
 import uuid
 from typing import Any, Dict, List, Set, Tuple, Union
 
-from sample_types import *
+from sample_types import (
+    UID,
+    AnnotatedSimpleDataclass,
+    BinaryTree,
+    Side,
+    SimpleDataclass,
+    SimpleTypedNamedTuple,
+    SimpleValueWrapper,
+    Suit,
+    ValueExample,
+)
 
 from strong_typing.auxiliary import Annotated, IntegerRange, Precision, int32, uint64
+from strong_typing.core import JsonType
 from strong_typing.schema import (
     JsonSchemaGenerator,
     JsonType,
@@ -18,7 +29,7 @@ from strong_typing.schema import (
 
 
 class TestSchema(unittest.TestCase):
-    def test_schema(self):
+    def test_schema(self) -> None:
         options = SchemaOptions(use_descriptions=True)
         generator = JsonSchemaGenerator(options)
         self.assertEqual(generator.type_to_schema(type(None)), {"type": "null"})
@@ -146,7 +157,7 @@ class TestSchema(unittest.TestCase):
             },
         )
 
-    def test_recursive(self):
+    def test_recursive(self) -> None:
         options = SchemaOptions(use_descriptions=False)
         generator = JsonSchemaGenerator(options)
         self.assertEqual(
@@ -161,7 +172,7 @@ class TestSchema(unittest.TestCase):
             },
         )
 
-    def test_registered(self):
+    def test_registered(self) -> None:
         options = SchemaOptions(use_descriptions=False)
         generator = JsonSchemaGenerator(options)
         self.assertEqual(
@@ -224,7 +235,7 @@ class TestSchema(unittest.TestCase):
             },
         )
 
-    def test_annotated(self):
+    def test_annotated(self) -> None:
         options = SchemaOptions(use_descriptions=False)
         generator = JsonSchemaGenerator(options)
         self.assertEqual(
@@ -282,7 +293,7 @@ class TestSchema(unittest.TestCase):
             },
         )
 
-    def test_fixed_width(self):
+    def test_fixed_width(self) -> None:
         options = SchemaOptions(use_descriptions=True)
         generator = JsonSchemaGenerator(options)
         self.assertEqual(
@@ -292,7 +303,9 @@ class TestSchema(unittest.TestCase):
             generator.type_to_schema(uint64), {"format": "uint64", "type": "integer"}
         )
 
-    def _assert_docstring_equal(self, generator: JsonSchemaGenerator, typ: type):
+    def _assert_docstring_equal(
+        self, generator: JsonSchemaGenerator, typ: type
+    ) -> None:
         "Checks if the Python class docstring matches the title and description strings in the generated JSON schema."
 
         short_description, long_description = get_class_docstrings(typ)
@@ -305,7 +318,7 @@ class TestSchema(unittest.TestCase):
             long_description,
         )
 
-    def test_docstring(self):
+    def test_docstring(self) -> None:
         self.maxDiff = None
         options = SchemaOptions(use_descriptions=True)
         generator = JsonSchemaGenerator(options)

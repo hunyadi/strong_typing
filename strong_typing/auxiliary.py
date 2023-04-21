@@ -7,7 +7,7 @@ Type-safe data interchange for Python data classes.
 import dataclasses
 import sys
 from dataclasses import dataclass
-from typing import Callable, Optional, Type, TypeVar, overload
+from typing import Callable, Dict, Optional, Type, TypeVar, Union, overload
 
 if sys.version_info >= (3, 9):
     from typing import Annotated
@@ -22,7 +22,7 @@ else:
 T = TypeVar("T")
 
 
-def _compact_dataclass_repr(obj) -> str:
+def _compact_dataclass_repr(obj) -> str:  # type: ignore
     "Compact dataclass representation where positional arguments are used instead of keyword arguments."
 
     arglist = ", ".join(
@@ -50,7 +50,9 @@ def typeannotation(
     ...
 
 
-def typeannotation(cls: Optional[Type[T]] = None, *, eq=True, order=False):
+def typeannotation(
+    cls: Optional[Type[T]] = None, *, eq: bool = True, order: bool = False
+) -> Union[Type[T], Callable[[Type[T]], Type[T]]]:
     "Returns the same class as was passed in, with dunder methods added based on the fields defined in the class."
 
     def wrap(cls: Type[T]) -> Type[T]:
@@ -118,7 +120,7 @@ class Precision:
     decimal_digits: int = 0
 
     @property
-    def integer_digits(self):
+    def integer_digits(self) -> int:
         return self.significant_digits - self.decimal_digits
 
 
@@ -190,7 +192,7 @@ float32: TypeAlias = Annotated[float, Storage(4)]
 float64: TypeAlias = Annotated[float, Storage(8)]
 
 # maps globals of type Annotated[T, ...] defined in this module to their string names
-_auxiliary_types = {}
+_auxiliary_types: Dict[object, str] = {}
 module = sys.modules[__name__]
 for var in dir(module):
     typ = getattr(module, var)
@@ -199,7 +201,7 @@ for var in dir(module):
         _auxiliary_types[typ] = var
 
 
-def get_auxiliary_format(data_type: type) -> Optional[str]:
+def get_auxiliary_format(data_type: object) -> Optional[str]:
     "Returns the JSON format string corresponding to an auxiliary type."
 
     return _auxiliary_types.get(data_type)

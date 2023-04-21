@@ -1,24 +1,39 @@
 import datetime
 import unittest
 import uuid
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Literal, Optional, Set, Union
 
-from sample_types import *
+from sample_types import (
+    UID,
+    BinaryValueWrapper,
+    ClassA,
+    ClassB,
+    ClassC,
+    FrozenValueWrapper,
+    LiteralWrapper,
+    NestedDataclass,
+    OptionalValueWrapper,
+    Side,
+    SimpleDataclass,
+    SimpleDerivedClass,
+    SimpleValueWrapper,
+    Suit,
+)
 
 from strong_typing.exception import JsonKeyError, JsonTypeError, JsonValueError
 from strong_typing.serialization import json_to_object, object_to_json
 
 
-def test_function():
+def test_function() -> None:
     pass
 
 
-async def test_async_function():
+async def test_async_function() -> None:
     pass
 
 
 class TestDeserialization(unittest.TestCase):
-    def test_deserialization_simple(self):
+    def test_deserialization_simple(self) -> None:
         self.assertEqual(json_to_object(type(None), None), None)
         self.assertEqual(json_to_object(bool, True), True)
         self.assertEqual(json_to_object(int, 23), 23)
@@ -43,7 +58,7 @@ class TestDeserialization(unittest.TestCase):
         with self.assertRaises(JsonTypeError):
             json_to_object(str, 1982)
 
-    def test_deserialization_datetime(self):
+    def test_deserialization_datetime(self) -> None:
         self.assertEqual(
             json_to_object(datetime.datetime, "1989-10-23T01:45:50Z"),
             datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc),
@@ -56,7 +71,7 @@ class TestDeserialization(unittest.TestCase):
         with self.assertRaises(JsonValueError):
             json_to_object(datetime.datetime, "1989-10-23T01:45:50")
 
-    def test_deserialization_class(self):
+    def test_deserialization_class(self) -> None:
         self.assertEqual(
             json_to_object(SimpleValueWrapper, {"value": 42}), SimpleValueWrapper(42)
         )
@@ -65,14 +80,14 @@ class TestDeserialization(unittest.TestCase):
             FrozenValueWrapper(42),
         )
 
-    def test_deserialization_composite(self):
+    def test_deserialization_composite(self) -> None:
         self.assertEqual(json_to_object(UID, "1.2.3.4567.8900"), UID("1.2.3.4567.8900"))
         self.assertEqual(
             json_to_object(BinaryValueWrapper, {"value": "QU4="}),
             BinaryValueWrapper(bytes([65, 78])),
         )
 
-    def test_deserialization_collection(self):
+    def test_deserialization_collection(self) -> None:
         self.assertEqual(json_to_object(List[int], [1, 2, 3]), [1, 2, 3])
         self.assertEqual(
             json_to_object(Dict[str, int], {"a": 1, "b": 2, "c": 3}),
@@ -96,7 +111,7 @@ class TestDeserialization(unittest.TestCase):
         with self.assertRaises(TypeError):
             json_to_object(tuple, [1, "two"])
 
-    def test_deserialization_optional(self):
+    def test_deserialization_optional(self) -> None:
         self.assertEqual(json_to_object(Optional[int], None), None)
         self.assertEqual(json_to_object(Optional[int], 42), 42)
 
@@ -112,7 +127,7 @@ class TestDeserialization(unittest.TestCase):
         with self.assertRaises(JsonKeyError):
             json_to_object(OptionalValueWrapper, {"value": 23, "extra": 42})
 
-    def test_deserialization_literal(self):
+    def test_deserialization_literal(self) -> None:
         self.assertEqual(
             json_to_object(Literal["val1", "val2", "val3"], "val1"), "val1"
         )
@@ -139,7 +154,7 @@ class TestDeserialization(unittest.TestCase):
         with self.assertRaises(JsonTypeError):
             json_to_object(Literal["val1", "val2", "val3"], "value")
 
-    def test_deserialization_union(self):
+    def test_deserialization_union(self) -> None:
         # built-in types
         self.assertEqual(json_to_object(Union[int, str], 42), 42)
         self.assertEqual(json_to_object(Union[int, str], "a string"), "a string")
@@ -225,7 +240,7 @@ class TestDeserialization(unittest.TestCase):
             ClassB(name="b", type="B", value="string"),
         )
 
-    def test_object_deserialization(self):
+    def test_object_deserialization(self) -> None:
         """Test composition and inheritance with object de-serialization."""
 
         json_dict = object_to_json(NestedDataclass())

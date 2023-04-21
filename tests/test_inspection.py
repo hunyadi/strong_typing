@@ -5,7 +5,7 @@ import unittest
 from dataclasses import dataclass
 from typing import Dict, List, NamedTuple, Optional, Set, Tuple, Union
 
-from sample_types import *
+from sample_types import CompositeDataclass, NestedDataclass, SimpleDataclass
 
 from strong_typing.auxiliary import Annotated, typeannotation
 from strong_typing.inspection import (
@@ -23,6 +23,7 @@ from strong_typing.inspection import (
     is_type_union,
     unwrap_generic_dict,
     unwrap_generic_list,
+    unwrap_union_types,
 )
 
 
@@ -66,7 +67,7 @@ class SimpleAnnotation:
 
 
 class TestInspection(unittest.TestCase):
-    def test_simple(self):
+    def test_simple(self) -> None:
         self.assertEqual(get_referenced_types(type(None)), [])
         self.assertEqual(get_referenced_types(int), [int])
         self.assertEqual(get_referenced_types(Optional[str]), [str])
@@ -78,7 +79,7 @@ class TestInspection(unittest.TestCase):
             [int, datetime.datetime],
         )
 
-    def test_enum(self):
+    def test_enum(self) -> None:
         self.assertTrue(is_type_enum(Side))
         self.assertTrue(is_type_enum(Suit))
         self.assertFalse(is_type_enum(Side.LEFT))
@@ -87,7 +88,7 @@ class TestInspection(unittest.TestCase):
         self.assertFalse(is_type_enum(str))
         self.assertFalse(is_type_enum(SimpleObject))
 
-    def test_optional(self):
+    def test_optional(self) -> None:
         self.assertTrue(is_type_optional(Optional[int]))
         self.assertTrue(is_type_optional(Union[None, int]))
         self.assertTrue(is_type_optional(Union[int, None]))
@@ -99,7 +100,7 @@ class TestInspection(unittest.TestCase):
         self.assertFalse(is_type_optional(int))
         self.assertFalse(is_type_optional(Union[int, str]))
 
-    def test_strict_optional(self):
+    def test_strict_optional(self) -> None:
         self.assertTrue(is_type_optional(Union[None, int], strict=True))
         self.assertTrue(is_type_optional(Union[int, None], strict=True))
         self.assertTrue(is_type_optional(Union[None, int, str]))
@@ -107,7 +108,7 @@ class TestInspection(unittest.TestCase):
         self.assertFalse(is_type_optional(Union[None, int, str], strict=True))
         self.assertFalse(is_type_optional(Union[int, None, str], strict=True))
 
-    def test_union(self):
+    def test_union(self) -> None:
         self.assertTrue(is_type_union(Union[int, str]))
         self.assertTrue(is_type_union(Union[bool, int, str]))
         self.assertTrue(is_type_union(Union[int, str, None]))
@@ -121,7 +122,17 @@ class TestInspection(unittest.TestCase):
 
         self.assertFalse(is_type_union(int))
 
-    def test_list(self):
+        self.assertEqual(unwrap_union_types(Union[int, str]), (int, str))
+        self.assertEqual(
+            unwrap_union_types(Union[int, str, None]), (int, str, type(None))
+        )
+        if sys.version_info >= (3, 10):
+            self.assertEqual(unwrap_union_types(int | str), (int, str))
+            self.assertEqual(
+                unwrap_union_types(int | str | None), (int, str, type(None))
+            )
+
+    def test_list(self) -> None:
         self.assertTrue(is_generic_list(List[int]))
         self.assertTrue(is_generic_list(List[str]))
         self.assertTrue(is_generic_list(List[SimpleObject]))
@@ -132,7 +143,7 @@ class TestInspection(unittest.TestCase):
         self.assertEqual(unwrap_generic_list(List[str]), str)
         self.assertEqual(unwrap_generic_list(List[List[str]]), List[str])
 
-    def test_dict(self):
+    def test_dict(self) -> None:
         self.assertTrue(is_generic_dict(Dict[int, str]))
         self.assertTrue(is_generic_dict(Dict[str, SimpleObject]))
         self.assertFalse(is_generic_dict(dict))
@@ -147,12 +158,12 @@ class TestInspection(unittest.TestCase):
             (str, List[SimpleObject]),
         )
 
-    def test_annotated(self):
+    def test_annotated(self) -> None:
         self.assertTrue(is_type_enum(Annotated[Suit, SimpleAnnotation()]))
         self.assertTrue(is_generic_list(Annotated[List[int], SimpleAnnotation()]))
         self.assertTrue(is_generic_dict(Annotated[Dict[int, str], SimpleAnnotation()]))
 
-    def test_classes(self):
+    def test_classes(self) -> None:
         classes = get_module_classes(sys.modules[__name__])
         self.assertCountEqual(
             classes,
@@ -167,7 +178,7 @@ class TestInspection(unittest.TestCase):
             ],
         )
 
-    def test_properties(self):
+    def test_properties(self) -> None:
         properties = [
             (name, data_type) for name, data_type in get_class_properties(SimpleObject)
         ]
@@ -187,7 +198,7 @@ class TestInspection(unittest.TestCase):
         ]
         self.assertCountEqual(properties, [("integer", int), ("string", str)])
 
-    def test_generic(self):
+    def test_generic(self) -> None:
         obj = SimpleObject()
         self.assertTrue(is_generic_instance(obj, SimpleObject))
         self.assertFalse(is_generic_instance(None, SimpleObject))
@@ -221,7 +232,7 @@ class TestInspection(unittest.TestCase):
         self.assertTrue(is_generic_instance("string", Optional[str]))
         self.assertFalse(is_generic_instance(42, Optional[str]))
 
-    def test_recursive(self):
+    def test_recursive(self) -> None:
         self.assertTrue(
             check_recursive(
                 SimpleObject(),

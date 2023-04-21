@@ -1,24 +1,44 @@
 import datetime
+import typing
 import unittest
 import uuid
+from typing import Dict
 
-from sample_types import *
+from sample_types import (
+    UID,
+    AnnotatedSimpleDataclass,
+    BinaryValueWrapper,
+    CompositeDataclass,
+    FrozenValueWrapper,
+    LiteralWrapper,
+    MultipleInheritanceDerivedClass,
+    NestedDataclass,
+    Side,
+    SimpleDataclass,
+    SimpleTypedClass,
+    SimpleTypedNamedTuple,
+    SimpleUntypedClass,
+    SimpleUntypedNamedTuple,
+    SimpleValueWrapper,
+    Suit,
+)
 
+from strong_typing.core import JsonType
 from strong_typing.exception import JsonValueError
 from strong_typing.schema import validate_object
 from strong_typing.serialization import object_to_json
 
 
-def test_function():
+def test_function() -> None:
     pass
 
 
-async def test_async_function():
+async def test_async_function() -> None:
     pass
 
 
 class TestSerialization(unittest.TestCase):
-    def test_composite_object(self):
+    def test_composite_object(self) -> None:
         json_dict = object_to_json(SimpleDataclass())
         validate_object(SimpleDataclass, json_dict)
 
@@ -31,7 +51,7 @@ class TestSerialization(unittest.TestCase):
         json_dict = object_to_json(NestedDataclass())
         validate_object(NestedDataclass, json_dict)
 
-    def test_serialization_simple(self):
+    def test_serialization_simple(self) -> None:
         self.assertEqual(object_to_json(None), None)
         self.assertEqual(object_to_json(True), True)
         self.assertEqual(object_to_json(23), 23)
@@ -45,7 +65,7 @@ class TestSerialization(unittest.TestCase):
             "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
         )
 
-    def test_serialization_datetime(self):
+    def test_serialization_datetime(self) -> None:
         self.assertEqual(
             object_to_json(
                 datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc)
@@ -62,12 +82,12 @@ class TestSerialization(unittest.TestCase):
         with self.assertRaises(JsonValueError):
             object_to_json(datetime.datetime(1989, 10, 23, 1, 45, 50))
 
-    def test_serialization_literal(self):
+    def test_serialization_literal(self) -> None:
         self.assertEqual(object_to_json(LiteralWrapper("val1")), {"value": "val1"})
         self.assertEqual(object_to_json(LiteralWrapper("val2")), {"value": "val2"})
         self.assertEqual(object_to_json(LiteralWrapper("val3")), {"value": "val3"})
 
-    def test_serialization_namedtuple(self):
+    def test_serialization_namedtuple(self) -> None:
         self.assertEqual(
             object_to_json(SimpleTypedNamedTuple(42, "string")),
             {"int_value": 42, "str_value": "string"},
@@ -77,7 +97,7 @@ class TestSerialization(unittest.TestCase):
             {"int_value": 42, "str_value": "string"},
         )
 
-    def test_serialization_class(self):
+    def test_serialization_class(self) -> None:
         self.assertEqual(object_to_json(SimpleValueWrapper(42)), {"value": 42})
         self.assertEqual(object_to_json(FrozenValueWrapper(42)), {"value": 42})
         self.assertEqual(
@@ -89,7 +109,7 @@ class TestSerialization(unittest.TestCase):
             {"int_value": 42, "str_value": "string"},
         )
 
-    def test_serialization_collection(self):
+    def test_serialization_collection(self) -> None:
         self.assertEqual(object_to_json([1, 2, 3]), [1, 2, 3])
         self.assertEqual(
             object_to_json({"a": 1, "b": 2, "c": 3}), {"a": 1, "b": 2, "c": 3}
@@ -97,13 +117,13 @@ class TestSerialization(unittest.TestCase):
         self.assertEqual(object_to_json(set([1, 2, 3])), [1, 2, 3])
         self.assertEqual(object_to_json(tuple([1, "two"])), [1, "two"])
 
-    def test_serialization_composite(self):
+    def test_serialization_composite(self) -> None:
         self.assertEqual(object_to_json(UID("1.2.3.4567.8900")), "1.2.3.4567.8900")
         self.assertEqual(
             object_to_json(BinaryValueWrapper(bytes([65, 78]))), {"value": "QU4="}
         )
 
-    def test_serialization_type_mismatch(self):
+    def test_serialization_type_mismatch(self) -> None:
         self.assertRaises(TypeError, object_to_json, test_function)  # function
         self.assertRaises(TypeError, object_to_json, test_async_function)  # function
         self.assertRaises(TypeError, object_to_json, TestSerialization)  # class
@@ -111,10 +131,10 @@ class TestSerialization(unittest.TestCase):
             TypeError, object_to_json, self.test_serialization_type_mismatch
         )  # method
 
-    def test_object_serialization(self):
+    def test_object_serialization(self) -> None:
         """Test composition and inheritance with object serialization."""
 
-        json_dict = object_to_json(SimpleDataclass())
+        json_dict = typing.cast(Dict[str, JsonType], object_to_json(SimpleDataclass()))
         self.assertDictEqual(
             json_dict,
             {
@@ -129,12 +149,15 @@ class TestSerialization(unittest.TestCase):
             },
         )
 
-        json_dict = object_to_json(
-            CompositeDataclass(
-                list_value=["a", "b", "c"],
-                dict_value={"key": 42},
-                set_value=set(i for i in range(0, 4)),
-            )
+        json_dict = typing.cast(
+            Dict[str, JsonType],
+            object_to_json(
+                CompositeDataclass(
+                    list_value=["a", "b", "c"],
+                    dict_value={"key": 42},
+                    set_value=set(i for i in range(0, 4)),
+                )
+            ),
         )
         self.assertDictEqual(
             json_dict,
@@ -147,7 +170,9 @@ class TestSerialization(unittest.TestCase):
             },
         )
 
-        json_dict = object_to_json(MultipleInheritanceDerivedClass())
+        json_dict = typing.cast(
+            Dict[str, JsonType], object_to_json(MultipleInheritanceDerivedClass())
+        )
         self.assertDictEqual(
             json_dict,
             {
@@ -170,7 +195,7 @@ class TestSerialization(unittest.TestCase):
             },
         )
 
-        json_dict = object_to_json(NestedDataclass())
+        json_dict = typing.cast(Dict[str, JsonType], object_to_json(NestedDataclass()))
         self.assertDictEqual(
             json_dict,
             {

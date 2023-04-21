@@ -629,7 +629,7 @@ class ClassDeserializer(Deserializer[T]):
 
         return self.create(**field_values)
 
-    def create(self, **field_values) -> T:
+    def create(self, **field_values) -> T:  # type: ignore
         "Instantiates an object with a collection of property values."
 
         obj: T = create_object(self.class_type)
@@ -652,7 +652,7 @@ class NamedTupleDeserializer(ClassDeserializer[NamedTuple]):
         ]
         super().__init__(class_type, property_parsers)
 
-    def create(self, **field_values) -> NamedTuple:
+    def create(self, **field_values) -> NamedTuple:  # type: ignore
         return self.class_type(**field_values)
 
 
@@ -662,7 +662,7 @@ class DataclassDeserializer(ClassDeserializer[T]):
     def __init__(self, class_type: Type[T]) -> None:
         property_parsers: List[FieldDeserializer] = []
         resolved_hints = get_resolved_hints(class_type)
-        for field in dataclasses.fields(class_type):
+        for field in dataclasses.fields(class_type):  # type: ignore
             field_type = resolved_hints[field.name]
             property_name = python_field_to_json_property(field.name, field_type)
 
@@ -703,7 +703,7 @@ class DataclassDeserializer(ClassDeserializer[T]):
 class FrozenDataclassDeserializer(DataclassDeserializer[T]):
     "De-serializes a frozen data class from a JSON `object`."
 
-    def create(self, **field_values) -> T:
+    def create(self, **field_values) -> T:  # type: ignore
         "Instantiates an object with a collection of property values."
 
         # create object instance without calling `__init__`

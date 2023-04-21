@@ -3,7 +3,7 @@ import decimal
 import unittest
 import uuid
 from dataclasses import dataclass
-from typing import List, TypeVar
+from typing import Dict, List, Set, TypeVar
 
 from strong_typing.inspection import is_dataclass_type
 from strong_typing.topological import topological_sort, type_topological_sort
@@ -47,8 +47,8 @@ class TestTopological(unittest.TestCase):
         self.assertIn(second, order)
         self.assertLess(order.index(first), order.index(second))
 
-    def test_simple(self):
-        graph = {
+    def test_simple(self) -> None:
+        graph: Dict[int, Set[int]] = {
             0: set(),
             1: set(),
             2: set([3]),
@@ -59,17 +59,22 @@ class TestTopological(unittest.TestCase):
         order = topological_sort(graph)
         self.assertEqual(order, [0, 1, 3, 2, 4, 5])
 
-    def test_loop(self):
-        graph = {0: set([0])}
+    def test_loop(self) -> None:
+        graph: Dict[int, Set[int]] = {0: set([0])}
         order = topological_sort(graph)
         self.assertEqual(order, [0])
 
-    def test_cycle(self):
-        graph = {0: set([1, 2]), 1: set([2]), 2: set([0, 3]), 3: set()}
+    def test_cycle(self) -> None:
+        graph: Dict[int, Set[int]] = {
+            0: set([1, 2]),
+            1: set([2]),
+            2: set([0, 3]),
+            3: set(),
+        }
         with self.assertRaises(RuntimeError):
             topological_sort(graph)
 
-    def test_types(self):
+    def test_types(self) -> None:
         order = type_topological_sort([CompositeClass])
         self.assertNotIn(decimal.Decimal, order)
         self.assertOrder(order, bool, SimpleDataClass)
@@ -83,7 +88,7 @@ class TestTopological(unittest.TestCase):
         self.assertOrder(order, SimpleDataClass, CompositeClass)
         self.assertOrder(order, NestedDataClass, CompositeClass)
 
-    def test_types_with_dependencies(self):
+    def test_types_with_dependencies(self) -> None:
         order = type_topological_sort([NestedDataClass])
         self.assertNotIn(decimal.Decimal, order)
 

@@ -7,12 +7,12 @@ from strong_typing.name import python_type_to_name
 
 
 class TestName(unittest.TestCase):
-    def test_builtin(self):
+    def test_builtin(self) -> None:
         self.assertEqual(python_type_to_name(type(None)), "NoneType")
         self.assertEqual(python_type_to_name(int), "int")
         self.assertEqual(python_type_to_name(str), "str")
 
-    def test_generic(self):
+    def test_generic(self) -> None:
         self.assertEqual(
             python_type_to_name(Optional[str], force=True),
             "Optional__str",
@@ -39,7 +39,7 @@ class TestName(unittest.TestCase):
         with self.assertRaises(TypeError):
             python_type_to_name(Union[str, int, None])
 
-    def test_alias(self):
+    def test_alias(self) -> None:
         self.assertEqual(python_field_to_json_property("id"), "id")
         self.assertEqual(
             python_field_to_json_property("id", Annotated[str, Alias("alias")]), "alias"

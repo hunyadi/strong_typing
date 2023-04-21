@@ -9,9 +9,10 @@ import dataclasses
 import inspect
 import re
 import types
+import typing
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable, Dict, Optional, Protocol, Type
 
 from .inspection import (
     get_class_properties,
@@ -153,7 +154,11 @@ def get_exceptions(module: types.ModuleType) -> Dict[str, Type[BaseException]]:
     }
 
 
-def parse_type(typ: type) -> Docstring:
+class SupportsDoc(Protocol):
+    __doc__: Optional[str]
+
+
+def parse_type(typ: SupportsDoc) -> Docstring:
     """
     Parse the docstring of a type into its components.
 
@@ -170,7 +175,7 @@ def parse_type(typ: type) -> Docstring:
 
     # assign parameter and return types
     if is_dataclass_type(typ):
-        properties = dict(get_class_properties(typ))
+        properties = dict(get_class_properties(typing.cast(type, typ)))
 
         for name, param in docstring.params.items():
             param.param_type = properties[name]
@@ -188,14 +193,19 @@ def parse_type(typ: type) -> Docstring:
         context: Dict[str, type] = {}
         context.update(get_exceptions(builtins))
         context.update(get_exceptions(defining_module))
-        for name, exception in docstring.raises.items():
-            raise_type = context.get(name)
+        for exc_name, exc in docstring.raises.items():
+            raise_type = context.get(exc_name)
             if raise_type is None:
+                type_name = (
+                    getattr(typ, "__qualname__", None)
+                    or getattr(typ, "__name__", None)
+                    or None
+                )
                 raise TypeError(
-                    f"doc-string exception type `{name}` is not an exception defined in the context of `{typ.__qualname__}`"
+                    f"doc-string exception type `{exc_name}` is not an exception defined in the context of `{type_name}`"
                 )
 
-            exception.raise_type = raise_type
+            exc.raise_type = raise_type
 
     return docstring
 
@@ -274,21 +284,26 @@ def parse_text(text: str) -> Docstring:
     )
 
 
-def has_default_docstring(typ: type) -> bool:
+def has_default_docstring(typ: SupportsDoc) -> bool:
     "Check if class has the auto-generated string assigned by @dataclass."
 
-    return (
-        is_dataclass_type(typ)
-        and typ.__doc__ is not None
-        and re.match(f"^{re.escape(typ.__name__)}[(].*[)]$", typ.__doc__) is not None
-    ) or (
-        is_type_enum(typ)
-        and typ.__doc__ is not None
-        and typ.__doc__ == "An enumeration."
-    )
+    if not isinstance(typ, type):
+        return False
+
+    if is_dataclass_type(typ):
+        return (
+            typ.__doc__ is not None
+            and re.match(f"^{re.escape(typ.__name__)}[(].*[)]$", typ.__doc__)
+            is not None
+        )
+
+    if is_type_enum(typ):
+        return typ.__doc__ is not None and typ.__doc__ == "An enumeration."
+
+    return False
 
 
-def has_docstring(typ: type) -> bool:
+def has_docstring(typ: SupportsDoc) -> bool:
     "Check if class has a documentation string other than the auto-generated string assigned by @dataclass."
 
     if has_default_docstring(typ):
@@ -297,7 +312,7 @@ def has_docstring(typ: type) -> bool:
     return bool(typ.__doc__)
 
 
-def get_docstring(typ: type) -> Optional[str]:
+def get_docstring(typ: SupportsDoc) -> Optional[str]:
     if typ.__doc__ is None:
         return None
 
@@ -307,7 +322,7 @@ def get_docstring(typ: type) -> Optional[str]:
     return typ.__doc__
 
 
-def check_docstring(typ: type, docstring: Docstring, strict: bool = False) -> None:
+def check_docstring(typ: object, docstring: Docstring, strict: bool = False) -> None:
     """
     Verifies the doc-string of a type.
 
@@ -315,7 +330,7 @@ def check_docstring(typ: type, docstring: Docstring, strict: bool = False) -> No
     """
 
     if is_dataclass_type(typ):
-        check_dataclass_docstring(typ, docstring, strict)
+        check_dataclass_docstring(typ, docstring, strict)  # type: ignore
     elif inspect.isfunction(typ):
         check_function_docstring(typ, docstring, strict)
 

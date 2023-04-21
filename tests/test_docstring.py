@@ -1,13 +1,22 @@
 import enum
 import inspect
 import sys
+import typing
 import unittest
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TypeVar
+
+from sample_exceptions import CustomException
 
 from strong_typing.docstring import has_default_docstring, has_docstring, parse_type
 
-from sample_exceptions import CustomException
+T = TypeVar("T")
+
+
+def required(obj: Optional[T]) -> T:
+    "Casts an optional type to a required type."
+
+    return typing.cast(T, obj)
 
 
 class NoDescriptionClass:
@@ -129,7 +138,7 @@ class SampleClass:
         """
         pass
 
-    def no_type_annotation_method(self):
+    def no_type_annotation_method(self):  # type: ignore
         """
         Short description of an instance method without parameter or return value annotation.
 
@@ -139,7 +148,7 @@ class SampleClass:
 
 
 class TestDocstring(unittest.TestCase):
-    def test_default_docstring(self):
+    def test_default_docstring(self) -> None:
         self.assertFalse(has_default_docstring(NoDescriptionClass))
         self.assertTrue(has_default_docstring(NoDescriptionDataclass))
         self.assertFalse(has_default_docstring(ShortDescriptionClass))
@@ -148,13 +157,13 @@ class TestDocstring(unittest.TestCase):
         else:
             self.assertTrue(has_default_docstring(NoDescriptionEnumeration))
 
-    def test_any_docstring(self):
+    def test_any_docstring(self) -> None:
         self.assertFalse(has_docstring(NoDescriptionClass))
         self.assertFalse(has_docstring(NoDescriptionDataclass))
         self.assertFalse(has_docstring(NoDescriptionEnumeration))
         self.assertTrue(has_docstring(ShortDescriptionClass))
 
-    def test_no_description(self):
+    def test_no_description(self) -> None:
         docstring = parse_type(NoDescriptionClass)
         self.assertIsNone(docstring.short_description)
         self.assertIsNone(docstring.long_description)
@@ -162,13 +171,13 @@ class TestDocstring(unittest.TestCase):
         self.assertIsNone(docstring.returns)
         self.assertEqual(str(docstring), "")
 
-    def test_short_description(self):
+    def test_short_description(self) -> None:
         docstring = parse_type(ShortDescriptionClass)
         self.assertEqual(docstring.short_description, "Short description.")
         self.assertIsNone(docstring.long_description)
         self.assertEqual(str(docstring), ShortDescriptionClass.__doc__)
 
-    def test_multi_line_description(self):
+    def test_multi_line_description(self) -> None:
         docstring = parse_type(MultiLineShortDescriptionClass)
         self.assertEqual(
             docstring.short_description,
@@ -189,7 +198,7 @@ class TestDocstring(unittest.TestCase):
             "Short description.\n\nA description text that\nspans multiple lines.",
         )
 
-    def test_dataclass_parameter_list(self):
+    def test_dataclass_parameter_list(self) -> None:
         docstring = parse_type(ShortDescriptionParameterClass)
         self.assertEqual(docstring.short_description, "Short description.")
         self.assertIsNone(docstring.long_description)
@@ -198,7 +207,8 @@ class TestDocstring(unittest.TestCase):
             docstring.params["a"].description, "Short description for `a`."
         )
         self.assertEqual(
-            str(docstring), inspect.cleandoc(ShortDescriptionParameterClass.__doc__)
+            str(docstring),
+            inspect.cleandoc(ShortDescriptionParameterClass.__doc__ or ""),
         )
 
         docstring = parse_type(MultiLineDescriptionParametersClass)
@@ -238,7 +248,7 @@ class TestDocstring(unittest.TestCase):
         with self.assertRaises(TypeError):
             parse_type(MissingMemberClass)
 
-    def test_function_parameter_list(self):
+    def test_function_parameter_list(self) -> None:
         docstring = parse_type(SampleClass.instance_method)
         self.assertEqual(
             docstring.short_description, "Short description of an instance method."
@@ -251,7 +261,8 @@ class TestDocstring(unittest.TestCase):
         self.assertEqual(
             docstring.params["b"].description, "Short description for `b`."
         )
-        self.assertEqual(docstring.returns.description, "A return value.")
+        self.assertIsNotNone(docstring.returns)
+        self.assertEqual(required(docstring.returns).description, "A return value.")
 
         self.assertEqual(len(docstring.raises), 3)
         self.assertEqual(
@@ -274,7 +285,8 @@ class TestDocstring(unittest.TestCase):
 
         docstring = parse_type(SampleClass.other_instance_method)
         self.assertEqual(
-            str(docstring), inspect.cleandoc(SampleClass.other_instance_method.__doc__)
+            str(docstring),
+            inspect.cleandoc(SampleClass.other_instance_method.__doc__ or ""),
         )
 
         docstring = parse_type(SampleClass.class_method)
@@ -286,9 +298,10 @@ class TestDocstring(unittest.TestCase):
         self.assertEqual(
             docstring.params["a"].description, "Short description for `a`."
         )
-        self.assertEqual(docstring.returns.description, "A return value.")
+        self.assertIsNotNone(docstring.returns)
+        self.assertEqual(required(docstring.returns).description, "A return value.")
         self.assertEqual(
-            str(docstring), inspect.cleandoc(SampleClass.class_method.__doc__)
+            str(docstring), inspect.cleandoc(SampleClass.class_method.__doc__ or "")
         )
 
         docstring = parse_type(SampleClass.static_method)
@@ -302,7 +315,7 @@ class TestDocstring(unittest.TestCase):
         )
         self.assertIsNone(docstring.returns)
         self.assertEqual(
-            str(docstring), inspect.cleandoc(SampleClass.static_method.__doc__)
+            str(docstring), inspect.cleandoc(SampleClass.static_method.__doc__ or "")
         )
 
         with self.assertRaises(TypeError):

@@ -5,9 +5,9 @@ import unittest
 import uuid
 from dataclasses import dataclass
 
-from strong_typing.serialization import json_to_object, object_to_json
-
 from timer import Timer
+
+from strong_typing.serialization import json_to_object, object_to_json
 
 
 def time_today(time_of_day: datetime.time) -> datetime.datetime:
@@ -85,7 +85,7 @@ def create_randomized_object() -> SimpleObjectExample:
 
 
 class TestPerformance(unittest.TestCase):
-    def test_serialization(self):
+    def test_serialization(self) -> None:
         original_items = [create_randomized_object() for k in range(100000)]
 
         with Timer("serialization"):
