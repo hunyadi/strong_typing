@@ -1,9 +1,10 @@
 import time
-from typing import Optional
+import types
+from typing import Optional, Type
 
 
 class TimerError(Exception):
-    """An exception used to report errors in use of the `Timer` class"""
+    """An exception used to report errors in use of the `Timer` class."""
 
 
 class Timer:
@@ -15,14 +16,16 @@ class Timer:
         self._start_time = None
 
     def start(self) -> None:
-        """Start a new timer"""
+        """Starts a new timer."""
+
         if self._start_time is not None:
             raise TimerError(f"timer is running; use `stop()` to stop it")
 
         self._start_time = time.perf_counter()
 
     def stop(self) -> None:
-        """Stop the timer, and report the elapsed time"""
+        """Stops the timer, and reports the elapsed time."""
+
         if self._start_time is None:
             raise TimerError(f"timer is not running; use `start()` to start it")
 
@@ -34,5 +37,10 @@ class Timer:
         self.start()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[types.TracebackType],
+    ) -> None:
         self.stop()

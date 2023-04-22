@@ -6,7 +6,7 @@ import unittest
 from dataclasses import dataclass
 from typing import Optional, TypeVar
 
-from sample_exceptions import CustomException
+from test_sample_exceptions import CustomException
 
 from strong_typing.docstring import has_default_docstring, has_docstring, parse_type
 

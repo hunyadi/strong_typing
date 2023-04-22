@@ -5,7 +5,7 @@ import unittest
 from dataclasses import dataclass
 from typing import Dict, List, NamedTuple, Optional, Set, Tuple, Union
 
-from sample_types import CompositeDataclass, NestedDataclass, SimpleDataclass
+from test_sample_types import CompositeDataclass, NestedDataclass, SimpleDataclass
 
 from strong_typing.auxiliary import Annotated, typeannotation
 from strong_typing.inspection import (

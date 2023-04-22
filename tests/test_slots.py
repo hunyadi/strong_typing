@@ -1,7 +1,4 @@
 import unittest
-from dataclasses import dataclass
-
-from sample_types import *
 
 from strong_typing.slots import SlotsMeta
 

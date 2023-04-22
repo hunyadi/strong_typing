@@ -5,7 +5,7 @@ import unittest
 import uuid
 from dataclasses import dataclass
 
-from timer import Timer
+from test_timer import Timer
 
 from strong_typing.serialization import json_to_object, object_to_json
 

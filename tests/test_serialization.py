@@ -4,7 +4,7 @@ import unittest
 import uuid
 from typing import Dict
 
-from sample_types import (
+from test_sample_types import (
     UID,
     AnnotatedSimpleDataclass,
     BinaryValueWrapper,

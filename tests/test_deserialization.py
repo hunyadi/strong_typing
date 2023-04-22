@@ -3,7 +3,7 @@ import unittest
 import uuid
 from typing import Dict, List, Literal, Optional, Set, Union
 
-from sample_types import (
+from test_sample_types import (
     UID,
     BinaryValueWrapper,
     ClassA,

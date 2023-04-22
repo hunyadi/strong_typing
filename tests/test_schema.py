@@ -4,7 +4,7 @@ import unittest
 import uuid
 from typing import Any, Dict, List, Set, Tuple, Union
 
-from sample_types import (
+from test_sample_types import (
     UID,
     AnnotatedSimpleDataclass,
     BinaryTree,
