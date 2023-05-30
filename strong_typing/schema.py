@@ -42,6 +42,7 @@ from .auxiliary import (
 )
 from .core import JsonArray, JsonObject, JsonType, Schema, StrictJsonType
 from .inspection import (
+    TypeLike,
     enum_value_types,
     get_annotation,
     get_class_properties,
@@ -61,21 +62,7 @@ OBJECT_ENUM_EXPANSION_LIMIT = 4
 T = TypeVar("T")
 
 
-def check_type(data_type: object) -> None:
-    """
-    Checks if the object is a type or type-like object (e.g. generic type).
-
-    :param data_type: The object to validate.
-    """
-
-    if not is_type_like(data_type):
-        raise TypeError(
-            f"expected a type but got an instance of {type(data_type)}: {data_type}"
-        )
-
-
 def get_class_docstrings(data_type: type) -> Tuple[Optional[str], Optional[str]]:
-    check_type(data_type)
     docstr = docstring.parse_type(data_type)
 
     # check if class has a doc-string other than the auto-generated string assigned by @dataclass
@@ -96,7 +83,6 @@ def get_class_property_docstrings(
     :returns: A dictionary mapping property names to descriptions.
     """
 
-    check_type(data_type)
     result = {}
     for base in inspect.getmro(data_type):
         docstr = docstring.parse_type(base)
@@ -114,7 +100,6 @@ def get_class_property_docstrings(
 
 
 def docstring_to_schema(data_type: type) -> Schema:
-    check_type(data_type)
     short_description, long_description = get_class_docstrings(data_type)
     schema: Schema = {}
     if short_description:
@@ -160,14 +145,14 @@ class TypeCatalogEntry:
 class TypeCatalog:
     "Maintains an association of well-known Python types to their JSON schema."
 
-    _by_type: Dict[object, TypeCatalogEntry]
+    _by_type: Dict[TypeLike, TypeCatalogEntry]
     _by_name: Dict[str, TypeCatalogEntry]
 
     def __init__(self) -> None:
         self._by_type = {}
         self._by_name = {}
 
-    def __contains__(self, data_type: object) -> bool:
+    def __contains__(self, data_type: TypeLike) -> bool:
         if isinstance(data_type, typing.ForwardRef):
             fwd: typing.ForwardRef = data_type
             name = fwd.__forward_arg__
@@ -177,7 +162,7 @@ class TypeCatalog:
 
     def add(
         self,
-        data_type: object,
+        data_type: TypeLike,
         schema: Optional[Schema],
         identifier: str,
         examples: Optional[List[JsonType]] = None,
@@ -192,7 +177,7 @@ class TypeCatalog:
         self._by_type[data_type] = entry
         self._by_name[identifier] = entry
 
-    def get(self, data_type: object) -> TypeCatalogEntry:
+    def get(self, data_type: TypeLike) -> TypeCatalogEntry:
         if isinstance(data_type, typing.ForwardRef):
             fwd: typing.ForwardRef = data_type
             name = fwd.__forward_arg__
@@ -213,7 +198,7 @@ class JsonSchemaGenerator:
     "Creates a JSON schema with user-defined type definitions."
 
     type_catalog: ClassVar[TypeCatalog] = TypeCatalog()
-    types_used: Dict[str, object]
+    types_used: Dict[str, TypeLike]
     options: SchemaOptions
 
     def __init__(self, options: Optional[SchemaOptions] = None):
@@ -256,7 +241,7 @@ class JsonSchemaGenerator:
                 type_schema.update(self._metadata_to_schema(m))
         return type_schema
 
-    def _simple_type_to_schema(self, typ: object) -> Optional[Schema]:
+    def _simple_type_to_schema(self, typ: TypeLike) -> Optional[Schema]:
         """
         Returns the JSON schema associated with a simple, unrestricted type.
 
@@ -311,7 +296,7 @@ class JsonSchemaGenerator:
             # not a simple type
             return None
 
-    def type_to_schema(self, data_type: object, force_expand: bool = False) -> Schema:
+    def type_to_schema(self, data_type: TypeLike, force_expand: bool = False) -> Schema:
         """
         Returns the JSON schema associated with a type.
 
@@ -523,15 +508,15 @@ class JsonSchemaGenerator:
 
         schema = {"type": "object"}
         if len(properties) > 0:
-            schema["properties"] = properties  # type: ignore
+            schema["properties"] = typing.cast(JsonType, properties)
             schema["additionalProperties"] = False
         if len(required) > 0:
-            schema["required"] = required  # type: ignore
+            schema["required"] = typing.cast(JsonType, required)
         if self.options.use_descriptions:
             schema.update(docstring_to_schema(typ))
         return schema
 
-    def _type_to_schema_with_lookup(self, data_type: object) -> Schema:
+    def _type_to_schema_with_lookup(self, data_type: TypeLike) -> Schema:
         """
         Returns the JSON schema associated with a type that may be registered in the catalog of known types.
 
@@ -559,7 +544,7 @@ class JsonSchemaGenerator:
         return type_schema
 
     def classdef_to_schema(
-        self, data_type: object, force_expand: bool = False
+        self, data_type: TypeLike, force_expand: bool = False
     ) -> Tuple[Schema, Dict[str, Schema]]:
         """
         Returns the JSON schema associated with a type and any nested types.
@@ -569,6 +554,9 @@ class JsonSchemaGenerator:
         reference is to be used for well-known types.
         :returns: A tuple of the JSON schema, and a mapping between nested type names and their corresponding schema.
         """
+
+        if not is_type_like(data_type):
+            raise TypeError(f"expected a type-like object but got: {data_type}")
 
         self.types_used = {}
         try:
@@ -604,7 +592,7 @@ class Validator(enum.Enum):
 
 
 def classdef_to_schema(
-    data_type: object,
+    data_type: TypeLike,
     options: Optional[SchemaOptions] = None,
     validator: Validator = Validator.Latest,
 ) -> Schema:
@@ -617,14 +605,15 @@ def classdef_to_schema(
     """
 
     # short-circuit with an error message when passing invalid data
-    check_type(data_type)
+    if not is_type_like(data_type):
+        raise TypeError(f"expected a type-like object but got: {data_type}")
 
     generator = JsonSchemaGenerator(options)
     type_schema, type_definitions = generator.classdef_to_schema(data_type)
 
     class_schema: Schema = {}
     if type_definitions:
-        class_schema["definitions"] = type_definitions  # type: ignore
+        class_schema["definitions"] = typing.cast(JsonType, type_definitions)
     class_schema.update(type_schema)
 
     validator_id = validator.value.META_SCHEMA["$id"]
@@ -640,7 +629,7 @@ def classdef_to_schema(
     return schema
 
 
-def validate_object(data_type: type, json_dict: JsonType) -> None:
+def validate_object(data_type: TypeLike, json_dict: JsonType) -> None:
     """
     Validates if the JSON dictionary object conforms to the expected type.
 
@@ -649,7 +638,6 @@ def validate_object(data_type: type, json_dict: JsonType) -> None:
     :raises jsonschema.exceptions.ValidationError: Indicates that the JSON object cannot represent the type.
     """
 
-    check_type(data_type)
     schema_dict = classdef_to_schema(data_type)
     jsonschema.validate(
         json_dict, schema_dict, format_checker=jsonschema.FormatChecker()
@@ -671,11 +659,11 @@ def get_schema_identifier(data_type: type) -> Optional[str]:
 
 
 def register_schema(
-    data_type: Type[T],
+    data_type: T,
     schema: Optional[Schema] = None,
     name: Optional[str] = None,
     examples: Optional[List[JsonType]] = None,
-) -> Type[T]:
+) -> T:
     """
     Associates a type with a JSON schema definition.
 
@@ -685,7 +673,6 @@ def register_schema(
     :returns: The input type.
     """
 
-    check_type(data_type)
     JsonSchemaGenerator.type_catalog.add(
         data_type,
         schema,
@@ -731,7 +718,7 @@ register_schema(JsonObject, name="JsonObject")
 register_schema(JsonArray, name="JsonArray")
 
 register_schema(
-    JsonType,  # type: ignore
+    JsonType,
     name="JsonType",
     examples=[
         {
@@ -745,7 +732,7 @@ register_schema(
     ],
 )
 register_schema(
-    StrictJsonType,  # type: ignore
+    StrictJsonType,
     name="StrictJsonType",
     examples=[
         {

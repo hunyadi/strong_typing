@@ -22,10 +22,12 @@ from typing import (
     Literal,
     NamedTuple,
     Optional,
+    Protocol,
     Tuple,
     Type,
     TypeVar,
     Union,
+    runtime_checkable,
 )
 
 if sys.version_info >= (3, 9):
@@ -44,7 +46,7 @@ K = TypeVar("K")
 V = TypeVar("V")
 
 
-def is_type_like(data_type: object) -> bool:
+def _is_type_like(data_type: object) -> bool:
     """
     Checks if the object is a type or type-like object (e.g. generic type).
 
@@ -68,14 +70,44 @@ def is_type_like(data_type: object) -> bool:
         return False
 
 
-def is_dataclass_type(typ: Any) -> bool:
+if sys.version_info >= (3, 9):
+    TypeLike = Union[type, types.GenericAlias, typing.ForwardRef, Any]
+
+    def is_type_like(
+        data_type: object,
+    ) -> TypeGuard[TypeLike]:
+        """
+        Checks if the object is a type or type-like object (e.g. generic type).
+
+        :param data_type: The object to validate.
+        :returns: True if the object is a type or type-like object.
+        """
+
+        return _is_type_like(data_type)
+
+else:
+    TypeLike = object
+
+    def is_type_like(
+        data_type: object,
+    ) -> bool:
+        return _is_type_like(data_type)
+
+
+@runtime_checkable
+@dataclasses.dataclass
+class DataclassInstance(Protocol):
+    pass
+
+
+def is_dataclass_type(typ: Any) -> TypeGuard[Type[DataclassInstance]]:
     "True if the argument corresponds to a data class type (but not an instance)."
 
     typ = unwrap_annotated_type(typ)
     return isinstance(typ, type) and dataclasses.is_dataclass(typ)
 
 
-def is_dataclass_instance(obj: Any) -> bool:
+def is_dataclass_instance(obj: Any) -> TypeGuard[DataclassInstance]:
     "True if the argument corresponds to a data class instance (but not a type)."
 
     return not isinstance(obj, type) and dataclasses.is_dataclass(obj)
@@ -331,13 +363,13 @@ def _unwrap_generic_dict(typ: Type[Dict[K, V]]) -> Tuple[Type[K], Type[V]]:
     return key_type, value_type
 
 
-def is_type_annotated(typ: object) -> bool:
+def is_type_annotated(typ: TypeLike) -> bool:
     "True if the type annotation corresponds to an annotated type (i.e. `Annotated[T, ...]`)."
 
     return getattr(typ, "__metadata__", None) is not None
 
 
-def get_annotation(data_type: object, annotation_type: Type[T]) -> Optional[T]:
+def get_annotation(data_type: TypeLike, annotation_type: Type[T]) -> Optional[T]:
     """
     Returns the first annotation on a data type that matches the expected annotation type.
 
@@ -431,7 +463,7 @@ def get_class_property(typ: type, name: str) -> Optional[type]:
     return None
 
 
-def get_referenced_types(typ: object) -> List[type]:
+def get_referenced_types(typ: TypeLike) -> List[type]:
     """
     Extracts types indirectly referenced by this type.
 
@@ -544,7 +576,14 @@ def create_object(typ: Type[T]) -> T:
         return object.__new__(typ)
 
 
-def is_generic_instance(obj: Any, typ: object) -> bool:
+if sys.version_info >= (3, 9):
+    TypeOrGeneric = Union[type, types.GenericAlias]
+
+else:
+    TypeOrGeneric = object
+
+
+def is_generic_instance(obj: Any, typ: TypeOrGeneric) -> bool:
     """
     Returns whether an object is an instance of a generic class, a standard class or of a subclass thereof.
 
@@ -563,7 +602,10 @@ def is_generic_instance(obj: Any, typ: object) -> bool:
         fwd: typing.ForwardRef = typ
         identifier = fwd.__forward_arg__
         typ = eval(identifier)
-        return is_generic_instance(obj, typ)
+        if isinstance(typ, type):
+            return isinstance(obj, typ)
+        else:
+            return False
 
     # generic types (e.g. list, dict, set, etc.)
     origin_type = typing.get_origin(typ)
@@ -628,7 +670,7 @@ class RecursiveChecker:
         assert self._pred is not None
         return self._pred(typ, obj)
 
-    def check(self, typ: type, obj: Any) -> bool:
+    def check(self, typ: TypeLike, obj: Any) -> bool:
         """
         Checks if a predicate applies to all nested member properties of an object recursively.
 
@@ -650,7 +692,7 @@ class RecursiveChecker:
             or typ is datetime.time
             or typ is uuid.UUID
         ):
-            return self.pred(typ, obj)
+            return self.pred(typing.cast(type, typ), obj)
 
         # generic types (e.g. list, dict, set, etc.)
         origin_type = typing.get_origin(typ)
@@ -683,7 +725,7 @@ class RecursiveChecker:
                 )
             )
         elif origin_type is Union:
-            return self.pred(typ, obj)
+            return self.pred(typ, obj)  # type: ignore[arg-type]
 
         if not inspect.isclass(typ):
             raise TypeError(f"expected `type` but got: {typ}")
@@ -763,4 +805,4 @@ def check_recursive(
     elif pred is None:
         pred = lambda typ, obj: True
 
-    return RecursiveChecker(pred).check(type(obj), obj)
+    return RecursiveChecker(pred).check(type(obj), obj)  # type: ignore

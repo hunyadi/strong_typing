@@ -12,14 +12,17 @@ import types
 import typing
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, Callable, Dict, Optional, Protocol, Type
+from typing import Any, Callable, Dict, Optional, Protocol, Type, TypeVar
 
 from .inspection import (
+    DataclassInstance,
     get_class_properties,
     get_signature,
     is_dataclass_type,
     is_type_enum,
 )
+
+T = TypeVar("T")
 
 
 @dataclass
@@ -322,7 +325,9 @@ def get_docstring(typ: SupportsDoc) -> Optional[str]:
     return typ.__doc__
 
 
-def check_docstring(typ: object, docstring: Docstring, strict: bool = False) -> None:
+def check_docstring(
+    typ: SupportsDoc, docstring: Docstring, strict: bool = False
+) -> None:
     """
     Verifies the doc-string of a type.
 
@@ -330,13 +335,13 @@ def check_docstring(typ: object, docstring: Docstring, strict: bool = False) -> 
     """
 
     if is_dataclass_type(typ):
-        check_dataclass_docstring(typ, docstring, strict)  # type: ignore
+        check_dataclass_docstring(typ, docstring, strict)
     elif inspect.isfunction(typ):
         check_function_docstring(typ, docstring, strict)
 
 
 def check_dataclass_docstring(
-    typ: type, docstring: Docstring, strict: bool = False
+    typ: Type[DataclassInstance], docstring: Docstring, strict: bool = False
 ) -> None:
     """
     Verifies the doc-string of a data-class type.

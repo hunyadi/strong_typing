@@ -9,6 +9,7 @@ from typing import Literal, Union
 
 from .auxiliary import _auxiliary_types
 from .inspection import (
+    TypeLike,
     is_generic_dict,
     is_generic_list,
     is_type_optional,
@@ -79,7 +80,7 @@ def python_type_to_str(data_type: type) -> str:
         return _python_type_to_str(data_type)
 
 
-def python_type_to_name(data_type: object, force: bool = False) -> str:
+def python_type_to_name(data_type: TypeLike, force: bool = False) -> str:
     """
     Returns the short name of a Python type.
 

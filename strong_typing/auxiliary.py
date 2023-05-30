@@ -6,7 +6,7 @@ Type-safe data interchange for Python data classes.
 
 import dataclasses
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, is_dataclass
 from typing import Callable, Dict, Optional, Type, TypeVar, Union, overload
 
 if sys.version_info >= (3, 9):
@@ -19,16 +19,24 @@ if sys.version_info >= (3, 10):
 else:
     from typing_extensions import TypeAlias
 
+if sys.version_info >= (3, 11):
+    from typing import dataclass_transform
+else:
+    from typing_extensions import dataclass_transform
+
 T = TypeVar("T")
 
 
-def _compact_dataclass_repr(obj) -> str:  # type: ignore
+def _compact_dataclass_repr(obj: object) -> str:
     "Compact dataclass representation where positional arguments are used instead of keyword arguments."
 
-    arglist = ", ".join(
-        repr(getattr(obj, field.name)) for field in dataclasses.fields(obj)
-    )
-    return f"{obj.__class__.__name__}({arglist})"
+    if is_dataclass(obj):
+        arglist = ", ".join(
+            repr(getattr(obj, field.name)) for field in dataclasses.fields(obj)
+        )
+        return f"{obj.__class__.__name__}({arglist})"
+    else:
+        return obj.__class__.__name__
 
 
 class CompactDataClass:
@@ -50,6 +58,7 @@ def typeannotation(
     ...
 
 
+@dataclass_transform()
 def typeannotation(
     cls: Optional[Type[T]] = None, *, eq: bool = True, order: bool = False
 ) -> Union[Type[T], Callable[[Type[T]], Type[T]]]:
@@ -58,7 +67,7 @@ def typeannotation(
     def wrap(cls: Type[T]) -> Type[T]:
         setattr(cls, "__repr__", _compact_dataclass_repr)
         if not dataclasses.is_dataclass(cls):
-            cls = dataclasses.dataclass(  # type: ignore
+            cls = dataclasses.dataclass(  # type: ignore[call-overload]
                 cls,
                 init=True,
                 repr=False,

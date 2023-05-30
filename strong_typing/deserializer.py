@@ -32,6 +32,7 @@ from typing import (
 from .core import JsonType
 from .exception import JsonKeyError, JsonTypeError, JsonValueError
 from .inspection import (
+    TypeLike,
     create_object,
     enum_value_types,
     get_class_properties,
@@ -250,7 +251,7 @@ class DictDeserializer(Deserializer[Dict[K, V]]):
             )
 
         return dict(
-            (self.key_type(key), self.value_parser.parse(value))  # type: ignore
+            (self.key_type(key), self.value_parser.parse(value))  # type: ignore[call-arg]
             for key, value in data.items()
         )
 
@@ -629,7 +630,7 @@ class ClassDeserializer(Deserializer[T]):
 
         return self.create(**field_values)
 
-    def create(self, **field_values) -> T:  # type: ignore
+    def create(self, **field_values: Any) -> T:
         "Instantiates an object with a collection of property values."
 
         obj: T = create_object(self.class_type)
@@ -652,7 +653,7 @@ class NamedTupleDeserializer(ClassDeserializer[NamedTuple]):
         ]
         super().__init__(class_type, property_parsers)
 
-    def create(self, **field_values) -> NamedTuple:  # type: ignore
+    def create(self, **field_values: Any) -> NamedTuple:
         return self.class_type(**field_values)
 
 
@@ -660,9 +661,12 @@ class DataclassDeserializer(ClassDeserializer[T]):
     "De-serializes a data class from a JSON `object`."
 
     def __init__(self, class_type: Type[T]) -> None:
+        if not dataclasses.is_dataclass(class_type):
+            raise TypeError("expected: data-class type")
+
         property_parsers: List[FieldDeserializer] = []
         resolved_hints = get_resolved_hints(class_type)
-        for field in dataclasses.fields(class_type):  # type: ignore
+        for field in dataclasses.fields(class_type):
             field_type = resolved_hints[field.name]
             property_name = python_field_to_json_property(field.name, field_type)
 
@@ -697,13 +701,13 @@ class DataclassDeserializer(ClassDeserializer[T]):
 
             property_parsers.append(field_parser)
 
-        super().__init__(class_type, property_parsers)
+        super().__init__(class_type, property_parsers)  # type: ignore[arg-type]
 
 
 class FrozenDataclassDeserializer(DataclassDeserializer[T]):
     "De-serializes a frozen data class from a JSON `object`."
 
-    def create(self, **field_values) -> T:  # type: ignore
+    def create(self, **field_values: Any) -> T:
         "Instantiates an object with a collection of property values."
 
         # create object instance without calling `__init__`
@@ -745,7 +749,7 @@ class TypedClassDeserializer(ClassDeserializer[T]):
         super().__init__(class_type, property_parsers)
 
 
-def create_deserializer(typ: Type[T]) -> Deserializer[T]:
+def create_deserializer(typ: TypeLike) -> Deserializer:
     """
     Creates a de-serializer engine to parse an object obtained from a JSON string.
 
@@ -765,7 +769,7 @@ def create_deserializer(typ: Type[T]) -> Deserializer[T]:
     """
 
     if isinstance(typ, type):
-        return _fetch_deserializer(typ)  # type: ignore
+        return _fetch_deserializer(typ)
     else:
         # special forms are not always hashable
         return _create_deserializer(typ)
@@ -778,13 +782,13 @@ def _fetch_deserializer(typ: Type[T]) -> Deserializer[T]:
     return _create_deserializer(typ)
 
 
-def _create_deserializer(typ: Type[T]) -> Deserializer[T]:
+def _create_deserializer(typ: TypeLike) -> Deserializer:
     "Creates a de-serializer engine to parse an object obtained from a JSON string."
 
     return _create_deserializer_unsafe(typ)
 
 
-def _create_deserializer_unsafe(typ: Type[T]) -> Deserializer:
+def _create_deserializer_unsafe(typ: TypeLike) -> Deserializer:
     "Creates a de-serializer engine to parse an object obtained from a JSON string."
 
     # check for well-known types
