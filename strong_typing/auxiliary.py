@@ -139,7 +139,7 @@ class TimePrecision:
     """
     Precision of a timestamp or time interval.
 
-    :param decimal_digits: Number of fractional digits retained in the seconds field for a timestamp.
+    :param decimal_digits: Number of fractional digits retained in the sub-seconds field for a timestamp.
     """
 
     decimal_digits: int = 0

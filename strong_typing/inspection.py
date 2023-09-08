@@ -23,6 +23,7 @@ from typing import (
     NamedTuple,
     Optional,
     Protocol,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -94,6 +95,39 @@ else:
         return _is_type_like(data_type)
 
 
+def evaluate_member_type(typ: Any, cls: type) -> Any:
+    """
+    Evaluates a forward reference type in a dataclass member.
+
+    :param typ: The dataclass member type to convert.
+    :param cls: The dataclass in which the member is defined.
+    :returns: The evaluated type.
+    """
+
+    return evaluate_type(typ, sys.modules[cls.__module__])
+
+
+def evaluate_type(typ: Any, module: types.ModuleType) -> Any:
+    """
+    Evaluates a forward reference type.
+
+    :param typ: The type to convert, typically a dataclass member type.
+    :param module: The context for the type, i.e. the module in which the member is defined.
+    :returns: The evaluated type.
+    """
+
+    if isinstance(typ, str):
+        # evaluate data-class field whose type annotation is a string
+        return eval(typ, module.__dict__, locals())
+    if isinstance(typ, typing.ForwardRef):
+        if sys.version_info >= (3, 9):
+            return typ._evaluate(module.__dict__, locals(), frozenset())
+        else:
+            return typ._evaluate(module.__dict__, locals())
+    else:
+        return typ
+
+
 @runtime_checkable
 @dataclasses.dataclass
 class DataclassInstance(Protocol):
@@ -111,6 +145,29 @@ def is_dataclass_instance(obj: Any) -> TypeGuard[DataclassInstance]:
     "True if the argument corresponds to a data class instance (but not a type)."
 
     return not isinstance(obj, type) and dataclasses.is_dataclass(obj)
+
+
+@dataclasses.dataclass
+class DataclassField:
+    name: str
+    type: Any
+
+
+def dataclass_fields(cls: Type[DataclassInstance]) -> Iterable[DataclassField]:
+    "Generates the fields of a data-class resolving forward references."
+
+    for field in dataclasses.fields(cls):
+        yield DataclassField(field.name, evaluate_member_type(field.type, cls))
+
+
+def dataclass_field_by_name(cls: Type[DataclassInstance], name: str) -> DataclassField:
+    "Looks up a field in a data-class by its field name."
+
+    for field in dataclasses.fields(cls):
+        if field.name == name:
+            return DataclassField(field.name, evaluate_member_type(field.type, cls))
+
+    raise LookupError(f"field `{name}` missing from class `{cls.__name__}`")
 
 
 def is_named_tuple_instance(obj: Any) -> TypeGuard[NamedTuple]:
@@ -172,6 +229,32 @@ def enum_value_types(enum_type: Type[enum.Enum]) -> List[type]:
 
     # filter unique enumeration value types by keeping definition order
     return list(dict.fromkeys(type(e.value) for e in enum_type))
+
+
+def extend_enum(
+    source: Type[enum.Enum],
+) -> Callable[[Type[enum.Enum]], Type[enum.Enum]]:
+    """
+    Creates a new enumeration type extending the set of values in an existing type.
+
+    :param source: The existing enumeration type to be extended with new values.
+    :returns: A new enumeration type with the extended set of values.
+    """
+
+    def wrap(extend: Type[enum.Enum]) -> Type[enum.Enum]:
+        # create new enumeration type combining the values from both types
+        values: Dict[str, Any] = {}
+        values.update((e.name, e.value) for e in source)
+        values.update((e.name, e.value) for e in extend)
+        enum_class: Type[enum.Enum] = enum.Enum(extend.__name__, values)  # type: ignore
+
+        # assign the newly created type to the same module where the extending class is defined
+        setattr(enum_class, "__module__", extend.__module__)
+        setattr(sys.modules[extend.__module__], extend.__name__, enum_class)
+
+        return enum.unique(enum_class)
+
+    return wrap
 
 
 if sys.version_info >= (3, 10):
@@ -463,7 +546,9 @@ def get_class_property(typ: type, name: str) -> Optional[type]:
     return None
 
 
-def get_referenced_types(typ: TypeLike) -> List[type]:
+def get_referenced_types(
+    typ: TypeLike, module: Optional[types.ModuleType] = None
+) -> Set[type]:
     """
     Extracts types indirectly referenced by this type.
 
@@ -474,22 +559,67 @@ def get_referenced_types(typ: TypeLike) -> List[type]:
     :returns: Types referenced by the given type or special form.
     """
 
-    metadata = getattr(typ, "__metadata__", None)
-    if metadata is not None:
-        # type is Annotated[T, ...]
-        arg = typing.get_args(typ)[0]
-        return get_referenced_types(arg)
+    if module is None:
+        if not isinstance(typ, type):
+            raise ValueError("missing context for evaluating types")
+        module = sys.modules[typ.__module__]
 
-    # type is a regular type
-    result = []
-    origin = typing.get_origin(typ)
-    if origin is not None:
-        for arg in typing.get_args(typ):
-            result.extend(get_referenced_types(arg))
-    elif isinstance(typ, type) and typ is not type(None):
-        result.append(typ)
+    collector = TypeCollector()
+    collector.run(typ, module)
+    return collector.references
 
-    return result
+
+class TypeCollector:
+    references: Set[type]
+
+    def __init__(self) -> None:
+        self.references = set()
+
+    def run(self, typ: TypeLike, module: types.ModuleType) -> None:
+        """
+        Extracts types indirectly referenced by this type.
+
+        For example, extract `T` from `List[T]`, `Optional[T]` or `Annotated[T, ...]`, `K` and `V` from `Dict[K,V]`,
+        `A` and `B` from `Union[A,B]`.
+
+        :param typ: A type or special form.
+        :returns: Types referenced by the given type or special form.
+        """
+
+        if typ in self.references:
+            return
+
+        if typ is type(None):
+            return
+
+        metadata = getattr(typ, "__metadata__", None)
+        if metadata is not None:
+            # type is Annotated[T, ...]
+            arg = typing.get_args(typ)[0]
+            return self.run(arg, module)
+
+        # type is a forward reference
+        if isinstance(typ, str) or isinstance(typ, typing.ForwardRef):
+            evaluated_type = evaluate_type(typ, module)
+            return self.run(evaluated_type, module)
+
+        # type is a regular type
+        origin = typing.get_origin(typ)
+        if origin in [list, dict, set, tuple, Union]:
+            for arg in typing.get_args(typ):
+                self.run(arg, module)
+            return
+        elif origin is Literal:
+            return
+        elif is_dataclass_type(typ):
+            self.references.add(typ)
+            for field in dataclass_fields(typ):
+                self.run(field.type, sys.modules[typ.__module__])
+            return
+        elif isinstance(typ, type):
+            return self.references.add(typ)
+
+        raise TypeError(f"expected: type-like; got: {typ}")
 
 
 if sys.version_info >= (3, 10):

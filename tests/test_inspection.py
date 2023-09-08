@@ -68,15 +68,20 @@ class SimpleAnnotation:
 
 class TestInspection(unittest.TestCase):
     def test_simple(self) -> None:
-        self.assertEqual(get_referenced_types(type(None)), [])
-        self.assertEqual(get_referenced_types(int), [int])
-        self.assertEqual(get_referenced_types(Optional[str]), [str])
-        self.assertEqual(get_referenced_types(List[str]), [str])
-        self.assertEqual(get_referenced_types(Dict[int, bool]), [int, bool])
-        self.assertEqual(get_referenced_types(Union[int, bool, str]), [int, bool, str])
-        self.assertEqual(
-            get_referenced_types(Union[None, int, datetime.datetime]),
-            [int, datetime.datetime],
+        module = sys.modules[self.__module__]
+        self.assertSetEqual(get_referenced_types(type(None), module), set())
+        self.assertSetEqual(get_referenced_types(int, module), set([int]))
+        self.assertSetEqual(get_referenced_types(Optional[str], module), set([str]))
+        self.assertSetEqual(get_referenced_types(List[str], module), set([str]))
+        self.assertSetEqual(
+            get_referenced_types(Dict[int, bool], module), set([int, bool])
+        )
+        self.assertSetEqual(
+            get_referenced_types(Union[int, bool, str], module), set([int, bool, str])
+        )
+        self.assertSetEqual(
+            get_referenced_types(Union[None, int, datetime.datetime], module),
+            set([int, datetime.datetime]),
         )
 
     def test_enum(self) -> None:
