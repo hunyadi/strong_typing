@@ -5,7 +5,7 @@ Type-safe data interchange for Python data classes.
 """
 
 import typing
-from typing import Literal, Union
+from typing import Any, Literal, Optional, Tuple, Union
 
 from .auxiliary import _auxiliary_types
 from .inspection import (
@@ -21,8 +21,15 @@ from .inspection import (
 )
 
 
-def _python_type_to_str(data_type: type) -> str:
+def _python_type_to_str(data_type: TypeLike) -> str:
     "Returns the string representation of a Python type without metadata."
+
+    # return forward references as the annotation string
+    if isinstance(data_type, typing.ForwardRef):
+        fwd: typing.ForwardRef = data_type
+        return fwd.__forward_arg__
+    elif isinstance(data_type, str):
+        return data_type
 
     origin = typing.get_origin(data_type)
     if origin is not None:
@@ -50,14 +57,10 @@ def _python_type_to_str(data_type: type) -> str:
         args = ", ".join(python_type_to_str(t) for t in data_type_args)
         return f"{origin_name}[{args}]"
 
-    if isinstance(data_type, typing.ForwardRef):
-        fwd: typing.ForwardRef = data_type
-        return fwd.__forward_arg__
-
     return data_type.__name__
 
 
-def python_type_to_str(data_type: type) -> str:
+def python_type_to_str(data_type: TypeLike) -> str:
     "Returns the string representation of a Python type."
 
     if data_type is type(None):
@@ -71,10 +74,32 @@ def python_type_to_str(data_type: type) -> str:
     metadata = getattr(data_type, "__metadata__", None)
     if metadata is not None:
         # type is Annotated[T, ...]
+        metatuple: Tuple[Any, ...] = metadata
         arg = typing.get_args(data_type)[0]
-        s = _python_type_to_str(arg)
-        args = ", ".join(repr(m) for m in metadata)
-        return f"Annotated[{s}, {args}]"
+
+        # check for auxiliary types with user-defined annotations
+        metaset = set(metatuple)
+        for auxiliary_type, auxiliary_name in _auxiliary_types.items():
+            auxiliary_arg = typing.get_args(auxiliary_type)[0]
+            if arg is not auxiliary_arg:
+                continue
+
+            auxiliary_metatuple: Optional[Tuple[Any, ...]] = getattr(
+                auxiliary_type, "__metadata__", None
+            )
+            if auxiliary_metatuple is None:
+                continue
+
+            if metaset.issuperset(auxiliary_metatuple):
+                # type is an auxiliary type with extra annotations
+                auxiliary_args = ", ".join(
+                    repr(m) for m in metatuple if m not in auxiliary_metatuple
+                )
+                return f"Annotated[{auxiliary_name}, {auxiliary_args}]"
+
+        # type is an annotated type
+        args = ", ".join(repr(m) for m in metatuple)
+        return f"Annotated[{_python_type_to_str(arg)}, {args}]"
     else:
         # type is a regular type
         return _python_type_to_str(data_type)

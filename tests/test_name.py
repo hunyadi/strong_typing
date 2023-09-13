@@ -1,9 +1,9 @@
 import unittest
 from typing import Dict, List, Optional, Union
 
-from strong_typing.auxiliary import Alias, Annotated
+from strong_typing.auxiliary import Alias, Annotated, float32, int32
 from strong_typing.mapping import python_field_to_json_property
-from strong_typing.name import python_type_to_name
+from strong_typing.name import python_type_to_name, python_type_to_str
 
 
 class TestName(unittest.TestCase):
@@ -43,6 +43,20 @@ class TestName(unittest.TestCase):
         self.assertEqual(python_field_to_json_property("id"), "id")
         self.assertEqual(
             python_field_to_json_property("id", Annotated[str, Alias("alias")]), "alias"
+        )
+
+    def test_auxiliary(self) -> None:
+        self.assertEqual(python_type_to_str(float32), "float32")
+        self.assertEqual(python_type_to_str(int32), "int32")
+        self.assertEqual(python_type_to_str(Optional[float32]), "Optional[float32]")
+        self.assertEqual(python_type_to_str(Optional[int32]), "Optional[int32]")
+        self.assertEqual(
+            python_type_to_str(Annotated[float32, Alias("float")]),
+            "Annotated[float32, Alias('float')]",
+        )
+        self.assertEqual(
+            python_type_to_str(Annotated[int32, Alias("int")]),
+            "Annotated[int32, Alias('int')]",
         )
 
 
