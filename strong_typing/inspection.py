@@ -616,6 +616,8 @@ class TypeCollector:
             for field in dataclass_fields(typ):
                 self.run(field.type, sys.modules[typ.__module__])
             return
+        elif is_type_enum(typ):
+            return self.references.add(typ)
         elif isinstance(typ, type):
             return self.references.add(typ)
 
