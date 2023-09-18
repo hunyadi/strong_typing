@@ -351,14 +351,14 @@ def _unwrap_union_types(typ: object) -> Tuple[object, ...]:
     return typing.get_args(typ)
 
 
-def is_type_literal(typ: type) -> bool:
+def is_type_literal(typ: object) -> bool:
     "True if the specified type is a literal of one or more constant values, e.g. `Literal['string']` or `Literal[42]`."
 
     typ = unwrap_annotated_type(typ)
     return typing.get_origin(typ) is Literal
 
 
-def unwrap_literal_value(typ: type) -> Any:
+def unwrap_literal_value(typ: object) -> Any:
     """
     Extracts the single constant value captured by a literal type.
 
@@ -373,7 +373,7 @@ def unwrap_literal_value(typ: type) -> Any:
     return args[0]
 
 
-def unwrap_literal_values(typ: type) -> Tuple[Any, ...]:
+def unwrap_literal_values(typ: object) -> Tuple[Any, ...]:
     """
     Extracts the constant values captured by a literal type.
 
@@ -385,7 +385,7 @@ def unwrap_literal_values(typ: type) -> Tuple[Any, ...]:
     return typing.get_args(typ)
 
 
-def unwrap_literal_types(typ: type) -> Tuple[type, ...]:
+def unwrap_literal_types(typ: object) -> Tuple[type, ...]:
     """
     Extracts the types of the constant values captured by a literal type.
 
@@ -715,7 +715,7 @@ else:
     TypeOrGeneric = object
 
 
-def is_generic_instance(obj: Any, typ: TypeOrGeneric) -> bool:
+def is_generic_instance(obj: Any, typ: TypeLike) -> bool:
     """
     Returns whether an object is an instance of a generic class, a standard class or of a subclass thereof.
 
