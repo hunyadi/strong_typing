@@ -258,7 +258,7 @@ def parse_text(text: str) -> Docstring:
 
         args_chunk, desc_chunk = chunk.lstrip(":").split(":", 1)
         args = args_chunk.split()
-        desc = desc_chunk.strip().replace("\n", " ")
+        desc = re.sub("\s+", " ", desc_chunk.strip())
 
         if len(args) > 0:
             kw = args[0]

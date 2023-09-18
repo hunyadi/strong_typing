@@ -73,7 +73,7 @@ class MultiLineDescriptionParametersClass:
 
     :param a: Short description for `a`.
     :param b2: Long description for `b` that
-    spans multiple lines.
+        spans multiple lines.
     :param c_3: Description for `c`.
     :see: https://example.com
     """
