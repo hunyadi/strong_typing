@@ -546,36 +546,68 @@ def get_class_property(typ: type, name: str) -> Optional[type]:
     return None
 
 
+@dataclasses.dataclass
+class _ROOT:
+    pass
+
+
 def get_referenced_types(
     typ: TypeLike, module: Optional[types.ModuleType] = None
 ) -> Set[type]:
     """
-    Extracts types indirectly referenced by this type.
+    Extracts types directly or indirectly referenced by this type.
 
     For example, extract `T` from `List[T]`, `Optional[T]` or `Annotated[T, ...]`, `K` and `V` from `Dict[K,V]`,
     `A` and `B` from `Union[A,B]`.
 
     :param typ: A type or special form.
+    :param module: The context in which types are evaluated.
     :returns: Types referenced by the given type or special form.
     """
 
-    if module is None:
-        if not isinstance(typ, type):
-            raise ValueError("missing context for evaluating types")
-        module = sys.modules[typ.__module__]
-
     collector = TypeCollector()
-    collector.run(typ, module)
+    collector.run(typ, _ROOT, module)
     return collector.references
 
 
 class TypeCollector:
-    references: Set[type]
+    """
+    Collects types directly or indirectly referenced by a type.
+
+    :param graph: The type dependency graph, linking types to types they depend on.
+    """
+
+    graph: Dict[type, Set[type]]
+
+    @property
+    def references(self) -> Set[type]:
+        "Types collected by the type collector."
+
+        dependencies = set()
+        for edges in self.graph.values():
+            dependencies.update(edges)
+        return dependencies
 
     def __init__(self) -> None:
-        self.references = set()
+        self.graph = {_ROOT: set()}
 
-    def run(self, typ: TypeLike, module: types.ModuleType) -> None:
+    def traverse(self, typ: type) -> None:
+        "Finds all dependent types of a type."
+
+        self.run(typ, _ROOT, sys.modules[typ.__module__])
+
+    def traverse_all(self, types: Iterable[type]) -> None:
+        "Finds all dependent types of a list of types."
+
+        for typ in types:
+            self.traverse(typ)
+
+    def run(
+        self,
+        typ: TypeLike,
+        cls: Type[DataclassInstance],
+        module: Optional[types.ModuleType],
+    ) -> None:
         """
         Extracts types indirectly referenced by this type.
 
@@ -583,10 +615,12 @@ class TypeCollector:
         `A` and `B` from `Union[A,B]`.
 
         :param typ: A type or special form.
+        :param cls: A dataclass type being expanded for dependent types.
+        :param module: The context in which types are evaluated.
         :returns: Types referenced by the given type or special form.
         """
 
-        if typ in self.references:
+        if typ in self.graph:
             return
 
         if typ is type(None):
@@ -596,30 +630,34 @@ class TypeCollector:
         if metadata is not None:
             # type is Annotated[T, ...]
             arg = typing.get_args(typ)[0]
-            return self.run(arg, module)
+            return self.run(arg, cls, module)
 
         # type is a forward reference
         if isinstance(typ, str) or isinstance(typ, typing.ForwardRef):
+            if module is None:
+                raise ValueError("missing context for evaluating types")
+
             evaluated_type = evaluate_type(typ, module)
-            return self.run(evaluated_type, module)
+            return self.run(evaluated_type, cls, module)
 
         # type is a regular type
         origin = typing.get_origin(typ)
         if origin in [list, dict, set, tuple, Union]:
             for arg in typing.get_args(typ):
-                self.run(arg, module)
+                self.run(arg, cls, module)
             return
         elif origin is Literal:
             return
-        elif is_dataclass_type(typ):
-            self.references.add(typ)
-            for field in dataclass_fields(typ):
-                self.run(field.type, sys.modules[typ.__module__])
+        elif is_dataclass_type(typ) or is_type_enum(typ) or isinstance(typ, type):
+            self.graph[cls].add(typ)
+            self.graph[typ] = set()
+            if is_dataclass_type(typ):
+                for field in dataclass_fields(typ):
+                    self.run(field.type, typ, sys.modules[typ.__module__])
+            else:
+                for field_name, field_type in get_resolved_hints(typ).items():
+                    self.run(field_type, typ, sys.modules[typ.__module__])
             return
-        elif is_type_enum(typ):
-            return self.references.add(typ)
-        elif isinstance(typ, type):
-            return self.references.add(typ)
 
         raise TypeError(f"expected: type-like; got: {typ}")
 

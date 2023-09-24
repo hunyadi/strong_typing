@@ -6,7 +6,7 @@ Type-safe data interchange for Python data classes.
 
 from typing import Callable, Dict, Iterable, List, Optional, Set, TypeVar
 
-from .inspection import get_class_properties, get_referenced_types
+from .inspection import TypeCollector
 
 T = TypeVar("T")
 
@@ -67,24 +67,17 @@ def type_topological_sort(
     if not all(isinstance(typ, type) for typ in types):
         raise TypeError("expected a list of types")
 
-    graph: Dict[type, Set[type]] = {}
+    collector = TypeCollector()
+    collector.traverse_all(types)
+    graph = collector.graph
 
-    queue = list(types)
-    while queue:
-        cls = queue.pop()
-
-        references: Set[type] = set()
-        graph[cls] = references
-        for _, typ in get_class_properties(cls):
-            for arg in get_referenced_types(typ):
-                if arg not in graph:
-                    queue.append(arg)
-                references.add(arg)
-
-        if dependency_fn:
-            for typ in dependency_fn(cls):
-                if typ not in graph:
-                    queue.append(typ)
-                references.add(typ)
+    if dependency_fn:
+        new_types: Set[type] = set()
+        for source_type, references in graph.items():
+            dependent_types = dependency_fn(source_type)
+            references.update(dependent_types)
+            new_types.update(dependent_types)
+        for new_type in new_types:
+            graph[new_type] = set()
 
     return topological_sort(graph)
