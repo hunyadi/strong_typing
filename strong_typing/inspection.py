@@ -250,6 +250,7 @@ def extend_enum(
 
         # assign the newly created type to the same module where the extending class is defined
         setattr(enum_class, "__module__", extend.__module__)
+        setattr(enum_class, "__doc__", extend.__doc__)
         setattr(sys.modules[extend.__module__], extend.__name__, enum_class)
 
         return enum.unique(enum_class)
