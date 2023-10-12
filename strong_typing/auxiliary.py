@@ -10,19 +10,19 @@ from dataclasses import dataclass, is_dataclass
 from typing import Callable, Dict, Optional, Type, TypeVar, Union, overload
 
 if sys.version_info >= (3, 9):
-    from typing import Annotated
+    from typing import Annotated as Annotated
 else:
-    from typing_extensions import Annotated
+    from typing_extensions import Annotated as Annotated
 
 if sys.version_info >= (3, 10):
-    from typing import TypeAlias
+    from typing import TypeAlias as TypeAlias
 else:
-    from typing_extensions import TypeAlias
+    from typing_extensions import TypeAlias as TypeAlias
 
 if sys.version_info >= (3, 11):
-    from typing import dataclass_transform
+    from typing import dataclass_transform as dataclass_transform
 else:
-    from typing_extensions import dataclass_transform
+    from typing_extensions import dataclass_transform as dataclass_transform
 
 T = TypeVar("T")
 
