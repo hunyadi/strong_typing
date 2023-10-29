@@ -942,9 +942,9 @@ def check_recursive(
     obj: object,
     /,
     *,
-    pred: Optional[Callable[[Type[T], T], bool]] = None,
-    type_pred: Optional[Callable[[Type[T]], bool]] = None,
-    value_pred: Optional[Callable[[T], bool]] = None,
+    pred: Optional[Callable[[type, Any], bool]] = None,
+    type_pred: Optional[Callable[[type], bool]] = None,
+    value_pred: Optional[Callable[[Any], bool]] = None,
 ) -> bool:
     """
     Checks if a predicate applies to all nested member properties of an object recursively.

@@ -5,22 +5,14 @@ Type-safe data interchange for Python data classes.
 """
 
 import json
-import sys
-from typing import Any, TextIO, Type, TypeVar, Union, overload
+from typing import Any, TextIO, TypeVar
 
 from .core import JsonType
 from .deserializer import create_deserializer
 from .inspection import TypeLike
 from .serializer import create_serializer
 
-if sys.version_info >= (3, 11):
-    from typing import TypeVarTuple, Unpack
-else:
-    from typing_extensions import TypeVarTuple, Unpack
-
-
 T = TypeVar("T")
-Ts = TypeVarTuple("Ts")
 
 
 def object_to_json(obj: Any) -> JsonType:
@@ -39,16 +31,6 @@ def object_to_json(obj: Any) -> JsonType:
     typ: type = type(obj)
     generator = create_serializer(typ)
     return generator.generate(obj)
-
-
-@overload
-def json_to_object(typ: Union[Unpack[Ts]], data: JsonType) -> Unpack[Ts]:
-    ...
-
-
-@overload
-def json_to_object(typ: Type[T], data: JsonType) -> T:
-    ...
 
 
 def json_to_object(typ: TypeLike, data: JsonType) -> object:
