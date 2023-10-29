@@ -4,7 +4,12 @@ import unittest
 import uuid
 from typing import Dict
 
-from test_sample_types import (
+from strong_typing.core import JsonType
+from strong_typing.exception import JsonValueError
+from strong_typing.schema import validate_object
+from strong_typing.serialization import object_to_json
+
+from .sample_types import (
     UID,
     AnnotatedSimpleDataclass,
     BinaryValueWrapper,
@@ -22,11 +27,6 @@ from test_sample_types import (
     SimpleValueWrapper,
     Suit,
 )
-
-from strong_typing.core import JsonType
-from strong_typing.exception import JsonValueError
-from strong_typing.schema import validate_object
-from strong_typing.serialization import object_to_json
 
 
 def test_function() -> None:

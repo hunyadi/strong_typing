@@ -3,7 +3,10 @@ import unittest
 import uuid
 from typing import Dict, List, Literal, Optional, Set, Union
 
-from test_sample_types import (
+from strong_typing.exception import JsonKeyError, JsonTypeError, JsonValueError
+from strong_typing.serialization import json_to_object, object_to_json
+
+from .sample_types import (
     UID,
     BinaryValueWrapper,
     ClassA,
@@ -19,9 +22,6 @@ from test_sample_types import (
     SimpleValueWrapper,
     Suit,
 )
-
-from strong_typing.exception import JsonKeyError, JsonTypeError, JsonValueError
-from strong_typing.serialization import json_to_object, object_to_json
 
 
 def test_function() -> None:

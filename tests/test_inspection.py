@@ -3,9 +3,7 @@ import enum
 import sys
 import unittest
 from dataclasses import dataclass
-from typing import Dict, List, NamedTuple, Optional, Set, Tuple, Union
-
-from test_sample_types import CompositeDataclass, NestedDataclass, SimpleDataclass
+from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union
 
 from strong_typing.auxiliary import Annotated, typeannotation
 from strong_typing.inspection import (
@@ -25,6 +23,8 @@ from strong_typing.inspection import (
     unwrap_generic_list,
     unwrap_union_types,
 )
+
+from .sample_types import CompositeDataclass, NestedDataclass, SimpleDataclass
 
 
 class Side(enum.Enum):
@@ -70,9 +70,14 @@ class TestInspection(unittest.TestCase):
     def test_simple(self) -> None:
         module = sys.modules[self.__module__]
         self.assertSetEqual(get_referenced_types(type(None), module), set())
+        self.assertSetEqual(get_referenced_types(Any, module), set())
         self.assertSetEqual(get_referenced_types(int, module), set([int]))
         self.assertSetEqual(get_referenced_types(Optional[str], module), set([str]))
         self.assertSetEqual(get_referenced_types(List[str], module), set([str]))
+        self.assertSetEqual(get_referenced_types(List[List[str]], module), set([str]))
+        self.assertSetEqual(
+            get_referenced_types(List[Optional[str]], module), set([str])
+        )
         self.assertSetEqual(
             get_referenced_types(Dict[int, bool], module), set([int, bool])
         )

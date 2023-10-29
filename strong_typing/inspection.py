@@ -621,11 +621,16 @@ class TypeCollector:
         :returns: Types referenced by the given type or special form.
         """
 
-        if typ in self.graph:
+        if typ is type(None) or typ is Any:
             return
 
-        if typ is type(None):
-            return
+        if isinstance(typ, type):
+            self.graph[cls].add(typ)
+
+            if typ in self.graph:
+                return
+
+            self.graph[typ] = set()
 
         metadata = getattr(typ, "__metadata__", None)
         if metadata is not None:
@@ -641,23 +646,24 @@ class TypeCollector:
             evaluated_type = evaluate_type(typ, module)
             return self.run(evaluated_type, cls, module)
 
-        # type is a regular type
+        # type is a special form
         origin = typing.get_origin(typ)
-        if origin in [list, dict, set, tuple, Union]:
+        if origin in [list, dict, frozenset, set, tuple, Union]:
             for arg in typing.get_args(typ):
                 self.run(arg, cls, module)
             return
         elif origin is Literal:
             return
+
+        # type is a regular type
         elif is_dataclass_type(typ) or is_type_enum(typ) or isinstance(typ, type):
-            self.graph[cls].add(typ)
-            self.graph[typ] = set()
+            context = sys.modules[typ.__module__]
             if is_dataclass_type(typ):
                 for field in dataclass_fields(typ):
-                    self.run(field.type, typ, sys.modules[typ.__module__])
+                    self.run(field.type, typ, context)
             else:
                 for field_name, field_type in get_resolved_hints(typ).items():
-                    self.run(field_type, typ, sys.modules[typ.__module__])
+                    self.run(field_type, typ, context)
             return
 
         raise TypeError(f"expected: type-like; got: {typ}")
@@ -933,7 +939,7 @@ class RecursiveChecker:
 
 
 def check_recursive(
-    obj: T,
+    obj: object,
     /,
     *,
     pred: Optional[Callable[[Type[T], T], bool]] = None,
@@ -943,8 +949,7 @@ def check_recursive(
     """
     Checks if a predicate applies to all nested member properties of an object recursively.
 
-    :param typ: The type to recurse into.
-    :param obj: The object to inspect recursively. Must be an instance of the given type.
+    :param obj: The object to inspect recursively.
     :param pred: The predicate to test on member properties. Takes a property type and a property value.
     :param type_pred: Constrains the check to properties of an expected type. Properties of other types pass automatically.
     :param value_pred: Verifies a condition on member property values (of an expected type).
@@ -976,4 +981,4 @@ def check_recursive(
     elif pred is None:
         pred = lambda typ, obj: True
 
-    return RecursiveChecker(pred).check(type(obj), obj)  # type: ignore
+    return RecursiveChecker(pred).check(type(obj), obj)

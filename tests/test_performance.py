@@ -5,9 +5,9 @@ import unittest
 import uuid
 from dataclasses import dataclass
 
-from test_timer import Timer
-
 from strong_typing.serialization import json_to_object, object_to_json
+
+from .timer import Timer
 
 
 def time_today(time_of_day: datetime.time) -> datetime.datetime:

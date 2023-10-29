@@ -58,7 +58,7 @@ def typeannotation(
     ...
 
 
-@dataclass_transform()
+@dataclass_transform(eq_default=True, order_default=False)
 def typeannotation(
     cls: Optional[Type[T]] = None, *, eq: bool = True, order: bool = False
 ) -> Union[Type[T], Callable[[Type[T]], Type[T]]]:
@@ -88,7 +88,6 @@ def typeannotation(
 
 
 @typeannotation
-@dataclass(frozen=True)
 class Alias:
     "Alternative name of a property, typically used in JSON serialization."
 
@@ -96,7 +95,6 @@ class Alias:
 
 
 @typeannotation
-@dataclass(frozen=True)
 class Signed:
     "Signedness of an integer type."
 
@@ -104,7 +102,6 @@ class Signed:
 
 
 @typeannotation
-@dataclass(frozen=True)
 class Storage:
     "Number of bytes the binary representation of an integer type takes, e.g. 4 bytes for an int32."
 
@@ -112,7 +109,6 @@ class Storage:
 
 
 @typeannotation
-@dataclass(frozen=True)
 class IntegerRange:
     "Minimum and maximum value of an integer. The range is inclusive."
 
@@ -121,7 +117,6 @@ class IntegerRange:
 
 
 @typeannotation
-@dataclass(frozen=True)
 class Precision:
     "Precision of a floating-point value."
 
@@ -134,7 +129,6 @@ class Precision:
 
 
 @typeannotation
-@dataclass(frozen=True)
 class TimePrecision:
     """
     Precision of a timestamp or time interval.
@@ -146,7 +140,13 @@ class TimePrecision:
 
 
 @typeannotation
-@dataclass(frozen=True)
+class Length:
+    "Exact length of a string."
+
+    value: int
+
+
+@typeannotation
 class MinLength:
     "Minimum length of a string."
 
@@ -154,7 +154,6 @@ class MinLength:
 
 
 @typeannotation
-@dataclass(frozen=True)
 class MaxLength:
     "Maximum length of a string."
 
@@ -162,7 +161,6 @@ class MaxLength:
 
 
 @typeannotation
-@dataclass(frozen=True)
 class SpecialConversion:
     "Indicates that the annotated type is subject to custom conversion rules."
 

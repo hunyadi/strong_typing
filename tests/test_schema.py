@@ -4,18 +4,6 @@ import unittest
 import uuid
 from typing import Any, Dict, List, Set, Tuple, Union
 
-from test_sample_types import (
-    UID,
-    AnnotatedSimpleDataclass,
-    BinaryTree,
-    Side,
-    SimpleDataclass,
-    SimpleTypedNamedTuple,
-    SimpleValueWrapper,
-    Suit,
-    ValueExample,
-)
-
 from strong_typing.auxiliary import Annotated, IntegerRange, Precision, int32, uint64
 from strong_typing.core import JsonType
 from strong_typing.schema import (
@@ -25,6 +13,18 @@ from strong_typing.schema import (
     Validator,
     classdef_to_schema,
     get_class_docstrings,
+)
+
+from .sample_types import (
+    UID,
+    AnnotatedSimpleDataclass,
+    BinaryTree,
+    Side,
+    SimpleDataclass,
+    SimpleTypedNamedTuple,
+    SimpleValueWrapper,
+    Suit,
+    ValueExample,
 )
 
 

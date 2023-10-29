@@ -4,4 +4,4 @@ RUN python3 -m pip install --upgrade pip
 COPY dist/*.whl dist/
 RUN python3 -m pip install `ls -1 dist/*.whl`
 COPY tests/*.py tests/
-RUN cd tests && python3 -m unittest
+RUN python3 -m unittest discover
