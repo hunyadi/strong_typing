@@ -5,19 +5,6 @@
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${workspaceFolder}"
     },
-    "python.formatting.provider": "none",
-    "python.linting.mypyEnabled": true,
-    "python.linting.mypyArgs": [
-        "--check-untyped-defs",
-        "--disallow-untyped-calls",
-        "--disallow-untyped-defs",
-        "--follow-imports=silent",
-        "--ignore-missing-imports",
-        "--no-implicit-optional",
-        "--show-column-numbers",
-        "--enable-incomplete-feature=TypeVarTuple",
-        "--enable-incomplete-feature=Unpack"
-    ],
     "editor.codeActionsOnSave": {
         "source.organizeImports": true
     },

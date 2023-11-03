@@ -5,7 +5,8 @@ Type-safe data interchange for Python data classes.
 """
 
 import json
-from typing import Any, TextIO, TypeVar
+from types import ModuleType
+from typing import Any, Optional, TextIO, TypeVar
 
 from .core import JsonType
 from .deserializer import create_deserializer
@@ -33,7 +34,9 @@ def object_to_json(obj: Any) -> JsonType:
     return generator.generate(obj)
 
 
-def json_to_object(typ: TypeLike, data: JsonType) -> object:
+def json_to_object(
+    typ: TypeLike, data: JsonType, *, context: Optional[ModuleType] = None
+) -> object:
     """
     Creates an object from a representation that has been de-serialized from JSON.
 
@@ -54,7 +57,7 @@ def json_to_object(typ: TypeLike, data: JsonType) -> object:
     :raises JsonTypeError: Deserialization for data has failed due to a type mismatch.
     """
 
-    parser = create_deserializer(typ)
+    parser = create_deserializer(typ, context)
     return parser.parse(data)
 
 
