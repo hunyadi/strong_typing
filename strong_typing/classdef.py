@@ -1,3 +1,4 @@
+import copy
 import dataclasses
 import datetime
 import decimal
@@ -35,7 +36,7 @@ from .auxiliary import (
 from .core import JsonType, Schema
 from .docstring import Docstring, DocstringParam
 from .inspection import TypeLike
-from .serialization import json_to_object
+from .serialization import json_to_object, object_to_json
 
 T = TypeVar("T")
 
@@ -207,13 +208,13 @@ def node_to_type(
 
     elif isinstance(node, JsonSchemaBoolean):
         if node.const is not None:
-            return Literal[node.const]  # type: ignore
+            return Literal[node.const]
 
         return bool
 
     elif isinstance(node, JsonSchemaInteger):
         if node.const is not None:
-            return Literal[node.const]  # type: ignore
+            return Literal[node.const]
 
         if node.format == "int16":
             return int16
@@ -232,7 +233,7 @@ def node_to_type(
 
     elif isinstance(node, JsonSchemaNumber):
         if node.const is not None:
-            return Literal[node.const]  # type: ignore
+            return Literal[node.const]
 
         if node.format == "float32":
             return float32
@@ -263,7 +264,7 @@ def node_to_type(
 
     elif isinstance(node, JsonSchemaString):
         if node.const is not None:
-            return Literal[node.const]  # type: ignore
+            return Literal[node.const]
 
         if node.format == "date-time":
             return datetime.datetime
@@ -284,7 +285,7 @@ def node_to_type(
             )
 
         if node.maxLength is not None:
-            return Annotated[str, MaxLength(node.maxLength)]  # type: ignore
+            return Annotated[str, MaxLength(node.maxLength)]
 
         return str
 
@@ -295,7 +296,7 @@ def node_to_type(
         if node.properties is None:
             return JsonType
 
-        if node.additionalProperties is None or node.additionalProperties != False:
+        if node.additionalProperties is None or node.additionalProperties is not False:
             raise TypeError("expected: `additionalProperties` equals `false`")
 
         required = node.required if node.required is not None else []
@@ -330,6 +331,70 @@ def node_to_type(
 
     elif isinstance(node, JsonSchemaOneOf):
         union_types = tuple(node_to_type(module, context, n) for n in node.oneOf)
-        return Union[union_types]  # type: ignore
+        return Union[union_types]
 
     raise NotImplementedError()
+
+
+@dataclass
+class SchemaFlatteningOptions:
+    qualified_names: bool = False
+    recursive: bool = False
+
+
+def flatten_schema(
+    schema: Schema, *, options: Optional[SchemaFlatteningOptions] = None
+) -> Schema:
+    top_node = typing.cast(
+        JsonSchemaTopLevelObject, json_to_object(JsonSchemaTopLevelObject, schema)
+    )
+    flattener = SchemaFlattener(options)
+    obj = flattener.flatten(top_node)
+    return typing.cast(Schema, object_to_json(obj))
+
+
+class SchemaFlattener:
+    options: SchemaFlatteningOptions
+
+    def __init__(self, options: Optional[SchemaFlatteningOptions] = None) -> None:
+        self.options = options or SchemaFlatteningOptions()
+
+    def flatten(self, source_node: JsonSchemaObject) -> JsonSchemaObject:
+        if source_node.type != "object":
+            return source_node
+
+        source_props = source_node.properties or {}
+        target_props: Dict[str, JsonSchemaAny] = {}
+
+        source_reqs = source_node.required or []
+        target_reqs: List[str] = []
+
+        for name, prop in source_props.items():
+            if not isinstance(prop, JsonSchemaObject):
+                target_props[name] = prop
+                if name in source_reqs:
+                    target_reqs.append(name)
+                continue
+
+            if self.options.recursive:
+                obj = self.flatten(prop)
+            else:
+                obj = prop
+            if obj.properties is not None:
+                if self.options.qualified_names:
+                    target_props.update(
+                        (f"{name}.{n}", p) for n, p in obj.properties.items()
+                    )
+                else:
+                    target_props.update(obj.properties.items())
+            if obj.required is not None:
+                if self.options.qualified_names:
+                    target_reqs.extend(f"{name}.{n}" for n in obj.required)
+                else:
+                    target_reqs.extend(obj.required)
+
+        target_node = copy.copy(source_node)
+        target_node.properties = target_props or None
+        target_node.additionalProperties = False
+        target_node.required = target_reqs or None
+        return target_node

@@ -8,11 +8,17 @@ import builtins
 import dataclasses
 import inspect
 import re
+import sys
 import types
 import typing
 from dataclasses import dataclass
 from io import StringIO
 from typing import Any, Callable, Dict, Optional, Protocol, Type, TypeVar
+
+if sys.version_info >= (3, 10):
+    from typing import TypeGuard
+else:
+    from typing_extensions import TypeGuard
 
 from .inspection import (
     DataclassInstance,
@@ -145,12 +151,13 @@ class Docstring:
         return s
 
 
+def is_exception(member: object) -> TypeGuard[Type[BaseException]]:
+    return isinstance(member, type) and issubclass(member, BaseException)
+
+
 def get_exceptions(module: types.ModuleType) -> Dict[str, Type[BaseException]]:
     "Returns all exception classes declared in a module."
 
-    is_exception = lambda member: isinstance(member, type) and issubclass(
-        member, BaseException
-    )
     return {
         name: class_type
         for name, class_type in inspect.getmembers(module, is_exception)

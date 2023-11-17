@@ -129,9 +129,8 @@ def evaluate_type(typ: Any, module: types.ModuleType) -> Any:
 
 
 @runtime_checkable
-@dataclasses.dataclass
 class DataclassInstance(Protocol):
-    pass
+    __dataclass_fields__: typing.ClassVar[dict[str, dataclasses.Field[Any]]]
 
 
 def is_dataclass_type(typ: Any) -> TypeGuard[Type[DataclassInstance]]:
@@ -200,7 +199,7 @@ def is_named_tuple_type(typ: Any) -> TypeGuard[Type[NamedTuple]]:
     if not isinstance(f, tuple):
         return False
 
-    return all(type(n) == str for n in f)
+    return all(isinstance(n, str) for n in f)
 
 
 if sys.version_info >= (3, 11):
@@ -511,9 +510,9 @@ def rewrap_annotated_type(
 def get_module_classes(module: types.ModuleType) -> List[type]:
     "Returns all classes declared directly in a module."
 
-    is_class_member = (
-        lambda member: inspect.isclass(member) and member.__module__ == module.__name__
-    )
+    def is_class_member(member: object) -> TypeGuard[type]:
+        return inspect.isclass(member) and member.__module__ == module.__name__
+
     return [class_type for _, class_type in inspect.getmembers(module, is_class_member)]
 
 

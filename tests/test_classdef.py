@@ -8,7 +8,13 @@ from decimal import Decimal
 from typing import Annotated, List, Literal, Optional, Union
 
 from strong_typing.auxiliary import MaxLength, Precision, float64, int16, int32, int64
-from strong_typing.classdef import JsonSchemaAny, node_to_type, schema_to_type
+from strong_typing.classdef import (
+    JsonSchemaAny,
+    SchemaFlatteningOptions,
+    flatten_schema,
+    node_to_type,
+    schema_to_type,
+)
 from strong_typing.core import JsonType, Schema
 from strong_typing.inspection import (
     TypeLike,
@@ -193,6 +199,161 @@ class TestClassDef(unittest.TestCase):
         )
         self.assertIsNotNone(getattr(empty, "IPv4Addr", None))
         self.assertIsNotNone(getattr(empty, "IPv6Addr", None))
+
+    def test_flatten(self) -> None:
+        source: Schema = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "type": "object",
+                    "properties": {
+                        "ts": {"type": "string", "format": "date-time"},
+                        "action": {
+                            "type": "string",
+                            "enum": ["U", "D"],
+                        },
+                    },
+                    "additionalProperties": False,
+                    "required": ["ts"],
+                },
+                "key": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "format": "int64",
+                        }
+                    },
+                    "additionalProperties": False,
+                    "required": ["id"],
+                },
+                "value": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "maxLength": 255,
+                            "description": "Display name.",
+                        },
+                        "created_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "Timestamp of when the record was created.",
+                        },
+                        "updated_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "Timestamp of when the record was updated.",
+                        },
+                        "nested": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "integer",
+                                    "format": "int64",
+                                }
+                            },
+                            "additionalProperties": False,
+                            "required": ["id"],
+                        },
+                    },
+                    "additionalProperties": False,
+                    "required": ["created_at", "updated_at"],
+                },
+            },
+            "additionalProperties": False,
+            "required": ["key"],
+        }
+
+        target: Schema = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "meta.ts": {"type": "string", "format": "date-time"},
+                "meta.action": {"type": "string", "enum": ["U", "D"]},
+                "key.id": {"type": "integer", "format": "int64"},
+                "value.name": {
+                    "description": "Display name.",
+                    "type": "string",
+                    "maxLength": 255,
+                },
+                "value.created_at": {
+                    "description": "Timestamp of when the record was created.",
+                    "type": "string",
+                    "format": "date-time",
+                },
+                "value.updated_at": {
+                    "description": "Timestamp of when the record was updated.",
+                    "type": "string",
+                    "format": "date-time",
+                },
+                "value.nested.id": {
+                    "type": "integer",
+                    "format": "int64",
+                },
+            },
+            "additionalProperties": False,
+            "required": [
+                "meta.ts",
+                "key.id",
+                "value.created_at",
+                "value.updated_at",
+                "value.nested.id",
+            ],
+        }
+        self.assertEqual(
+            flatten_schema(
+                source,
+                options=SchemaFlatteningOptions(qualified_names=True, recursive=True),
+            ),
+            target,
+        )
+
+        target = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "ts": {"type": "string", "format": "date-time"},
+                "action": {"type": "string", "enum": ["U", "D"]},
+                "id": {"type": "integer", "format": "int64"},
+                "name": {
+                    "description": "Display name.",
+                    "type": "string",
+                    "maxLength": 255,
+                },
+                "created_at": {
+                    "description": "Timestamp of when the record was created.",
+                    "type": "string",
+                    "format": "date-time",
+                },
+                "updated_at": {
+                    "description": "Timestamp of when the record was updated.",
+                    "type": "string",
+                    "format": "date-time",
+                },
+                "nested": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "format": "int64",
+                        }
+                    },
+                    "additionalProperties": False,
+                    "required": ["id"],
+                },
+            },
+            "additionalProperties": False,
+            "required": ["ts", "id", "created_at", "updated_at"],
+        }
+        self.assertEqual(
+            flatten_schema(
+                source,
+                options=SchemaFlatteningOptions(qualified_names=False, recursive=False),
+            ),
+            target,
+        )
 
 
 if __name__ == "__main__":

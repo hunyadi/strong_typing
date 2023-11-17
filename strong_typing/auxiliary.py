@@ -6,7 +6,7 @@ Type-safe data interchange for Python data classes.
 
 import dataclasses
 import sys
-from dataclasses import dataclass, is_dataclass
+from dataclasses import is_dataclass
 from typing import Callable, Dict, Optional, Type, TypeVar, Union, overload
 
 if sys.version_info >= (3, 9):
