@@ -15,6 +15,7 @@ from .sample_types import (
     FrozenValueWrapper,
     LiteralWrapper,
     NestedDataclass,
+    NestedJson,
     OptionalValueWrapper,
     Side,
     SimpleDataclass,
@@ -238,6 +239,16 @@ class TestDeserialization(unittest.TestCase):
                 {"type": "B", "name": "b", "value": "string"},
             ),
             ClassB(name="b", type="B", value="string"),
+        )
+
+    def test_deserialization_recursive(self) -> None:
+        self.assertEqual(json_to_object(NestedJson, {"json": []}), NestedJson([]))
+        self.assertEqual(json_to_object(NestedJson, {"json": {}}), NestedJson({}))
+        self.assertEqual(
+            json_to_object(
+                NestedJson, {"json": [{"key1": "value1"}, {"key2": "value2"}]}
+            ),
+            NestedJson([{"key1": "value1"}, {"key2": "value2"}]),
         )
 
     def test_object_deserialization(self) -> None:

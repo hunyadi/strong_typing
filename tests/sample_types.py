@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Literal, NamedTuple, Optional, Set, Tuple
 
 from strong_typing.auxiliary import Annotated, IntegerRange, MaxLength, Precision
+from strong_typing.core import JsonType
 from strong_typing.schema import json_schema_type
 
 
@@ -179,6 +180,11 @@ class NestedDataclass:
             "b": ValueExample(value=4),
             "c": ValueExample(value=5),
         }
+
+
+@dataclass
+class NestedJson:
+    json: JsonType
 
 
 @dataclass

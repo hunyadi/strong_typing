@@ -789,30 +789,43 @@ def create_deserializer(
     return _get_deserializer(typ, context)
 
 
-_CACHE: Dict[type, Deserializer] = {}
+_CACHE: Dict[Tuple[str, str], Deserializer] = {}
 
 
 def _get_deserializer(typ: TypeLike, context: Optional[ModuleType]) -> Deserializer:
     "Creates or re-uses a de-serializer engine to parse an object obtained from a JSON string."
 
+    cache_key = None
+
     if isinstance(typ, (str, typing.ForwardRef)):
         if context is None:
             raise TypeError(f"missing context for evaluating type: {typ}")
+
+        if isinstance(typ, str):
+            if hasattr(context, typ):
+                cache_key = (context.__name__, typ)
+        elif isinstance(typ, typing.ForwardRef):
+            if hasattr(context, typ.__forward_arg__):
+                cache_key = (context.__name__, typ.__forward_arg__)
 
         typ = evaluate_type(typ, context)
 
     typ = unwrap_annotated_type(typ) if is_type_annotated(typ) else typ
 
     if isinstance(typ, type):
-        deserializer = _CACHE.get(typ)
+        cache_key = (typ.__module__, typ.__name__)
+
+    if cache_key is not None:
+        deserializer = _CACHE.get(cache_key)
         if deserializer is None:
             deserializer = _create_deserializer(typ)
 
             # store de-serializer immediately in cache to avoid stack overflow for recursive types
-            _CACHE[typ] = deserializer
+            _CACHE[cache_key] = deserializer
 
-            # use type's own module as context for evaluating member types
-            context = sys.modules[typ.__module__]
+            if isinstance(typ, type):
+                # use type's own module as context for evaluating member types
+                context = sys.modules[typ.__module__]
 
             # create any de-serializers this de-serializer is depending on
             deserializer.build(context)
