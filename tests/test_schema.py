@@ -8,7 +8,6 @@ from strong_typing.auxiliary import Annotated, IntegerRange, Precision, int32, u
 from strong_typing.core import JsonType
 from strong_typing.schema import (
     JsonSchemaGenerator,
-    JsonType,
     SchemaOptions,
     Validator,
     classdef_to_schema,

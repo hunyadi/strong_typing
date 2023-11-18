@@ -11,7 +11,6 @@ import typing
 import uuid
 from dataclasses import dataclass
 from typing import (
-    Annotated,
     Any,
     Dict,
     List,
@@ -25,6 +24,7 @@ from typing import (
 
 from .auxiliary import (
     Alias,
+    Annotated,
     MaxLength,
     Precision,
     float32,

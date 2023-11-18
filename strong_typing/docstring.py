@@ -236,7 +236,7 @@ def parse_text(text: str) -> Docstring:
     match = re.search("^:", text, flags=re.MULTILINE)
     if match:
         desc_chunk = text[: match.start()]
-        meta_chunk = text[match.start() :]
+        meta_chunk = text[match.start() :]  # noqa: E203
     else:
         desc_chunk = text
         meta_chunk = ""
@@ -265,7 +265,7 @@ def parse_text(text: str) -> Docstring:
 
         args_chunk, desc_chunk = chunk.lstrip(":").split(":", 1)
         args = args_chunk.split()
-        desc = re.sub("\s+", " ", desc_chunk.strip())
+        desc = re.sub(r"\s+", " ", desc_chunk.strip())
 
         if len(args) > 0:
             kw = args[0]

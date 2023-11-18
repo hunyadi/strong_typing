@@ -245,7 +245,8 @@ class DictDeserializer(Deserializer[Dict[K, V]]):
             value_types = enum_value_types(self.key_type)
             if len(value_types) != 1:
                 raise JsonTypeError(
-                    f"type `{self.container_type}` has invalid key type, enumerations must have a consistent member value type but several types found: {value_types}"
+                    f"type `{self.container_type}` has invalid key type, "
+                    f"enumerations must have a consistent member value type but several types found: {value_types}"
                 )
             value_type = value_types.pop()
             if value_type is not str:
@@ -324,8 +325,9 @@ class TupleDeserializer(Deserializer[Tuple[Any, ...]]):
                     f"type `{self.container_type}` expects JSON `array` data but instead received: {data}"
                 )
             else:
+                count = len(self.item_parsers)
                 raise JsonValueError(
-                    f"type `{self.container_type}` expects a JSON `array` of length {len(self.item_parsers)} but received length {len(data)}"
+                    f"type `{self.container_type}` expects a JSON `array` of length {count} but received length {len(data)}"
                 )
 
         return tuple(
@@ -353,7 +355,7 @@ class UnionDeserializer(Deserializer):
             # iterate over potential types of discriminated union
             try:
                 return member_parser.parse(data)
-            except (JsonKeyError, JsonTypeError) as k:
+            except (JsonKeyError, JsonTypeError):
                 # indicates a required field is missing from JSON dict -OR- the data cannot be cast to the expected type,
                 # i.e. we don't have the type that we are looking for
                 continue

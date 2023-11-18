@@ -28,7 +28,12 @@ T = TypeVar("T")
 
 
 def _compact_dataclass_repr(obj: object) -> str:
-    "Compact dataclass representation where positional arguments are used instead of keyword arguments."
+    """
+    Compact data-class representation where positional arguments are used instead of keyword arguments.
+
+    :param obj: A data-class object.
+    :returns: A string that matches the pattern `Class(arg1, arg2, ...)`.
+    """
 
     if is_dataclass(obj):
         arglist = ", ".join(
@@ -62,7 +67,14 @@ def typeannotation(
 def typeannotation(
     cls: Optional[Type[T]] = None, *, eq: bool = True, order: bool = False
 ) -> Union[Type[T], Callable[[Type[T]], Type[T]]]:
-    "Returns the same class as was passed in, with dunder methods added based on the fields defined in the class."
+    """
+    Returns the same class as was passed in, with dunder methods added based on the fields defined in the class.
+
+    :param cls: The data-class type to transform into a type annotation.
+    :param eq: Whether to generate functions to support equality comparison.
+    :param order: Whether to generate functions to support ordering.
+    :returns: A data-class type, or a wrapper for data-class types.
+    """
 
     def wrap(cls: Type[T]) -> Type[T]:
         setattr(cls, "__repr__", _compact_dataclass_repr)

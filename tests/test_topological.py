@@ -92,7 +92,9 @@ class TestTopological(unittest.TestCase):
         order = type_topological_sort([NestedDataClass])
         self.assertNotIn(decimal.Decimal, order)
 
-        fn = lambda cls: [decimal.Decimal] if is_dataclass_type(cls) else []
+        def fn(cls: type) -> List[type]:
+            return [decimal.Decimal] if is_dataclass_type(cls) else []
+
         order = type_topological_sort([NestedDataClass], fn)
         self.assertOrder(order, decimal.Decimal, SimpleDataClass)
         self.assertOrder(order, decimal.Decimal, NestedDataClass)

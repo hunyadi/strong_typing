@@ -5,9 +5,17 @@ import unittest
 import uuid
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Annotated, List, Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 
-from strong_typing.auxiliary import MaxLength, Precision, float64, int16, int32, int64
+from strong_typing.auxiliary import (
+    Annotated,
+    MaxLength,
+    Precision,
+    float64,
+    int16,
+    int32,
+    int64,
+)
 from strong_typing.classdef import (
     JsonSchemaAny,
     SchemaFlatteningOptions,

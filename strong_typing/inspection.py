@@ -130,7 +130,7 @@ def evaluate_type(typ: Any, module: types.ModuleType) -> Any:
 
 @runtime_checkable
 class DataclassInstance(Protocol):
-    __dataclass_fields__: typing.ClassVar[dict[str, dataclasses.Field[Any]]]
+    __dataclass_fields__: typing.ClassVar[Dict[str, dataclasses.Field]]
 
 
 def is_dataclass_type(typ: Any) -> TypeGuard[Type[DataclassInstance]]:
@@ -963,7 +963,7 @@ def check_recursive(
 
         type_p: Callable[[Type[T]], bool] = type_pred
         value_p: Callable[[T], bool] = value_pred
-        pred = lambda typ, obj: not type_p(typ) or value_p(obj)
+        pred = lambda typ, obj: not type_p(typ) or value_p(obj)  # noqa: E731
 
     elif value_pred is not None:
         if pred is not None:
@@ -972,12 +972,12 @@ def check_recursive(
             )
 
         value_only_p: Callable[[T], bool] = value_pred
-        pred = lambda typ, obj: value_only_p(obj)
+        pred = lambda typ, obj: value_only_p(obj)  # noqa: E731
 
     elif type_pred is not None:
         raise TypeError("value predicate required when type predicate is present")
 
     elif pred is None:
-        pred = lambda typ, obj: True
+        pred = lambda typ, obj: True  # noqa: E731
 
     return RecursiveChecker(pred).check(type(obj), obj)
