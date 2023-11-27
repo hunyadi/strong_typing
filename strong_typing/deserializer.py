@@ -767,21 +767,21 @@ def create_deserializer(
     typ: TypeLike, context: Optional[ModuleType] = None
 ) -> Deserializer:
     """
-    Creates a de-serializer engine to parse an object obtained from a JSON string.
+    Creates a de-serializer engine to produce a Python object from an object obtained from a JSON string.
 
     When de-serializing a JSON object into a Python object, the following transformations are applied:
 
     * Fundamental types are parsed as `bool`, `int`, `float` or `str`.
     * Date and time types are parsed from the ISO 8601 format with time zone into the corresponding Python type
-      `datetime`, `date` or `time`
-    * A byte array is read from a string with Base64 encoding into a `bytes` instance.
-    * UUIDs are extracted from a UUID string into a `uuid.UUID` instance.
+      `datetime`, `date` or `time`.
+    * Byte arrays are read from a string with Base64 encoding into a `bytes` instance.
+    * UUIDs are extracted from a UUID string compliant with RFC 4122 into a `uuid.UUID` instance.
     * Enumerations are instantiated with a lookup on enumeration value.
     * Containers (e.g. `list`, `dict`, `set`, `tuple`) are parsed recursively.
     * Complex objects with properties (including data class types) are populated from dictionaries of key-value pairs
       using reflection (enumerating type annotations).
 
-    :raises TypeError: A de-serializing engine cannot be constructed for the input type.
+    :raises TypeError: A de-serializer engine cannot be constructed for the input type.
     """
 
     if context is None:

@@ -18,6 +18,7 @@ from .sample_types import (
     LiteralWrapper,
     MultipleInheritanceDerivedClass,
     NestedDataclass,
+    NestedJson,
     Side,
     SimpleDataclass,
     SimpleTypedClass,
@@ -212,6 +213,30 @@ class TestSerialization(unittest.TestCase):
                     "b": {"value": 4},
                     "c": {"value": 5},
                 },
+            },
+        )
+
+    def test_recursive_serialization(self) -> None:
+        """Test object serialization with types that have a recursive definition, including forward references."""
+
+        self.assertEqual(
+            object_to_json(
+                NestedJson(
+                    {
+                        "boolean": True,
+                        "integer": 82,
+                        "string": "value",
+                        "array": [1, 2, 3],
+                    }
+                )
+            ),
+            {
+                "json": {
+                    "boolean": True,
+                    "integer": 82,
+                    "string": "value",
+                    "array": [1, 2, 3],
+                }
             },
         )
 
