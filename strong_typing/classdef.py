@@ -10,17 +10,7 @@ import types
 import typing
 import uuid
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, TypeVar, Union
 
 from .auxiliary import (
     Alias,
@@ -57,12 +47,14 @@ class JsonSchemaType(JsonSchemaNode):
 class JsonSchemaBoolean(JsonSchemaType):
     type: Literal["boolean"]
     const: Optional[bool]
+    examples: Optional[List[bool]]
 
 
 @dataclass
 class JsonSchemaInteger(JsonSchemaType):
     type: Literal["integer"]
     const: Optional[int]
+    examples: Optional[List[int]]
     enum: Optional[List[int]]
     minimum: Optional[int]
     maximum: Optional[int]
@@ -72,6 +64,7 @@ class JsonSchemaInteger(JsonSchemaType):
 class JsonSchemaNumber(JsonSchemaType):
     type: Literal["number"]
     const: Optional[float]
+    examples: Optional[List[float]]
     minimum: Optional[float]
     maximum: Optional[float]
     exclusiveMinimum: Optional[float]
@@ -83,6 +76,7 @@ class JsonSchemaNumber(JsonSchemaType):
 class JsonSchemaString(JsonSchemaType):
     type: Literal["string"]
     const: Optional[str]
+    examples: Optional[List[str]]
     enum: Optional[List[str]]
     minLength: Optional[int]
     maxLength: Optional[int]

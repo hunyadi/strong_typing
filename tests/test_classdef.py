@@ -129,6 +129,18 @@ class TestClassDef(unittest.TestCase):
         self.assertEqual(
             datetime.datetime, as_type({"type": "string", "format": "date-time"})
         )
+        self.assertEqual(
+            datetime.datetime,
+            as_type(
+                {
+                    "type": "string",
+                    "format": "date-time",
+                    "title": "Date and time together",
+                    "description": "Date and time together, as represented in RFC 3339, section 5.6. This is a subset of the date format also commonly known as ISO 8601 format.",
+                    "examples": ["2018-11-13T20:20:39+00:00"],
+                }
+            ),
+        )
 
     def test_uuid(self) -> None:
         self.assertEqual(uuid.UUID, as_type({"type": "string", "format": "uuid"}))
@@ -139,6 +151,18 @@ class TestClassDef(unittest.TestCase):
         )
         self.assertEqual(
             ipaddress.IPv6Address, as_type({"type": "string", "format": "ipv6"})
+        )
+        self.assertEqual(
+            ipaddress.IPv4Address,
+            as_type(
+                {
+                    "type": "string",
+                    "format": "ipv4",
+                    "title": "Represent and manipulate single IPv4 Addresses.",
+                    "description": "IPv4 address, according to dotted-quad ABNF syntax as defined in RFC 2673, section 3.2.",
+                    "examples": ["192.0.2.0", "198.51.100.1", "203.0.113.255"],
+                }
+            ),
         )
 
     def test_object(self) -> None:
