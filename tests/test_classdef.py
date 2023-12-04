@@ -136,7 +136,10 @@ class TestClassDef(unittest.TestCase):
                     "type": "string",
                     "format": "date-time",
                     "title": "Date and time together",
-                    "description": "Date and time together, as represented in RFC 3339, section 5.6. This is a subset of the date format also commonly known as ISO 8601 format.",
+                    "description": (
+                        "Date and time together, as represented in RFC 3339, section 5.6. "
+                        "This is a subset of the date format also commonly known as ISO 8601 format."
+                    ),
                     "examples": ["2018-11-13T20:20:39+00:00"],
                 }
             ),
