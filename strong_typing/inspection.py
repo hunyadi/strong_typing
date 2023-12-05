@@ -310,7 +310,7 @@ def _unwrap_optional_type(typ: Type[Optional[T]]) -> Type[T]:
     "Extracts the type qualified as optional (e.g. returns `T` for `Optional[T]`)."
 
     # Optional[T] is represented internally as Union[T, None]
-    if typing.get_origin(typ) is not Union:
+    if not _is_union_like(typ):
         raise TypeError("optional type must have un-subscripted type of Union")
 
     # will automatically unwrap Union[T] into T
@@ -652,6 +652,14 @@ class TypeCollector:
                 self.run(arg, cls, module)
             return
         elif origin is Literal:
+            return
+
+        # type is optional or a union type
+        if is_type_optional(typ):
+            return self.run(unwrap_optional_type(typ), cls, module)
+        if is_type_union(typ):
+            for union_type in unwrap_union_types(typ):
+                self.run(union_type, cls, module)
             return
 
         # type is a regular type
