@@ -144,7 +144,12 @@ def integer_range_to_type(min_value: float, max_value: float) -> type:
 
 
 def enum_safe_name(name: str) -> str:
-    return re.sub(r"\W", "_", name)
+    name = re.sub(r"\W", "_", name)
+    is_dunder = name.startswith("__")
+    is_sunder = name.startswith("_") and name.endswith("_")
+    if is_dunder or is_sunder:  # provide an alternative for dunder and sunder names
+        name = f"v{name}"
+    return name
 
 
 def enum_values_to_type(

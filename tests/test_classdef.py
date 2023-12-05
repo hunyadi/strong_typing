@@ -119,11 +119,15 @@ class TestClassDef(unittest.TestCase):
         self.assertEqual(int64, as_type({"type": "integer", "enum": [-1, 2147483648]}))
 
     def test_string_enum(self) -> None:
-        enum_type = as_type({"type": "string", "enum": ["first", "second"]})
+        enum_type = as_type(
+            {"type": "string", "enum": ["first", "second", "_sunder_", "__dunder"]}
+        )
         if not is_type_enum(enum_type):
             self.fail()
 
-        self.assertCountEqual(["first", "second"], [e.value for e in enum_type])
+        self.assertCountEqual(
+            ["first", "second", "_sunder_", "__dunder"], [e.value for e in enum_type]
+        )
 
     def test_date_time(self) -> None:
         self.assertEqual(
