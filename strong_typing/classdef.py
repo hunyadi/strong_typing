@@ -47,6 +47,7 @@ class JsonSchemaType(JsonSchemaNode):
 class JsonSchemaBoolean(JsonSchemaType):
     type: Literal["boolean"]
     const: Optional[bool]
+    default: Optional[bool]
     examples: Optional[List[bool]]
 
 
@@ -54,6 +55,7 @@ class JsonSchemaBoolean(JsonSchemaType):
 class JsonSchemaInteger(JsonSchemaType):
     type: Literal["integer"]
     const: Optional[int]
+    default: Optional[int]
     examples: Optional[List[int]]
     enum: Optional[List[int]]
     minimum: Optional[int]
@@ -64,6 +66,7 @@ class JsonSchemaInteger(JsonSchemaType):
 class JsonSchemaNumber(JsonSchemaType):
     type: Literal["number"]
     const: Optional[float]
+    default: Optional[float]
     examples: Optional[List[float]]
     minimum: Optional[float]
     maximum: Optional[float]
@@ -76,6 +79,7 @@ class JsonSchemaNumber(JsonSchemaType):
 class JsonSchemaString(JsonSchemaType):
     type: Literal["string"]
     const: Optional[str]
+    default: Optional[str]
     examples: Optional[List[str]]
     enum: Optional[List[str]]
     minLength: Optional[int]
@@ -187,95 +191,120 @@ def schema_to_type(
     )
     if top_node.definitions is not None:
         for type_name, type_node in top_node.definitions.items():
-            def_type = node_to_type(module, type_name, type_node)
-            setattr(def_type, "__module__", module.__name__)
-            setattr(module, type_name, def_type)
+            type_def = node_to_typedef(module, type_name, type_node)
+            if type_def.default is not dataclasses.MISSING:
+                raise TypeError("disallowed: `default` for top-level type definitions")
 
-    return node_to_type(module, class_name, top_node)
+            setattr(type_def.type, "__module__", module.__name__)
+            setattr(module, type_name, type_def.type)
+
+    return node_to_typedef(module, class_name, top_node).type
 
 
-def node_to_type(
+@dataclass
+class TypeDef:
+    type: TypeLike
+    default: Any = dataclasses.MISSING
+
+
+def json_to_value(target_type: TypeLike, data: JsonType) -> Any:
+    if data is not None:
+        return json_to_object(target_type, data)
+    else:
+        return dataclasses.MISSING
+
+
+def node_to_typedef(
     module: types.ModuleType, context: str, node: JsonSchemaNode
-) -> TypeLike:
+) -> TypeDef:
     if isinstance(node, JsonSchemaRef):
         match_obj = re.match(r"^#/definitions/(\w+)$", node.ref)
         if not match_obj:
             raise ValueError(f"invalid reference: {node.ref}")
 
         type_name = match_obj.group(1)
-        return getattr(module, type_name)
+        return TypeDef(getattr(module, type_name), dataclasses.MISSING)
 
     elif isinstance(node, JsonSchemaBoolean):
         if node.const is not None:
-            return Literal[node.const]
+            return TypeDef(Literal[node.const], dataclasses.MISSING)
 
-        return bool
+        default = json_to_value(bool, node.default)
+        return TypeDef(bool, default)
 
     elif isinstance(node, JsonSchemaInteger):
         if node.const is not None:
-            return Literal[node.const]
+            return TypeDef(Literal[node.const], dataclasses.MISSING)
 
+        integer_type: TypeLike
         if node.format == "int16":
-            return int16
+            integer_type = int16
         elif node.format == "int32":
-            return int32
+            integer_type = int32
         elif node.format == "int64":
-            return int64
+            integer_type = int64
+        else:
+            if node.enum is not None:
+                integer_type = integer_range_to_type(min(node.enum), max(node.enum))
+            elif node.minimum is not None and node.maximum is not None:
+                integer_type = integer_range_to_type(node.minimum, node.maximum)
+            else:
+                integer_type = int
 
-        if node.enum is not None:
-            return integer_range_to_type(min(node.enum), max(node.enum))
-
-        if node.minimum is not None and node.maximum is not None:
-            return integer_range_to_type(node.minimum, node.maximum)
-
-        return int
+        default = json_to_value(integer_type, node.default)
+        return TypeDef(integer_type, default)
 
     elif isinstance(node, JsonSchemaNumber):
         if node.const is not None:
-            return Literal[node.const]
+            return TypeDef(Literal[node.const], dataclasses.MISSING)
 
+        number_type: TypeLike
         if node.format == "float32":
-            return float32
+            number_type = float32
         elif node.format == "float64":
-            return float64
-
-        if (
-            node.exclusiveMinimum is not None
-            and node.exclusiveMaximum is not None
-            and node.exclusiveMinimum == -node.exclusiveMaximum
-        ):
-            integer_digits = round(math.log10(node.exclusiveMaximum))
+            number_type = float64
         else:
-            integer_digits = None
+            if (
+                node.exclusiveMinimum is not None
+                and node.exclusiveMaximum is not None
+                and node.exclusiveMinimum == -node.exclusiveMaximum
+            ):
+                integer_digits = round(math.log10(node.exclusiveMaximum))
+            else:
+                integer_digits = None
 
-        if node.multipleOf is not None:
-            decimal_digits = -round(math.log10(node.multipleOf))
-        else:
-            decimal_digits = None
+            if node.multipleOf is not None:
+                decimal_digits = -round(math.log10(node.multipleOf))
+            else:
+                decimal_digits = None
 
-        if integer_digits is not None and decimal_digits is not None:
-            return Annotated[
-                decimal.Decimal,
-                Precision(integer_digits + decimal_digits, decimal_digits),
-            ]
+            if integer_digits is not None and decimal_digits is not None:
+                number_type = Annotated[
+                    decimal.Decimal,
+                    Precision(integer_digits + decimal_digits, decimal_digits),
+                ]
+            else:
+                number_type = float
 
-        return float
+        default = json_to_value(number_type, node.default)
+        return TypeDef(number_type, default)
 
     elif isinstance(node, JsonSchemaString):
         if node.const is not None:
-            return Literal[node.const]
+            return TypeDef(Literal[node.const], dataclasses.MISSING)
 
+        string_type: TypeLike
         if node.format == "date-time":
-            return datetime.datetime
+            string_type = datetime.datetime
         elif node.format == "uuid":
-            return uuid.UUID
+            string_type = uuid.UUID
         elif node.format == "ipv4":
-            return ipaddress.IPv4Address
+            string_type = ipaddress.IPv4Address
         elif node.format == "ipv6":
-            return ipaddress.IPv6Address
+            string_type = ipaddress.IPv6Address
 
-        if node.enum is not None:
-            return enum_values_to_type(
+        elif node.enum is not None:
+            string_type = enum_values_to_type(
                 module,
                 context,
                 {enum_safe_name(e): e for e in node.enum},
@@ -283,17 +312,24 @@ def node_to_type(
                 description=node.description,
             )
 
-        if node.maxLength is not None:
-            return Annotated[str, MaxLength(node.maxLength)]
+        elif node.maxLength is not None:
+            string_type = Annotated[str, MaxLength(node.maxLength)]
+        else:
+            string_type = str
 
-        return str
+        default = json_to_value(string_type, node.default)
+        return TypeDef(string_type, default)
 
     elif isinstance(node, JsonSchemaArray):
-        return List[node_to_type(module, context, node.items)]  # type: ignore
+        type_def = node_to_typedef(module, context, node.items)
+        if type_def.default is not dataclasses.MISSING:
+            raise TypeError("disallowed: `default` for array element type")
+        list_type = List[(type_def.type,)]  # type: ignore
+        return TypeDef(list_type, dataclasses.MISSING)
 
     elif isinstance(node, JsonSchemaObject):
         if node.properties is None:
-            return JsonType
+            return TypeDef(JsonType, dataclasses.MISSING)
 
         if node.additionalProperties is None or node.additionalProperties is not False:
             raise TypeError("expected: `additionalProperties` equals `false`")
@@ -302,19 +338,22 @@ def node_to_type(
 
         class_name = context
 
-        fields: List[Tuple[str, Any]] = []
+        fields: List[Tuple[str, Any, dataclasses.Field]] = []
         params: Dict[str, DocstringParam] = {}
         for prop_name, prop_node in node.properties.items():
-            typ = node_to_type(module, f"{class_name}__{prop_name}", prop_node)
+            type_def = node_to_typedef(module, f"{class_name}__{prop_name}", prop_node)
             if prop_name in required:
-                prop_type = typ
+                prop_type = type_def.type
             else:
-                prop_type = Union[(None, typ)]
-            fields.append((prop_name, prop_type))
+                prop_type = Union[(None, type_def.type)]
+            fields.append(
+                (prop_name, prop_type, dataclasses.field(default=type_def.default))
+            )
             prop_desc = prop_node.title or prop_node.description
             if prop_desc is not None:
                 params[prop_name] = DocstringParam(prop_name, prop_desc)
 
+        fields.sort(key=lambda t: t[2].default is not dataclasses.MISSING)
         class_type = dataclasses.make_dataclass(
             class_name, fields, namespace={"__module__": module.__name__}
         )
@@ -326,11 +365,14 @@ def node_to_type(
             )
         )
         setattr(module, class_name, class_type)
-        return class_type
+        return TypeDef(class_type, dataclasses.MISSING)
 
     elif isinstance(node, JsonSchemaOneOf):
-        union_types = tuple(node_to_type(module, context, n) for n in node.oneOf)
-        return Union[union_types]
+        union_defs = tuple(node_to_typedef(module, context, n) for n in node.oneOf)
+        if any(d.default is not dataclasses.MISSING for d in union_defs):
+            raise TypeError("disallowed: `default` for union member type")
+        union_types = tuple(d.type for d in union_defs)
+        return TypeDef(Union[union_types], dataclasses.MISSING)
 
     raise NotImplementedError()
 

@@ -150,13 +150,16 @@ def is_dataclass_instance(obj: Any) -> TypeGuard[DataclassInstance]:
 class DataclassField:
     name: str
     type: Any
+    default: Any = dataclasses.MISSING
 
 
 def dataclass_fields(cls: Type[DataclassInstance]) -> Iterable[DataclassField]:
     "Generates the fields of a data-class resolving forward references."
 
     for field in dataclasses.fields(cls):
-        yield DataclassField(field.name, evaluate_member_type(field.type, cls))
+        yield DataclassField(
+            field.name, evaluate_member_type(field.type, cls), field.default
+        )
 
 
 def dataclass_field_by_name(cls: Type[DataclassInstance], name: str) -> DataclassField:

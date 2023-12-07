@@ -19,8 +19,9 @@ from strong_typing.auxiliary import (
 from strong_typing.classdef import (
     JsonSchemaAny,
     SchemaFlatteningOptions,
+    TypeDef,
     flatten_schema,
-    node_to_type,
+    node_to_typedef,
     schema_to_type,
 )
 from strong_typing.core import JsonType, Schema
@@ -36,11 +37,15 @@ from strong_typing.serialization import json_to_object
 from . import empty
 
 
-def as_type(schema: Schema) -> TypeLike:
+def as_typedef(schema: Schema) -> TypeDef:
     node = typing.cast(
         JsonSchemaAny, json_to_object(JsonSchemaAny, schema, context=empty)
     )
-    return node_to_type(empty, "", node)
+    return node_to_typedef(empty, "", node)
+
+
+def as_type(schema: Schema) -> TypeLike:
+    return as_typedef(schema).type
 
 
 @dataclass
@@ -178,6 +183,33 @@ class TestClassDef(unittest.TestCase):
     def test_array(self) -> None:
         self.assertEqual(
             List[str], as_type({"type": "array", "items": {"type": "string"}})
+        )
+
+    def test_default(self) -> None:
+        self.assertEqual(
+            TypeDef(bool, True),
+            as_typedef({"type": "boolean", "default": True}),
+        )
+        self.assertEqual(
+            TypeDef(int, 23),
+            as_typedef({"type": "integer", "default": 23}),
+        )
+        self.assertEqual(
+            TypeDef(
+                datetime.datetime,
+                datetime.datetime(1989, 10, 23, 1, 2, 3, tzinfo=datetime.timezone.utc),
+            ),
+            as_typedef(
+                {
+                    "type": "string",
+                    "format": "date-time",
+                    "default": "1989-10-23T01:02:03Z",
+                }
+            ),
+        )
+        self.assertEqual(
+            TypeDef(ipaddress.IPv4Address, ipaddress.IPv4Address("192.0.2.0")),
+            as_typedef({"type": "string", "format": "ipv4", "default": "192.0.2.0"}),
         )
 
     def test_dataclass(self) -> None:
