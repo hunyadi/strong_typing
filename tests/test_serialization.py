@@ -1,4 +1,5 @@
 import datetime
+import ipaddress
 import typing
 import unittest
 import uuid
@@ -64,6 +65,14 @@ class TestSerialization(unittest.TestCase):
         self.assertEqual(
             object_to_json(uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")),
             "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+        )
+        self.assertEqual(
+            object_to_json(ipaddress.IPv4Address("192.0.2.1")),
+            "192.0.2.1",
+        )
+        self.assertEqual(
+            object_to_json(ipaddress.IPv6Address("2001:DB8:0:0:8:800:200C:417A")),
+            "2001:db8::8:800:200c:417a",
         )
 
     def test_serialization_datetime(self) -> None:

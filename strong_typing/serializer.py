@@ -10,6 +10,7 @@ import datetime
 import enum
 import functools
 import inspect
+import ipaddress
 import sys
 import typing
 import uuid
@@ -115,6 +116,16 @@ class TimeSerializer(Serializer[datetime.time]):
 
 class UUIDSerializer(Serializer[uuid.UUID]):
     def generate(self, obj: uuid.UUID) -> str:
+        return str(obj)
+
+
+class IPv4Serializer(Serializer[ipaddress.IPv4Address]):
+    def generate(self, obj: ipaddress.IPv4Address) -> str:
+        return str(obj)
+
+
+class IPv6Serializer(Serializer[ipaddress.IPv6Address]):
+    def generate(self, obj: ipaddress.IPv6Address) -> str:
         return str(obj)
 
 
@@ -418,6 +429,10 @@ def _create_serializer(typ: TypeLike, context: Optional[ModuleType]) -> Serializ
         return TimeSerializer()
     elif typ is uuid.UUID:
         return UUIDSerializer()
+    elif typ is ipaddress.IPv4Address:
+        return IPv4Serializer()
+    elif typ is ipaddress.IPv6Address:
+        return IPv6Serializer()
 
     # dynamically-typed collection types
     if typ is list:

@@ -1,4 +1,5 @@
 import datetime
+import ipaddress
 import unittest
 import uuid
 from typing import Dict, List, Literal, Optional, Set, Union
@@ -46,6 +47,14 @@ class TestDeserialization(unittest.TestCase):
         self.assertEqual(
             json_to_object(uuid.UUID, "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
             uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"),
+        )
+        self.assertEqual(
+            json_to_object(ipaddress.IPv4Address, "192.0.2.1"),
+            ipaddress.IPv4Address("192.0.2.1"),
+        )
+        self.assertEqual(
+            json_to_object(ipaddress.IPv6Address, "2001:DB8:0:0:8:800:200C:417A"),
+            ipaddress.IPv6Address("2001:DB8:0:0:8:800:200C:417A"),
         )
 
         with self.assertRaises(JsonTypeError):

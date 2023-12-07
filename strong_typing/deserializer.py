@@ -10,6 +10,7 @@ import dataclasses
 import datetime
 import enum
 import inspect
+import ipaddress
 import sys
 import typing
 import uuid
@@ -198,6 +199,28 @@ class UUIDDeserializer(Deserializer[uuid.UUID]):
                 f"`UUID` type expects JSON `string` data but instead received: {data}"
             )
         return uuid.UUID(data)
+
+
+class IPv4Deserializer(Deserializer[ipaddress.IPv4Address]):
+    "Parses JSON `string` values of IPv4 address strings into Python `ipaddress.IPv4Address` type."
+
+    def parse(self, data: JsonType) -> ipaddress.IPv4Address:
+        if not isinstance(data, str):
+            raise JsonTypeError(
+                f"`IPv4Address` type expects JSON `string` data but instead received: {data}"
+            )
+        return ipaddress.IPv4Address(data)
+
+
+class IPv6Deserializer(Deserializer[ipaddress.IPv6Address]):
+    "Parses JSON `string` values of IPv6 address strings into Python `ipaddress.IPv6Address` type."
+
+    def parse(self, data: JsonType) -> ipaddress.IPv6Address:
+        if not isinstance(data, str):
+            raise JsonTypeError(
+                f"`IPv6Address` type expects JSON `string` data but instead received: {data}"
+            )
+        return ipaddress.IPv6Address(data)
 
 
 class ListDeserializer(Deserializer[List[T]]):
@@ -863,6 +886,10 @@ def _create_deserializer(typ: TypeLike) -> Deserializer:
         return TimeDeserializer()
     elif typ is uuid.UUID:
         return UUIDDeserializer()
+    elif typ is ipaddress.IPv4Address:
+        return IPv4Deserializer()
+    elif typ is ipaddress.IPv6Address:
+        return IPv6Deserializer()
 
     # dynamically-typed collection types
     if typ is list:
