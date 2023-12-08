@@ -150,7 +150,14 @@ def is_dataclass_instance(obj: Any) -> TypeGuard[DataclassInstance]:
 class DataclassField:
     name: str
     type: Any
-    default: Any = dataclasses.MISSING
+    default: Any
+
+    def __init__(
+        self, name: str, type: Any, default: Any = dataclasses.MISSING
+    ) -> None:
+        self.name = name
+        self.type = type
+        self.default = default
 
 
 def dataclass_fields(cls: Type[DataclassInstance]) -> Iterable[DataclassField]:
