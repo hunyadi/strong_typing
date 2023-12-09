@@ -4,6 +4,7 @@ import unittest
 import uuid
 from typing import Dict, List, Literal, Optional, Set, Union
 
+from strong_typing.core import JsonType
 from strong_typing.exception import JsonKeyError, JsonTypeError, JsonValueError
 from strong_typing.serialization import json_to_object, object_to_json
 
@@ -259,6 +260,15 @@ class TestDeserialization(unittest.TestCase):
             ),
             NestedJson([{"key1": "value1"}, {"key2": "value2"}]),
         )
+
+    def test_deserialization_json(self) -> None:
+        self.assertEqual(json_to_object(JsonType, True), True)
+        self.assertEqual(json_to_object(JsonType, 23), 23)
+        self.assertEqual(json_to_object(JsonType, "string"), "string")
+        self.assertEqual(json_to_object(JsonType, []), [])
+        self.assertEqual(json_to_object(JsonType, [1, 2, 3]), [1, 2, 3])
+        self.assertEqual(json_to_object(JsonType, [{}, {}]), [{}, {}])
+        self.assertEqual(json_to_object(JsonType, {"key": "value"}), {"key": "value"})
 
     def test_object_deserialization(self) -> None:
         """Test composition and inheritance with object de-serialization."""

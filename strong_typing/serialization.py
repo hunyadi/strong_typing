@@ -4,7 +4,9 @@ Type-safe data interchange for Python data classes.
 :see: https://github.com/hunyadi/strong_typing
 """
 
+import inspect
 import json
+import sys
 from types import ModuleType
 from typing import Any, Optional, TextIO, TypeVar
 
@@ -56,6 +58,19 @@ def json_to_object(
     :raises JsonKeyError: Deserialization for a class or union type has failed because a matching member was not found.
     :raises JsonTypeError: Deserialization for data has failed due to a type mismatch.
     """
+
+    # use caller context for evaluating types if no context is supplied
+    if context is None:
+        this_frame = inspect.currentframe()
+        if this_frame is not None:
+            caller_frame = this_frame.f_back
+            del this_frame
+
+            if caller_frame is not None:
+                try:
+                    context = sys.modules[caller_frame.f_globals["__name__"]]
+                finally:
+                    del caller_frame
 
     parser = create_deserializer(typ, context)
     return parser.parse(data)
