@@ -7,6 +7,9 @@ Type-safe data interchange for Python data classes.
 import dataclasses
 import datetime
 import enum
+import importlib
+import importlib.machinery
+import importlib.util
 import inspect
 import re
 import sys
@@ -713,6 +716,24 @@ def is_reserved_property(name: str) -> bool:
         return True
 
     return False
+
+
+def create_module(name: str) -> types.ModuleType:
+    """
+    Creates a new module dynamically at run-time.
+
+    :param name: Fully qualified name of the new module (with dot notation).
+    """
+
+    if name in sys.modules:
+        raise KeyError(f"{name!r} already in sys.modules")
+
+    spec = importlib.machinery.ModuleSpec(name, None)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    if spec.loader is not None:
+        spec.loader.exec_module(module)
+    return module
 
 
 if sys.version_info >= (3, 10):

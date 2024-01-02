@@ -27,6 +27,7 @@ from strong_typing.classdef import (
 from strong_typing.core import JsonType, Schema
 from strong_typing.inspection import (
     TypeLike,
+    create_module,
     dataclass_fields,
     is_dataclass_type,
     is_type_enum,
@@ -34,7 +35,7 @@ from strong_typing.inspection import (
 from strong_typing.schema import classdef_to_schema
 from strong_typing.serialization import json_to_object
 
-from . import empty
+empty = create_module("empty")
 
 
 def as_typedef(schema: Schema) -> TypeDef:
