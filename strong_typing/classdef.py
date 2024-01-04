@@ -6,6 +6,7 @@ import enum
 import ipaddress
 import math
 import re
+import sys
 import types
 import typing
 import uuid
@@ -354,9 +355,14 @@ def node_to_typedef(
                 params[prop_name] = DocstringParam(prop_name, prop_desc)
 
         fields.sort(key=lambda t: t[2].default is not dataclasses.MISSING)
-        class_type = dataclasses.make_dataclass(
-            class_name, fields, namespace={"__module__": module.__name__}
-        )
+        if sys.version_info >= (3, 12):
+            class_type = dataclasses.make_dataclass(
+                class_name, fields, module=module.__name__
+            )
+        else:
+            class_type = dataclasses.make_dataclass(
+                class_name, fields, namespace={"__module__": module.__name__}
+            )
         class_type.__doc__ = str(
             Docstring(
                 short_description=node.title,
