@@ -838,7 +838,7 @@ def _get_deserializer(typ: TypeLike, context: Optional[ModuleType]) -> Deseriali
     typ = unwrap_annotated_type(typ) if is_type_annotated(typ) else typ
 
     if isinstance(typ, type):
-        cache_key = (typ.__module__, typ.__name__)
+        cache_key = (typ.__module__, str(typ))
 
     if cache_key is not None:
         deserializer = _CACHE.get(cache_key)
