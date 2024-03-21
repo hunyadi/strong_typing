@@ -551,8 +551,7 @@ class FieldDeserializer(abc.ABC, Generic[T, R]):
         self.parser = parser
 
     @abc.abstractmethod
-    def parse_field(self, data: Dict[str, JsonType]) -> R:
-        ...
+    def parse_field(self, data: Dict[str, JsonType]) -> R: ...
 
 
 class RequiredFieldDeserializer(FieldDeserializer[T, T]):
@@ -837,7 +836,7 @@ def _get_deserializer(typ: TypeLike, context: Optional[ModuleType]) -> Deseriali
 
     typ = unwrap_annotated_type(typ) if is_type_annotated(typ) else typ
 
-    if isinstance(typ, type):
+    if isinstance(typ, type) and typing.get_origin(typ) is None:
         cache_key = (typ.__module__, typ.__name__)
 
     if cache_key is not None:

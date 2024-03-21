@@ -17,6 +17,7 @@ from .sample_types import (
     FrozenValueWrapper,
     LiteralWrapper,
     NestedDataclass,
+    NestedGenericType,
     NestedJson,
     OptionalValueWrapper,
     Side,
@@ -164,6 +165,15 @@ class TestDeserialization(unittest.TestCase):
             json_to_object(Literal[1, "value"], "value")
         with self.assertRaises(JsonTypeError):
             json_to_object(Literal["val1", "val2", "val3"], "value")
+
+    def test_deserialization_generic(self) -> None:
+        self.assertEqual(
+            json_to_object(
+                NestedGenericType,
+                {"list_of_str": ["str"], "list_of_dict": [{"key": "value"}]},
+            ),
+            NestedGenericType(list_of_str=["str"], list_of_dict=[{"key": "value"}]),
+        )
 
     def test_deserialization_union(self) -> None:
         # built-in types

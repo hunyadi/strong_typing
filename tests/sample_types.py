@@ -126,9 +126,9 @@ class AnnotatedSimpleDataclass:
     "A simple data class with multiple properties."
 
     int_value: Annotated[int, IntegerRange(19, 82)] = 23
-    float_value: Annotated[
-        float, Precision(significant_digits=6, decimal_digits=3)
-    ] = 4.5
+    float_value: Annotated[float, Precision(significant_digits=6, decimal_digits=3)] = (
+        4.5
+    )
     str_value: Annotated[str, MaxLength(64)] = "string"
 
 
@@ -180,6 +180,12 @@ class NestedDataclass:
             "b": ValueExample(value=4),
             "c": ValueExample(value=5),
         }
+
+
+@dataclass
+class NestedGenericType:
+    list_of_str: List[str]
+    list_of_dict: List[Dict[str, str]]
 
 
 @dataclass
