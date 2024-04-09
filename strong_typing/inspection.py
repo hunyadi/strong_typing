@@ -434,6 +434,31 @@ def _unwrap_generic_list(typ: Type[List[T]]) -> Type[T]:
     return list_type
 
 
+def is_generic_set(typ: object) -> TypeGuard[Type[set]]:
+    "True if the specified type is a generic set, i.e. `Set[T]`."
+
+    typ = unwrap_annotated_type(typ)
+    return typing.get_origin(typ) is set
+
+
+def unwrap_generic_set(typ: Type[Set[T]]) -> Type[T]:
+    """
+    Extracts the item type of a set type.
+
+    :param typ: The set type `Set[T]`.
+    :returns: The item type `T`.
+    """
+
+    return rewrap_annotated_type(_unwrap_generic_set, typ)
+
+
+def _unwrap_generic_set(typ: Type[Set[T]]) -> Type[T]:
+    "Extracts the item type of a set type (e.g. returns `T` for `Set[T]`)."
+
+    (set_type,) = typing.get_args(typ)  # unpack single tuple element
+    return set_type
+
+
 def is_generic_dict(typ: object) -> TypeGuard[Type[dict]]:
     "True if the specified type is a generic dictionary, i.e. `Dict[KeyType, ValueType]`."
 
