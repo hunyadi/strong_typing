@@ -124,7 +124,7 @@ def evaluate_type(typ: Any, module: types.ModuleType) -> Any:
         return eval(typ, module.__dict__, locals())
     if isinstance(typ, typing.ForwardRef):
         if sys.version_info >= (3, 9):
-            return typ._evaluate(module.__dict__, locals(), frozenset())
+            return typ._evaluate(module.__dict__, locals(), recursive_guard=frozenset())
         else:
             return typ._evaluate(module.__dict__, locals())
     else:
