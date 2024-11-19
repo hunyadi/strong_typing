@@ -13,7 +13,7 @@ import types
 import typing
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, Callable, Dict, Optional, Protocol, Type, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Protocol, Set, Type, TypeVar
 
 if sys.version_info >= (3, 10):
     from typing import TypeGuard
@@ -360,7 +360,18 @@ def check_dataclass_docstring(
     if not is_dataclass_type(typ):
         raise TypeError("not a data-class type")
 
-    properties = dict(get_class_properties(typ))
+    base_props: Set[str] = set()
+    for base in inspect.getmro(typ):
+        if base is typ:
+            continue
+        for name, _ in get_class_properties(base):
+            base_props.add(name)
+
+    properties: List[str] = []
+    for name, _ in get_class_properties(typ):
+        if name not in base_props:
+            properties.append(name)
+
     class_name = typ.__name__
 
     for name in docstring.params:
