@@ -565,7 +565,7 @@ else:
         return typing.get_type_hints(typ)
 
 
-def get_class_properties(typ: type) -> Iterable[Tuple[str, type]]:
+def get_class_properties(typ: type) -> Iterable[Tuple[str, TypeLike]]:
     "Returns all properties of a class."
 
     if is_dataclass_type(typ):
@@ -575,7 +575,7 @@ def get_class_properties(typ: type) -> Iterable[Tuple[str, type]]:
         return resolved_hints.items()
 
 
-def get_class_property(typ: type, name: str) -> Optional[type]:
+def get_class_property(typ: type, name: str) -> Optional[TypeLike]:
     "Looks up the annotated type of a property in a class by its property name."
 
     for property_name, property_type in get_class_properties(typ):

@@ -7,7 +7,7 @@ Type-safe data interchange for Python data classes.
 import sys
 import typing
 from types import ModuleType
-from typing import Any, Callable, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Literal, Optional, Tuple
 
 from .auxiliary import _auxiliary_types
 from .inspection import (
@@ -74,11 +74,13 @@ class TypeFormatter:
 
         # return forward references as the annotation string
         if isinstance(data_type, typing.ForwardRef):
-            if self.context is None:
-                raise ValueError("missing context for evaluating forward references")
-
             fwd: typing.ForwardRef = data_type
-            return self.python_type_to_str(evaluate_type(fwd.__forward_arg__, self.context))
+            fwd_arg = fwd.__forward_arg__
+
+            if self.context is None or hasattr(self.context, fwd_arg):
+                return fwd_arg
+            else:
+                return self.python_type_to_str(evaluate_type(fwd_arg, self.context))
         elif isinstance(data_type, str):
             if self.context is None:
                 raise ValueError("missing context for evaluating types")
@@ -95,11 +97,11 @@ class TypeFormatter:
                 origin_name = "List"
             elif origin is set:  # Set[T]
                 origin_name = "Set"
-            elif origin is Union:
-                return self.union_to_str(data_type_args)
             elif origin is Literal:
                 args = ", ".join(repr(arg) for arg in data_type_args)
                 return f"Literal[{args}]"
+            elif is_type_optional(data_type) or is_type_union(data_type):
+                return self.union_to_str(data_type_args)
             else:
                 origin_name = origin.__name__
 

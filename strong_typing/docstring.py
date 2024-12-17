@@ -22,6 +22,7 @@ else:
 
 from .inspection import (
     DataclassInstance,
+    TypeLike,
     get_class_properties,
     get_signature,
     is_dataclass_type,
@@ -42,7 +43,7 @@ class DocstringParam:
 
     name: str
     description: str
-    param_type: type = inspect.Signature.empty
+    param_type: TypeLike = inspect.Signature.empty
 
     def __str__(self) -> str:
         return f":param {self.name}: {self.description}"
