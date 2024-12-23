@@ -554,6 +554,17 @@ def get_module_classes(module: types.ModuleType) -> List[type]:
     return [class_type for _, class_type in inspect.getmembers(module, is_class_member)]
 
 
+def get_module_functions(module: types.ModuleType) -> List[types.FunctionType]:
+    "Returns all functions declared directly in a module."
+
+    def is_function_member(member: object) -> TypeGuard[types.FunctionType]:
+        return inspect.isfunction(member) and member.__module__ == module.__name__
+
+    return [
+        func_type for _, func_type in inspect.getmembers(module, is_function_member)
+    ]
+
+
 if sys.version_info >= (3, 9):
 
     def get_resolved_hints(typ: type) -> Dict[str, type]:
@@ -565,7 +576,7 @@ else:
         return typing.get_type_hints(typ)
 
 
-def get_class_properties(typ: type) -> Iterable[Tuple[str, type]]:
+def get_class_properties(typ: type) -> Iterable[Tuple[str, TypeLike]]:
     "Returns all properties of a class."
 
     if is_dataclass_type(typ):
@@ -575,7 +586,7 @@ def get_class_properties(typ: type) -> Iterable[Tuple[str, type]]:
         return resolved_hints.items()
 
 
-def get_class_property(typ: type, name: str) -> Optional[type]:
+def get_class_property(typ: type, name: str) -> Optional[TypeLike]:
     "Looks up the annotated type of a property in a class by its property name."
 
     for property_name, property_type in get_class_properties(typ):

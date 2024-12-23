@@ -4,12 +4,15 @@ Type-safe data interchange for Python data classes.
 :see: https://github.com/hunyadi/strong_typing
 """
 
+import sys
 import typing
-from typing import Any, Literal, Optional, Tuple, Union
+from types import ModuleType
+from typing import Any, Callable, Literal, Optional, Tuple
 
 from .auxiliary import _auxiliary_types
 from .inspection import (
     TypeLike,
+    evaluate_type,
     is_generic_dict,
     is_generic_list,
     is_type_optional,
@@ -23,17 +26,36 @@ from .inspection import (
 
 class TypeFormatter:
     """
-    Type formatter.
+    Converts a simple, composite or generic type to a string representation.
 
+    :param context: The module in the context of which forward references are evaluated.
+    :param type_transform: Transformation to apply to types before a string is emitted, e.g. to create a link
+        in a documentation.
     :param use_union_operator: Whether to emit union types as `X | Y` as per PEP 604.
     """
 
+    context: Optional[ModuleType]
+    type_transform: Optional[Callable[[type], str]]
     use_union_operator: bool
 
-    def __init__(self, use_union_operator: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        context: Optional[ModuleType] = None,
+        type_transform: Optional[Callable[[type], str]] = None,
+        use_union_operator: bool = False,
+    ) -> None:
+        self.context = context
+        self.type_transform = type_transform
         self.use_union_operator = use_union_operator
 
     def union_to_str(self, data_type_args: Tuple[TypeLike, ...]) -> str:
+        """
+        Emits a union of types as a string.
+
+        :param data_type_args: A tuple of `(X,Y,Z)` for a union of `X | Y | Z` or `Union[X, Y, Z]`.
+        """
+
         if self.use_union_operator:
             return " | ".join(self.python_type_to_str(t) for t in data_type_args)
         else:
@@ -53,9 +75,24 @@ class TypeFormatter:
         # return forward references as the annotation string
         if isinstance(data_type, typing.ForwardRef):
             fwd: typing.ForwardRef = data_type
-            return fwd.__forward_arg__
+            fwd_arg = fwd.__forward_arg__
+
+            if self.context is None:
+                return fwd_arg
+
+            context_type = getattr(self.context, fwd_arg, None)
+            if context_type is None:
+                return self.python_type_to_str(evaluate_type(fwd_arg, self.context))
+
+            if isinstance(context_type, type) and self.type_transform is not None:
+                return self.type_transform(context_type)
+
+            return fwd_arg
         elif isinstance(data_type, str):
-            return data_type
+            if self.context is None:
+                raise ValueError("missing context for evaluating types")
+
+            return self.python_type_to_str(evaluate_type(data_type, self.context))
 
         origin = typing.get_origin(data_type)
         if origin is not None:
@@ -67,16 +104,19 @@ class TypeFormatter:
                 origin_name = "List"
             elif origin is set:  # Set[T]
                 origin_name = "Set"
-            elif origin is Union:
-                return self.union_to_str(data_type_args)
             elif origin is Literal:
                 args = ", ".join(repr(arg) for arg in data_type_args)
                 return f"Literal[{args}]"
+            elif is_type_optional(data_type) or is_type_union(data_type):
+                return self.union_to_str(data_type_args)
             else:
                 origin_name = origin.__name__
 
             args = ", ".join(self.python_type_to_str(t) for t in data_type_args)
             return f"{origin_name}[{args}]"
+
+        if isinstance(data_type, type) and self.type_transform is not None:
+            return self.type_transform(data_type)
 
         return data_type.__name__
 
@@ -104,17 +144,13 @@ class TypeFormatter:
                 if arg is not auxiliary_arg:
                     continue
 
-                auxiliary_metatuple: Optional[Tuple[Any, ...]] = getattr(
-                    auxiliary_type, "__metadata__", None
-                )
+                auxiliary_metatuple: Optional[Tuple[Any, ...]] = getattr(auxiliary_type, "__metadata__", None)
                 if auxiliary_metatuple is None:
                     continue
 
                 if metaset.issuperset(auxiliary_metatuple):
                     # type is an auxiliary type with extra annotations
-                    auxiliary_args = ", ".join(
-                        repr(m) for m in metatuple if m not in auxiliary_metatuple
-                    )
+                    auxiliary_args = ", ".join(repr(m) for m in metatuple if m not in auxiliary_metatuple)
                     return f"Annotated[{auxiliary_name}, {auxiliary_args}]"
 
             # type is an annotated type
@@ -125,18 +161,19 @@ class TypeFormatter:
             return self.plain_type_to_str(data_type)
 
 
-def python_type_to_str(data_type: TypeLike, use_union_operator: bool = False) -> str:
+def python_type_to_str(data_type: TypeLike, *, use_union_operator: bool = False) -> str:
     """
     Returns the string representation of a Python type.
 
     :param use_union_operator: Whether to emit union types as `X | Y` as per PEP 604.
     """
 
-    fmt = TypeFormatter(use_union_operator)
+    context = sys.modules[data_type.__module__] if isinstance(data_type, type) else None
+    fmt = TypeFormatter(context=context, use_union_operator=use_union_operator)
     return fmt.python_type_to_str(data_type)
 
 
-def python_type_to_name(data_type: TypeLike, force: bool = False) -> str:
+def python_type_to_name(data_type: TypeLike, *, force: bool = False) -> str:
     """
     Returns the short name of a Python type.
 
@@ -170,9 +207,7 @@ def python_type_to_name(data_type: TypeLike, force: bool = False) -> str:
             return f"Dict__{key_name}__{value_name}"
         elif is_type_union(data_type):
             member_types = unwrap_union_types(data_type)
-            member_names = "__".join(
-                python_type_to_name(member_type) for member_type in member_types
-            )
+            member_names = "__".join(python_type_to_name(member_type) for member_type in member_types)
             return f"Union__{member_names}"
 
     # named system or user-defined type
