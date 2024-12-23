@@ -5,16 +5,13 @@
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${workspaceFolder}"
     },
-    "editor.codeActionsOnSave": {
-        "source.organizeImports": "explicit"
-    },
-    "editor.formatOnSave": true,
     "files.insertFinalNewline": true,
-    "isort.args": [
-        "--profile",
-        "black"
-    ],
     "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        },
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff"
     }
 }
