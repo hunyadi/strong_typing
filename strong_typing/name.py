@@ -104,6 +104,9 @@ class TypeFormatter:
                 origin_name = "List"
             elif origin is set:  # Set[T]
                 origin_name = "Set"
+            elif origin is type:  # Type[T]
+                args = ", ".join(self.python_type_to_str(t) for t in data_type_args)
+                return f"Type[{args}]"
             elif origin is Literal:
                 args = ", ".join(repr(arg) for arg in data_type_args)
                 return f"Literal[{args}]"
@@ -123,8 +126,10 @@ class TypeFormatter:
     def python_type_to_str(self, data_type: TypeLike) -> str:
         "Returns the string representation of a Python type."
 
-        if data_type is type(None):
+        if data_type is None or data_type is type(None):
             return "None"
+        elif data_type is Ellipsis or data_type is type(Ellipsis):
+            return "..."
 
         # use compact name for alias types
         name = _auxiliary_types.get(data_type)
