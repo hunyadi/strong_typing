@@ -1,6 +1,6 @@
 import sys
 import unittest
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Literal, Optional, Union
 
 from strong_typing.auxiliary import Alias, Annotated, float32, int32
 from strong_typing.mapping import python_field_to_json_property
@@ -52,6 +52,25 @@ class TestName(unittest.TestCase):
         self.assertEqual(python_field_to_json_property("id"), "id")
         self.assertEqual(
             python_field_to_json_property("id", Annotated[str, Alias("alias")]), "alias"
+        )
+
+    def test_special(self) -> None:
+        self.assertEqual(python_type_to_str(None), "None")
+        self.assertEqual(python_type_to_str(type(None)), "None")
+        self.assertEqual(python_type_to_str(...), "...")
+        self.assertEqual(python_type_to_str(type(...)), "...")
+
+    def test_callable(self) -> None:
+        self.assertEqual(python_type_to_str(Callable[[], None]), "Callable[[], None]")
+        self.assertEqual(
+            python_type_to_str(Callable[[str], None]), "Callable[[str], None]"
+        )
+        self.assertEqual(
+            python_type_to_str(Callable[[int], str]), "Callable[[int], str]"
+        )
+        self.assertEqual(
+            python_type_to_str(Callable[[bool, int, str], None]),
+            "Callable[[bool, int, str], None]",
         )
 
     def test_union(self) -> None:
@@ -129,6 +148,40 @@ class TestName(unittest.TestCase):
             fmt.python_type_to_str(Union["SampleClass", "DerivedClass", None]),
             "*SampleClass* | *DerivedClass* | None",
         )
+
+    def test_literal(self) -> None:
+        self.assertEqual(
+            python_type_to_str(
+                Literal[
+                    False,
+                    2,
+                    "string",
+                ]
+            ),
+            "Literal[False, 2, 'string']",
+        )
+
+        fmt = TypeFormatter(
+            context=sys.modules[self.__module__],
+            value_transform=lambda value: f"`{value}`",
+            use_union_operator=True,
+        )
+        self.assertEqual(
+            fmt.python_type_to_str(
+                Literal[
+                    False,
+                    2,
+                    "string",
+                ]
+            ),
+            "Literal[`False`, `2`, `string`]",
+        )
+
+    def test_illegal(self) -> None:
+        with self.assertRaises(ValueError):
+            python_type_to_str(False)
+        with self.assertRaises(ValueError):
+            python_type_to_str(23)
 
 
 if __name__ == "__main__":

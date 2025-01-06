@@ -31,11 +31,14 @@ class TypeFormatter:
     :param context: The module in the context of which forward references are evaluated.
     :param type_transform: Transformation to apply to types before a string is emitted, e.g. to create a link
         in a documentation.
+    :param value_transform: Transformation to apply to values (e.g. in arguments to `Literal`) before a string
+        is emitted.
     :param use_union_operator: Whether to emit union types as `X | Y` as per PEP 604.
     """
 
     context: Optional[ModuleType]
     type_transform: Optional[Callable[[type], str]]
+    value_transform: Optional[Callable[[Any], str]]
     use_union_operator: bool
 
     def __init__(
@@ -43,11 +46,25 @@ class TypeFormatter:
         *,
         context: Optional[ModuleType] = None,
         type_transform: Optional[Callable[[type], str]] = None,
+        value_transform: Optional[Callable[[Any], str]] = None,
         use_union_operator: bool = False,
     ) -> None:
         self.context = context
         self.type_transform = type_transform
+        self.value_transform = value_transform
         self.use_union_operator = use_union_operator
+
+    def value_to_str(self, value: Any) -> str:
+        """
+        Emits a string for a value, such as those in arguments to the special form `Literal`.
+
+        :param value: Value (of any type) for which to generate a string representation.
+        """
+
+        if self.value_transform is not None:
+            return self.value_transform(value)
+        else:
+            return repr(value)
 
     def union_to_str(self, data_type_args: Tuple[TypeLike, ...]) -> str:
         """
@@ -93,6 +110,8 @@ class TypeFormatter:
                 raise ValueError("missing context for evaluating types")
 
             return self.python_type_to_str(evaluate_type(data_type, self.context))
+        elif isinstance(data_type, typing.TypeVar):
+            return data_type.__name__
 
         origin = typing.get_origin(data_type)
         if origin is not None:
@@ -108,7 +127,7 @@ class TypeFormatter:
                 args = ", ".join(self.python_type_to_str(t) for t in data_type_args)
                 return f"Type[{args}]"
             elif origin is Literal:
-                args = ", ".join(repr(arg) for arg in data_type_args)
+                args = ", ".join(self.value_to_str(arg) for arg in data_type_args)
                 return f"Literal[{args}]"
             elif is_type_optional(data_type) or is_type_union(data_type):
                 return self.union_to_str(data_type_args)
@@ -118,10 +137,13 @@ class TypeFormatter:
             args = ", ".join(self.python_type_to_str(t) for t in data_type_args)
             return f"{origin_name}[{args}]"
 
-        if isinstance(data_type, type) and self.type_transform is not None:
-            return self.type_transform(data_type)
+        if not isinstance(data_type, type):
+            raise ValueError("not a type, generic type, or type-like object")
 
-        return data_type.__name__
+        if self.type_transform is not None:
+            return self.type_transform(data_type)
+        else:
+            return data_type.__name__
 
     def python_type_to_str(self, data_type: TypeLike) -> str:
         "Returns the string representation of a Python type."
@@ -130,6 +152,9 @@ class TypeFormatter:
             return "None"
         elif data_type is Ellipsis or data_type is type(Ellipsis):
             return "..."
+        elif isinstance(data_type, list):  # e.g. in `Callable[[bool, int], str]`
+            items = ", ".join(self.python_type_to_str(item) for item in data_type)
+            return f"[{items}]"
 
         # use compact name for alias types
         name = _auxiliary_types.get(data_type)
@@ -149,13 +174,17 @@ class TypeFormatter:
                 if arg is not auxiliary_arg:
                     continue
 
-                auxiliary_metatuple: Optional[Tuple[Any, ...]] = getattr(auxiliary_type, "__metadata__", None)
+                auxiliary_metatuple: Optional[Tuple[Any, ...]] = getattr(
+                    auxiliary_type, "__metadata__", None
+                )
                 if auxiliary_metatuple is None:
                     continue
 
                 if metaset.issuperset(auxiliary_metatuple):
                     # type is an auxiliary type with extra annotations
-                    auxiliary_args = ", ".join(repr(m) for m in metatuple if m not in auxiliary_metatuple)
+                    auxiliary_args = ", ".join(
+                        repr(m) for m in metatuple if m not in auxiliary_metatuple
+                    )
                     return f"Annotated[{auxiliary_name}, {auxiliary_args}]"
 
             # type is an annotated type
@@ -212,7 +241,9 @@ def python_type_to_name(data_type: TypeLike, *, force: bool = False) -> str:
             return f"Dict__{key_name}__{value_name}"
         elif is_type_union(data_type):
             member_types = unwrap_union_types(data_type)
-            member_names = "__".join(python_type_to_name(member_type) for member_type in member_types)
+            member_names = "__".join(
+                python_type_to_name(member_type) for member_type in member_types
+            )
             return f"Union__{member_names}"
 
     # named system or user-defined type
