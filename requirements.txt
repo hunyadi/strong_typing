@@ -1,2 +1,2 @@
-jsonschema
-typing_extensions; python_version<"3.10"
+jsonschema >= 4.23
+typing_extensions >= 4.12; python_version<"3.11"
