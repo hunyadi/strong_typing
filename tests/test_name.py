@@ -1,10 +1,23 @@
 import sys
 import unittest
-from typing import Callable, Dict, List, Literal, Optional, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from strong_typing.auxiliary import Alias, Annotated, float32, int32
 from strong_typing.mapping import python_field_to_json_property
 from strong_typing.name import TypeFormatter, python_type_to_name, python_type_to_str
+
+T = TypeVar("T")
 
 
 class SampleClass:
@@ -27,12 +40,20 @@ class TestName(unittest.TestCase):
             "Optional__str",
         )
         self.assertEqual(
+            python_type_to_name(Dict[str, int], force=True),
+            "Dict__str__int",
+        )
+        self.assertEqual(
             python_type_to_name(List[int], force=True),
             "List__int",
         )
         self.assertEqual(
-            python_type_to_name(Dict[str, int], force=True),
-            "Dict__str__int",
+            python_type_to_name(Set[int], force=True),
+            "Set__int",
+        )
+        self.assertEqual(
+            python_type_to_name(Type[str], force=True),
+            "Type__str",
         )
         self.assertEqual(
             python_type_to_name(Union[str, int, None], force=True),
@@ -48,6 +69,9 @@ class TestName(unittest.TestCase):
         with self.assertRaises(TypeError):
             python_type_to_name(Union[str, int, None])
 
+        self.assertEqual(python_type_to_name(T), "T")
+        self.assertEqual(python_type_to_str(T), "T")
+
     def test_alias(self) -> None:
         self.assertEqual(python_field_to_json_property("id"), "id")
         self.assertEqual(
@@ -59,6 +83,7 @@ class TestName(unittest.TestCase):
         self.assertEqual(python_type_to_str(type(None)), "None")
         self.assertEqual(python_type_to_str(...), "...")
         self.assertEqual(python_type_to_str(type(...)), "...")
+        self.assertEqual(python_type_to_str(Any), "Any")
 
     def test_callable(self) -> None:
         self.assertEqual(python_type_to_str(Callable[[], None]), "Callable[[], None]")

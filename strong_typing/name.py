@@ -13,12 +13,8 @@ from .auxiliary import _auxiliary_types
 from .inspection import (
     TypeLike,
     evaluate_type,
-    is_generic_dict,
-    is_generic_list,
     is_type_optional,
     is_type_union,
-    unwrap_generic_dict,
-    unwrap_generic_list,
     unwrap_optional_type,
     unwrap_union_types,
 )
@@ -117,7 +113,7 @@ class TypeFormatter:
         if origin is not None:
             data_type_args = typing.get_args(data_type)
 
-            if origin is dict:  # Dict[T]
+            if origin is dict:  # Dict[K, V]
                 origin_name = "Dict"
             elif origin is list:  # List[T]
                 origin_name = "List"
@@ -152,6 +148,8 @@ class TypeFormatter:
             return "None"
         elif data_type is Ellipsis or data_type is type(Ellipsis):
             return "..."
+        elif data_type is Any:
+            return "Any"
         elif isinstance(data_type, list):  # e.g. in `Callable[[bool, int], str]`
             items = ", ".join(self.python_type_to_str(item) for item in data_type)
             return f"[{items}]"
@@ -228,23 +226,36 @@ def python_type_to_name(data_type: TypeLike, *, force: bool = False) -> str:
 
     if force:
         # generic types
-        if is_type_optional(data_type, strict=True):
-            inner_name = python_type_to_name(unwrap_optional_type(data_type))
-            return f"Optional__{inner_name}"
-        elif is_generic_list(data_type):
-            item_name = python_type_to_name(unwrap_generic_list(data_type))
-            return f"List__{item_name}"
-        elif is_generic_dict(data_type):
-            key_type, value_type = unwrap_generic_dict(data_type)
-            key_name = python_type_to_name(key_type)
-            value_name = python_type_to_name(value_type)
-            return f"Dict__{key_name}__{value_name}"
-        elif is_type_union(data_type):
-            member_types = unwrap_union_types(data_type)
-            member_names = "__".join(
-                python_type_to_name(member_type) for member_type in member_types
-            )
-            return f"Union__{member_names}"
+        origin = typing.get_origin(data_type)
+        if origin is not None:
+            data_type_args = typing.get_args(data_type)
+
+            if origin is dict:  # Dict[K, V]
+                (key_type, value_type) = data_type_args
+                key_name = python_type_to_name(key_type)
+                value_name = python_type_to_name(value_type)
+                return f"Dict__{key_name}__{value_name}"
+            elif origin is list:  # List[T]
+                (list_type,) = data_type_args  # unpack single tuple element
+                item_name = python_type_to_name(list_type)
+                return f"List__{item_name}"
+            elif origin is set:  # Set[T]
+                (set_type,) = data_type_args  # unpack single tuple element
+                item_name = python_type_to_name(set_type)
+                return f"Set__{item_name}"
+            elif origin is type:  # Type[T]
+                (type_type,) = data_type_args  # unpack single tuple element
+                item_name = python_type_to_name(type_type)
+                return f"Type__{item_name}"
+            elif is_type_optional(data_type, strict=True):
+                inner_name = python_type_to_name(unwrap_optional_type(data_type))
+                return f"Optional__{inner_name}"
+            elif is_type_union(data_type):
+                member_types = unwrap_union_types(data_type)
+                member_names = "__".join(
+                    python_type_to_name(member_type) for member_type in member_types
+                )
+                return f"Union__{member_names}"
 
     # named system or user-defined type
     if hasattr(data_type, "__name__") and not typing.get_args(data_type):
