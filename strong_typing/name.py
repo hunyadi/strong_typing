@@ -9,7 +9,7 @@ import typing
 from types import ModuleType
 from typing import Any, Callable, Literal, Optional, Tuple
 
-from .auxiliary import _auxiliary_types
+from .auxiliary import ParamSpec, _auxiliary_types
 from .inspection import (
     TypeLike,
     evaluate_type,
@@ -106,6 +106,8 @@ class TypeFormatter:
                 raise ValueError("missing context for evaluating types")
 
             return self.python_type_to_str(evaluate_type(data_type, self.context))
+        elif isinstance(data_type, ParamSpec):
+            return data_type.__name__
         elif isinstance(data_type, typing.TypeVar):
             return data_type.__name__
 
@@ -134,7 +136,9 @@ class TypeFormatter:
             return f"{origin_name}[{args}]"
 
         if not isinstance(data_type, type):
-            raise ValueError("not a type, generic type, or type-like object")
+            raise ValueError(
+                f"not a type, generic type, or type-like object: {data_type} (of type {type(data_type)})"
+            )
 
         if self.type_transform is not None:
             return self.type_transform(data_type)

@@ -15,8 +15,10 @@ else:
     from typing_extensions import Annotated as Annotated
 
 if sys.version_info >= (3, 10):
+    from typing import ParamSpec as ParamSpec
     from typing import TypeAlias as TypeAlias
 else:
+    from typing_extensions import ParamSpec as ParamSpec
     from typing_extensions import TypeAlias as TypeAlias
 
 if sys.version_info >= (3, 11):
@@ -52,15 +54,13 @@ class CompactDataClass:
 
 
 @overload
-def typeannotation(cls: Type[T], /) -> Type[T]:
-    ...
+def typeannotation(cls: Type[T], /) -> Type[T]: ...
 
 
 @overload
 def typeannotation(
     cls: None, *, eq: bool = True, order: bool = False
-) -> Callable[[Type[T]], Type[T]]:
-    ...
+) -> Callable[[Type[T]], Type[T]]: ...
 
 
 @dataclass_transform(eq_default=True, order_default=False)
