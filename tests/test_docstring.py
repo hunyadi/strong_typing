@@ -229,6 +229,8 @@ class TestDocstring(unittest.TestCase):
         self.assertEqual(docstring.params["b2"].param_type, str)
         self.assertEqual(docstring.params["c_3"].description, "Description for `c`.")
         self.assertEqual(docstring.params["c_3"].param_type, float)
+        self.assertEqual(len(docstring.see_also), 1)
+        self.assertEqual(docstring.see_also[0].text, "https://example.com")
         self.assertEqual(
             str(docstring),
             "\n".join(
@@ -241,6 +243,7 @@ class TestDocstring(unittest.TestCase):
                     ":param a: Short description for `a`.",
                     ":param b2: Long description for `b` that spans multiple lines.",
                     ":param c_3: Description for `c`.",
+                    ":see: https://example.com",
                 ]
             ),
         )

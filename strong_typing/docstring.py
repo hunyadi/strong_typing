@@ -82,6 +82,23 @@ class DocstringRaises:
 
 
 @dataclass
+class DocstringSeeAlso:
+    """
+    A `see` declaration extracted from a docstring.
+
+    Interpretation of the reference text is up to the user. For example, a documentation generator may interpret
+    the text as a Python package, class or function reference and convert the text into a link.
+
+    :param text: Reference text.
+    """
+
+    text: str
+
+    def __str__(self) -> str:
+        return f":see: {self.text}"
+
+
+@dataclass
 class Docstring:
     """
     Represents the documentation string (a.k.a. docstring) for a type such as a (data) class or function.
@@ -109,6 +126,7 @@ class Docstring:
     params: Dict[str, DocstringParam] = dataclasses.field(default_factory=dict)
     returns: Optional[DocstringReturns] = None
     raises: Dict[str, DocstringRaises] = dataclasses.field(default_factory=dict)
+    see_also: List[DocstringSeeAlso] = dataclasses.field(default_factory=list)
 
     @property
     def full_description(self) -> Optional[str]:
@@ -123,7 +141,7 @@ class Docstring:
         output = StringIO()
 
         has_description = self.short_description or self.long_description
-        has_blocks = self.params or self.returns or self.raises
+        has_blocks = self.params or self.returns or self.raises or self.see_also
 
         if has_description:
             if self.short_description and self.long_description:
@@ -146,6 +164,9 @@ class Docstring:
             for raises in self.raises.values():
                 output.write("\n")
                 output.write(str(raises))
+            for see in self.see_also:
+                output.write("\n")
+                output.write(str(see))
 
         s = output.getvalue()
         output.close()
@@ -257,6 +278,7 @@ def parse_text(text: str) -> Docstring:
     params: Dict[str, DocstringParam] = {}
     raises: Dict[str, DocstringRaises] = {}
     returns = None
+    see_also: List[DocstringSeeAlso] = []
     for match in re.finditer(
         r"(^:.*?)(?=^:|\Z)", meta_chunk, flags=re.DOTALL | re.MULTILINE
     ):
@@ -285,6 +307,8 @@ def parse_text(text: str) -> Docstring:
             elif len(args) == 1:
                 if kw == "return" or kw == "returns":
                     returns = DocstringReturns(description=desc)
+                elif kw == "see" or kw == "seealso":
+                    see_also.append(DocstringSeeAlso(desc))
 
     return Docstring(
         long_description=long_description,
@@ -292,6 +316,7 @@ def parse_text(text: str) -> Docstring:
         params=params,
         returns=returns,
         raises=raises,
+        see_also=see_also,
     )
 
 
