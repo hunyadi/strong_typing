@@ -18,7 +18,7 @@ if sys.version_info >= (3, 10):
     from typing import ParamSpec as ParamSpec
     from typing import TypeAlias as TypeAlias
 else:
-    from typing_extensions import ParamSpec as ParamSpec
+    from typing_extensions import ParamSpec as ParamSpec  # noqa: F401
     from typing_extensions import TypeAlias as TypeAlias
 
 if sys.version_info >= (3, 11):
