@@ -49,7 +49,9 @@ from .inspection import (
     is_type_enum,
     is_type_like,
     is_type_optional,
+    is_type_union,
     unwrap_optional_type,
+    unwrap_union_types,
 )
 from .name import python_type_to_name
 from .serialization import object_to_json
@@ -184,6 +186,9 @@ class TypeCatalog:
             return self._by_name[name]
         else:
             return self._by_type[data_type]
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({repr(self._by_name)})"
 
 
 @dataclasses.dataclass
@@ -389,6 +394,14 @@ class JsonSchemaGenerator:
                     enum_schema.update(docstring_to_schema(typ))
                 return enum_schema
 
+        if is_type_union(typ):
+            return {
+                "oneOf": [
+                    self.type_to_schema(union_type)
+                    for union_type in unwrap_union_types(typ)
+                ]
+            }
+
         origin_type = typing.get_origin(typ)
         if origin_type is list:
             (list_type,) = typing.get_args(typ)  # unpack single tuple element
@@ -438,13 +451,6 @@ class JsonSchemaGenerator:
                 "prefixItems": [
                     self.type_to_schema(member_type) for member_type in args
                 ],
-            }
-        elif origin_type is Union:
-            return {
-                "oneOf": [
-                    self.type_to_schema(union_type)
-                    for union_type in typing.get_args(typ)
-                ]
             }
         elif origin_type is Literal:
             (literal_value,) = typing.get_args(typ)  # unpack value of literal type
@@ -683,15 +689,13 @@ def register_schema(
 
 
 @overload
-def json_schema_type(cls: Type[T], /) -> Type[T]:
-    ...
+def json_schema_type(cls: Type[T], /) -> Type[T]: ...
 
 
 @overload
 def json_schema_type(
     cls: None, *, schema: Optional[Schema] = None
-) -> Callable[[Type[T]], Type[T]]:
-    ...
+) -> Callable[[Type[T]], Type[T]]: ...
 
 
 def json_schema_type(
