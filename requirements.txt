@@ -1,2 +1,8 @@
+# production dependencies
 jsonschema >= 4.23
 typing_extensions >= 4.12; python_version<"3.11"
+
+# development dependencies
+build
+flake8
+mypy

@@ -13,5 +13,13 @@
         },
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "charliermarsh.ruff"
-    }
+    },
+    "cSpell.words": [
+        "dunder",
+        "jsonschema",
+        "mypy",
+        "pypa",
+        "pypi",
+        "sigstore"
+    ]
 }

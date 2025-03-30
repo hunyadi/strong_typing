@@ -1,0 +1,119 @@
+---
+name: strong-typing build, test and deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish-to-github:
+        type: boolean
+        description: 'Publish to GitHub'
+        required: true
+        default: false
+      publish-to-pypi:
+        type: boolean
+        description: 'Publish to PyPI'
+        required: true
+        default: false
+
+jobs:
+  build:
+    name: Build distribution
+
+    runs-on: ubuntu-latest
+    steps:
+      # Fetch source code and install dependencies
+      - name: Fetch source code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+      - name: Set up build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip --disable-pip-version-check install -r requirements.txt
+
+      # Generate and publish PyPI package
+      - name: Build PyPI package
+        run: |
+          python -m build --sdist --wheel
+      - name: Save PyPI package as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: strong-typing-dist
+          path: dist/**
+          if-no-files-found: error
+          compression-level: 0
+
+  test:
+    name: Run unit tests
+
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch source code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Set up build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip --disable-pip-version-check install -r requirements.txt
+      - name: Run static type checks and unit tests
+        run: |
+          PYTHON=python ./check.sh
+
+  github-release:
+    name: GitHub Release signed with Sigstore
+
+    if: ${{ inputs.publish-to-github }}
+    needs: build
+
+    permissions:
+      contents: write  # IMPORTANT: mandatory for making GitHub Releases
+      id-token: write  # IMPORTANT: mandatory for Sigstore
+
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download the distribution
+      uses: actions/download-artifact@v4
+      with:
+        path: dist/
+        merge-multiple: true
+    - name: Sign the distribution with Sigstore
+      uses: sigstore/gh-action-sigstore-python@v3.0.0
+      with:
+        inputs: |
+          ./dist/*.tar.gz
+          ./dist/*.whl
+    - name: Upload artifact signatures to GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      # Upload to GitHub Release using the `gh` CLI.
+      # `dist/` contains the built packages, and the
+      # sigstore-produced signatures and certificates.
+      run: >-
+        gh release create
+        `ls -1 dist/*.tar.gz | grep -Eo '[0-9]+[.][0-9]+[.][0-9]+'` dist/**
+        --repo '${{ github.repository }}' --notes ''
+
+  pypi-publish:
+    name: Publish release to PyPI
+
+    if: ${{ inputs.publish-to-pypi }}
+    needs: build
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the distribution
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+      - name: Publish package distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_ID_TOKEN }}
