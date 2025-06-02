@@ -33,14 +33,14 @@ from strong_typing.inspection import (
     is_type_enum,
 )
 from strong_typing.schema import classdef_to_schema
-from strong_typing.serialization import json_to_object
+from strong_typing.serialization import json_to_generic
 
 empty = create_module("empty")
 
 
 def as_typedef(schema: Schema) -> TypeDef:
     node = typing.cast(
-        JsonSchemaAny, json_to_object(JsonSchemaAny, schema, context=empty)
+        JsonSchemaAny, json_to_generic(JsonSchemaAny, schema, context=empty)
     )
     return node_to_typedef(empty, "", node)
 

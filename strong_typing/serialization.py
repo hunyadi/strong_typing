@@ -8,9 +8,10 @@ import inspect
 import json
 import sys
 from types import ModuleType
-from typing import Any, Optional, TextIO, TypeVar
+from typing import Any, Optional, TextIO, Type, TypeVar
 
 from .core import JsonType
+from .deserializer import DeserializerOptions as DeserializerOptions
 from .deserializer import create_deserializer
 from .inspection import TypeLike
 from .serializer import create_serializer
@@ -37,8 +38,12 @@ def object_to_json(obj: Any) -> JsonType:
 
 
 def json_to_object(
-    typ: TypeLike, data: JsonType, *, context: Optional[ModuleType] = None
-) -> object:
+    typ: Type[T],
+    data: JsonType,
+    *,
+    context: Optional[ModuleType] = None,
+    options: Optional[DeserializerOptions] = None,
+) -> T:
     """
     Creates an object from a representation that has been de-serialized from JSON.
 
@@ -59,6 +64,23 @@ def json_to_object(
     :raises JsonTypeError: Deserialization for data has failed due to a type mismatch.
     """
 
+    return json_to_generic(typ, data, context=context, options=options)
+
+
+def json_to_generic(
+    typ: TypeLike,
+    data: JsonType,
+    *,
+    context: Optional[ModuleType] = None,
+    options: Optional[DeserializerOptions] = None,
+) -> Any:
+    """
+    Creates an object from a representation that has been de-serialized from JSON.
+
+    Equivalent to `json_to_object` but has a more permissive type signature. Accepts typing special forms such as `Optional[T]`,
+    `Literal[...]` or `Union[...]`.
+    """
+
     # use caller context for evaluating types if no context is supplied
     if context is None:
         this_frame = inspect.currentframe()
@@ -72,7 +94,7 @@ def json_to_object(
                 finally:
                     del caller_frame
 
-    parser = create_deserializer(typ, context)
+    parser = create_deserializer(typ, context, options=options)
     return parser.parse(data)
 
 

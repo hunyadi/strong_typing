@@ -187,9 +187,7 @@ def schema_to_type(
     :param class_name: The name assigned to the top-level class.
     """
 
-    top_node = typing.cast(
-        JsonSchemaTopLevelObject, json_to_object(JsonSchemaTopLevelObject, schema)
-    )
+    top_node = json_to_object(JsonSchemaTopLevelObject, schema)
     if top_node.definitions is not None:
         for type_name, type_node in top_node.definitions.items():
             type_def = node_to_typedef(module, type_name, type_node)
@@ -208,11 +206,11 @@ class TypeDef:
     default: Any = dataclasses.MISSING
 
 
-def json_to_value(target_type: TypeLike, data: JsonType) -> Any:
+def json_to_value(target_type: Type[T], data: JsonType) -> Any:
     if data is not None:
         return json_to_object(target_type, data)
     else:
-        return dataclasses.MISSING
+        return typing.cast(Any, dataclasses.MISSING)
 
 
 def node_to_typedef(
@@ -284,6 +282,7 @@ def node_to_typedef(
                     decimal.Decimal,
                     Precision(integer_digits + decimal_digits, decimal_digits),
                 ]
+                number_type = typing.cast(Type[decimal.Decimal], number_type)
             else:
                 number_type = float
 
@@ -315,6 +314,7 @@ def node_to_typedef(
 
         elif node.maxLength is not None:
             string_type = Annotated[str, MaxLength(node.maxLength)]
+            string_type = typing.cast(Type[str], string_type)
         else:
             string_type = str
 
@@ -392,9 +392,7 @@ class SchemaFlatteningOptions:
 def flatten_schema(
     schema: Schema, *, options: Optional[SchemaFlatteningOptions] = None
 ) -> Schema:
-    top_node = typing.cast(
-        JsonSchemaTopLevelObject, json_to_object(JsonSchemaTopLevelObject, schema)
-    )
+    top_node = json_to_object(JsonSchemaTopLevelObject, schema)
     flattener = SchemaFlattener(options)
     obj = flattener.flatten(top_node)
     return typing.cast(Schema, object_to_json(obj))

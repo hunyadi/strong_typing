@@ -6,6 +6,7 @@ Type-safe data interchange for Python data classes.
 
 import dataclasses
 import sys
+import typing
 from dataclasses import is_dataclass
 from typing import Callable, Dict, Optional, Type, TypeVar, Union, overload
 
@@ -78,17 +79,21 @@ def typeannotation(
 
     def wrap(cls: Type[T]) -> Type[T]:
         setattr(cls, "__repr__", _compact_dataclass_repr)
-        if not dataclasses.is_dataclass(cls):
-            cls = dataclasses.dataclass(  # type: ignore[call-overload]
-                cls,
-                init=True,
-                repr=False,
-                eq=eq,
-                order=order,
-                unsafe_hash=False,
-                frozen=True,
+        if dataclasses.is_dataclass(cls):
+            return typing.cast(Type[T], cls)
+        else:
+            return typing.cast(
+                Type[T],
+                dataclasses.dataclass(  # type: ignore[call-overload]
+                    cls,
+                    init=True,
+                    repr=False,
+                    eq=eq,
+                    order=order,
+                    unsafe_hash=False,
+                    frozen=True,
+                ),
             )
-        return cls
 
     # see if decorator is used as @typeannotation or @typeannotation()
     if cls is None:
