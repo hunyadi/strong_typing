@@ -123,8 +123,19 @@ def evaluate_type(typ: Any, module: types.ModuleType) -> Any:
         # evaluate data-class field whose type annotation is a string
         return eval(typ, module.__dict__, locals())
     if isinstance(typ, typing.ForwardRef):
-        if sys.version_info >= (3, 9):
-            return typ._evaluate(module.__dict__, locals(), recursive_guard=frozenset())
+        if sys.version_info >= (3, 13):
+            return typ._evaluate(
+                module.__dict__,
+                locals(),
+                type_params=None,
+                recursive_guard=frozenset(),
+            )
+        elif sys.version_info >= (3, 9):
+            return typ._evaluate(
+                module.__dict__,
+                locals(),
+                recursive_guard=frozenset(),
+            )
         else:
             return typ._evaluate(module.__dict__, locals())
     else:
