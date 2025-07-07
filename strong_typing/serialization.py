@@ -7,8 +7,9 @@ Type-safe data interchange for Python data classes.
 import inspect
 import json
 import sys
+import typing
 from types import ModuleType
-from typing import Any, Optional, TextIO, Type, TypeVar
+from typing import Any, Optional, TextIO, TypeVar
 
 from .core import JsonType
 from .deserializer import DeserializerOptions as DeserializerOptions
@@ -38,7 +39,7 @@ def object_to_json(obj: Any) -> JsonType:
 
 
 def json_to_object(
-    typ: Type[T],
+    typ: type[T],
     data: JsonType,
     *,
     context: Optional[ModuleType] = None,
@@ -64,7 +65,7 @@ def json_to_object(
     :raises JsonTypeError: Deserialization for data has failed due to a type mismatch.
     """
 
-    return json_to_generic(typ, data, context=context, options=options)
+    return typing.cast(T, json_to_generic(typ, data, context=context, options=options))
 
 
 def json_to_generic(
@@ -77,8 +78,8 @@ def json_to_generic(
     """
     Creates an object from a representation that has been de-serialized from JSON.
 
-    Equivalent to `json_to_object` but has a more permissive type signature. Accepts typing special forms such as `Optional[T]`,
-    `Literal[...]` or `Union[...]`.
+    Equivalent to `json_to_object` but has a more permissive type signature. Accepts typing special forms such as
+    `Optional[T]`, `Literal[...]` or `Union[...]`.
     """
 
     # use caller context for evaluating types if no context is supplied
@@ -101,9 +102,7 @@ def json_to_generic(
 def json_dump_string(json_object: JsonType) -> str:
     "Dump an object as a JSON string with a compact representation."
 
-    return json.dumps(
-        json_object, ensure_ascii=False, check_circular=False, separators=(",", ":")
-    )
+    return json.dumps(json_object, ensure_ascii=False, check_circular=False, separators=(",", ":"))
 
 
 def json_dump(json_object: JsonType, file: TextIO) -> None:

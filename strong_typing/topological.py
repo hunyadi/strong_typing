@@ -4,14 +4,14 @@ Type-safe data interchange for Python data classes.
 :see: https://github.com/hunyadi/strong_typing
 """
 
-from typing import Callable, Dict, Iterable, List, Optional, Set, TypeVar
+from typing import Callable, Iterable, Optional, TypeVar
 
 from .inspection import TypeCollector
 
 T = TypeVar("T")
 
 
-def topological_sort(graph: Dict[T, Set[T]]) -> List[T]:
+def topological_sort(graph: dict[T, set[T]]) -> list[T]:
     """
     Performs a topological sort of a graph.
 
@@ -23,9 +23,9 @@ def topological_sort(graph: Dict[T, Set[T]]) -> List[T]:
     """
 
     # empty list that will contain the sorted nodes (in reverse order)
-    ordered: List[T] = []
+    ordered: list[T] = []
 
-    seen: Dict[T, bool] = {}
+    seen: dict[T, bool] = {}
 
     def _visit(n: T) -> None:
         status = seen.get(n)
@@ -52,7 +52,7 @@ def topological_sort(graph: Dict[T, Set[T]]) -> List[T]:
 def type_topological_sort(
     types: Iterable[type],
     dependency_fn: Optional[Callable[[type], Iterable[type]]] = None,
-) -> List[type]:
+) -> list[type]:
     """
     Performs a topological sort of a list of types.
 
@@ -60,7 +60,8 @@ def type_topological_sort(
     are last. The topological ordering is not unique.
 
     :param types: A list of types (simple or composite).
-    :param dependency_fn: Returns a list of additional dependencies for a class (e.g. classes referenced by a foreign key).
+    :param dependency_fn: Returns a list of additional dependencies for a class (e.g. classes referenced by
+        a foreign key).
     :returns: The list of types in topological order.
     """
 
@@ -72,7 +73,7 @@ def type_topological_sort(
     graph = collector.graph
 
     if dependency_fn:
-        new_types: Set[type] = set()
+        new_types: set[type] = set()
         for source_type, references in graph.items():
             dependent_types = dependency_fn(source_type)
             references.update(dependent_types)

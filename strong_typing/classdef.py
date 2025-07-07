@@ -11,19 +11,9 @@ import types
 import typing
 import uuid
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, TypeVar, Union
+from typing import Annotated, Any, Literal, Optional, TypeVar, Union
 
-from .auxiliary import (
-    Alias,
-    Annotated,
-    MaxLength,
-    Precision,
-    float32,
-    float64,
-    int16,
-    int32,
-    int64,
-)
+from .auxiliary import Alias, MaxLength, Precision, float32, float64, int16, int32, int64
 from .core import JsonType, Schema
 from .docstring import Docstring, DocstringParam
 from .inspection import TypeLike
@@ -49,7 +39,7 @@ class JsonSchemaBoolean(JsonSchemaType):
     type: Literal["boolean"]
     const: Optional[bool]
     default: Optional[bool]
-    examples: Optional[List[bool]]
+    examples: Optional[list[bool]]
 
 
 @dataclass
@@ -57,8 +47,8 @@ class JsonSchemaInteger(JsonSchemaType):
     type: Literal["integer"]
     const: Optional[int]
     default: Optional[int]
-    examples: Optional[List[int]]
-    enum: Optional[List[int]]
+    examples: Optional[list[int]]
+    enum: Optional[list[int]]
     minimum: Optional[int]
     maximum: Optional[int]
 
@@ -68,7 +58,7 @@ class JsonSchemaNumber(JsonSchemaType):
     type: Literal["number"]
     const: Optional[float]
     default: Optional[float]
-    examples: Optional[List[float]]
+    examples: Optional[list[float]]
     minimum: Optional[float]
     maximum: Optional[float]
     exclusiveMinimum: Optional[float]
@@ -81,8 +71,8 @@ class JsonSchemaString(JsonSchemaType):
     type: Literal["string"]
     const: Optional[str]
     default: Optional[str]
-    examples: Optional[List[str]]
-    enum: Optional[List[str]]
+    examples: Optional[list[str]]
+    enum: Optional[list[str]]
     minLength: Optional[int]
     maxLength: Optional[int]
 
@@ -96,9 +86,9 @@ class JsonSchemaArray(JsonSchemaType):
 @dataclass
 class JsonSchemaObject(JsonSchemaType):
     type: Literal["object"]
-    properties: Optional[Dict[str, "JsonSchemaAny"]]
+    properties: Optional[dict[str, "JsonSchemaAny"]]
     additionalProperties: Optional[bool]
-    required: Optional[List[str]]
+    required: Optional[list[str]]
 
 
 @dataclass
@@ -108,17 +98,17 @@ class JsonSchemaRef(JsonSchemaNode):
 
 @dataclass
 class JsonSchemaAllOf(JsonSchemaNode):
-    allOf: List["JsonSchemaAny"]
+    allOf: list["JsonSchemaAny"]
 
 
 @dataclass
 class JsonSchemaAnyOf(JsonSchemaNode):
-    anyOf: List["JsonSchemaAny"]
+    anyOf: list["JsonSchemaAny"]
 
 
 @dataclass
 class JsonSchemaOneOf(JsonSchemaNode):
-    oneOf: List["JsonSchemaAny"]
+    oneOf: list["JsonSchemaAny"]
 
 
 JsonSchemaAny = Union[
@@ -136,7 +126,7 @@ JsonSchemaAny = Union[
 @dataclass
 class JsonSchemaTopLevelObject(JsonSchemaObject):
     schema: Annotated[str, Alias("$schema")]
-    definitions: Optional[Dict[str, JsonSchemaAny]]
+    definitions: Optional[dict[str, JsonSchemaAny]]
 
 
 def integer_range_to_type(min_value: float, max_value: float) -> type:
@@ -160,25 +150,21 @@ def enum_safe_name(name: str) -> str:
 def enum_values_to_type(
     module: types.ModuleType,
     name: str,
-    values: Dict[str, Any],
+    values: dict[str, Any],
     title: Optional[str] = None,
     description: Optional[str] = None,
-) -> Type[enum.Enum]:
-    enum_class: Type[enum.Enum] = enum.Enum(name, values)  # type: ignore
+) -> type[enum.Enum]:
+    enum_class: type[enum.Enum] = enum.Enum(name, values)  # type: ignore
 
     # assign the newly created type to the same module where the defining class is
     enum_class.__module__ = module.__name__
-    enum_class.__doc__ = str(
-        Docstring(short_description=title, long_description=description)
-    )
+    enum_class.__doc__ = str(Docstring(short_description=title, long_description=description))
     setattr(module, name, enum_class)
 
     return enum.unique(enum_class)
 
 
-def schema_to_type(
-    schema: Schema, *, module: types.ModuleType, class_name: str
-) -> TypeLike:
+def schema_to_type(schema: Schema, *, module: types.ModuleType, class_name: str) -> TypeLike:
     """
     Creates a Python type from a JSON schema.
 
@@ -194,7 +180,7 @@ def schema_to_type(
             if type_def.default is not dataclasses.MISSING:
                 raise TypeError("disallowed: `default` for top-level type definitions")
 
-            setattr(type_def.type, "__module__", module.__name__)
+            type_def.type.__module__ = module.__name__
             setattr(module, type_name, type_def.type)
 
     return node_to_typedef(module, class_name, top_node).type
@@ -206,16 +192,14 @@ class TypeDef:
     default: Any = dataclasses.MISSING
 
 
-def json_to_value(target_type: Type[T], data: JsonType) -> Any:
+def json_to_value(target_type: type[T], data: JsonType) -> Any:
     if data is not None:
         return json_to_object(target_type, data)
     else:
         return typing.cast(Any, dataclasses.MISSING)
 
 
-def node_to_typedef(
-    module: types.ModuleType, context: str, node: JsonSchemaNode
-) -> TypeDef:
+def node_to_typedef(module: types.ModuleType, context: str, node: JsonSchemaNode) -> TypeDef:
     if isinstance(node, JsonSchemaRef):
         match_obj = re.match(r"^#/definitions/(\w+)$", node.ref)
         if not match_obj:
@@ -282,7 +266,7 @@ def node_to_typedef(
                     decimal.Decimal,
                     Precision(integer_digits + decimal_digits, decimal_digits),
                 ]
-                number_type = typing.cast(Type[decimal.Decimal], number_type)
+                number_type = typing.cast(type[decimal.Decimal], number_type)
             else:
                 number_type = float
 
@@ -314,7 +298,7 @@ def node_to_typedef(
 
         elif node.maxLength is not None:
             string_type = Annotated[str, MaxLength(node.maxLength)]
-            string_type = typing.cast(Type[str], string_type)
+            string_type = typing.cast(type[str], string_type)
         else:
             string_type = str
 
@@ -325,7 +309,7 @@ def node_to_typedef(
         type_def = node_to_typedef(module, context, node.items)
         if type_def.default is not dataclasses.MISSING:
             raise TypeError("disallowed: `default` for array element type")
-        list_type = List[(type_def.type,)]  # type: ignore
+        list_type = list[(type_def.type,)]  # type: ignore
         return TypeDef(list_type, dataclasses.MISSING)
 
     elif isinstance(node, JsonSchemaObject):
@@ -339,30 +323,24 @@ def node_to_typedef(
 
         class_name = context
 
-        fields: List[Tuple[str, Any, dataclasses.Field]] = []
-        params: Dict[str, DocstringParam] = {}
+        fields: list[tuple[str, Any, dataclasses.Field]] = []  # type: ignore[type-arg]
+        params: dict[str, DocstringParam] = {}
         for prop_name, prop_node in node.properties.items():
             type_def = node_to_typedef(module, f"{class_name}__{prop_name}", prop_node)
             if prop_name in required:
                 prop_type = type_def.type
             else:
                 prop_type = Union[(None, type_def.type)]
-            fields.append(
-                (prop_name, prop_type, dataclasses.field(default=type_def.default))
-            )
+            fields.append((prop_name, prop_type, dataclasses.field(default=type_def.default)))
             prop_desc = prop_node.title or prop_node.description
             if prop_desc is not None:
                 params[prop_name] = DocstringParam(prop_name, prop_desc)
 
         fields.sort(key=lambda t: t[2].default is not dataclasses.MISSING)
         if sys.version_info >= (3, 12):
-            class_type = dataclasses.make_dataclass(
-                class_name, fields, module=module.__name__
-            )
+            class_type = dataclasses.make_dataclass(class_name, fields, module=module.__name__)
         else:
-            class_type = dataclasses.make_dataclass(
-                class_name, fields, namespace={"__module__": module.__name__}
-            )
+            class_type = dataclasses.make_dataclass(class_name, fields, namespace={"__module__": module.__name__})
         class_type.__doc__ = str(
             Docstring(
                 short_description=node.title,
@@ -389,9 +367,7 @@ class SchemaFlatteningOptions:
     recursive: bool = False
 
 
-def flatten_schema(
-    schema: Schema, *, options: Optional[SchemaFlatteningOptions] = None
-) -> Schema:
+def flatten_schema(schema: Schema, *, options: Optional[SchemaFlatteningOptions] = None) -> Schema:
     top_node = json_to_object(JsonSchemaTopLevelObject, schema)
     flattener = SchemaFlattener(options)
     obj = flattener.flatten(top_node)
@@ -406,13 +382,13 @@ class SchemaFlattener:
 
     def flatten(self, source_node: JsonSchemaObject) -> JsonSchemaObject:
         if source_node.type != "object":
-            return source_node
+            return source_node  # type: ignore[unreachable]
 
         source_props = source_node.properties or {}
-        target_props: Dict[str, JsonSchemaAny] = {}
+        target_props: dict[str, JsonSchemaAny] = {}
 
         source_reqs = source_node.required or []
-        target_reqs: List[str] = []
+        target_reqs: list[str] = []
 
         for name, prop in source_props.items():
             if not isinstance(prop, JsonSchemaObject):
@@ -427,9 +403,7 @@ class SchemaFlattener:
                 obj = prop
             if obj.properties is not None:
                 if self.options.qualified_names:
-                    target_props.update(
-                        (f"{name}.{n}", p) for n, p in obj.properties.items()
-                    )
+                    target_props.update((f"{name}.{n}", p) for n, p in obj.properties.items())
                 else:
                     target_props.update(obj.properties.items())
             if obj.required is not None:

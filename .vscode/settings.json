@@ -16,10 +16,13 @@
     },
     "cSpell.words": [
         "dunder",
+        "errorlevel",
         "jsonschema",
+        "Levente",
         "mypy",
         "pypa",
         "pypi",
+        "setuptools",
         "sigstore"
     ]
 }

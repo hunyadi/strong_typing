@@ -3,9 +3,9 @@ import enum
 import uuid
 from collections import namedtuple
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, NamedTuple, Optional, Set, Tuple
+from typing import Annotated, Literal, NamedTuple, Optional
 
-from strong_typing.auxiliary import Annotated, IntegerRange, MaxLength, Precision
+from strong_typing.auxiliary import IntegerRange, MaxLength, Precision
 from strong_typing.core import JsonType
 from strong_typing.schema import json_schema_type
 
@@ -93,9 +93,7 @@ class UID:
         return UID(value)
 
 
-SimpleUntypedNamedTuple = namedtuple(
-    "SimpleUntypedNamedTuple", ["int_value", "str_value"]
-)
+SimpleUntypedNamedTuple = namedtuple("SimpleUntypedNamedTuple", ["int_value", "str_value"])
 
 
 class SimpleTypedNamedTuple(NamedTuple):
@@ -115,9 +113,7 @@ class SimpleDataclass:
     str_value: str = "string"
     date_value: datetime.date = datetime.date(1970, 1, 1)
     time_value: datetime.time = datetime.time(6, 15, 30)
-    datetime_value: datetime.datetime = datetime.datetime(
-        1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc
-    )
+    datetime_value: datetime.datetime = datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc)
     guid_value: uuid.UUID = uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
 
 
@@ -126,18 +122,16 @@ class AnnotatedSimpleDataclass:
     "A simple data class with multiple properties."
 
     int_value: Annotated[int, IntegerRange(19, 82)] = 23
-    float_value: Annotated[float, Precision(significant_digits=6, decimal_digits=3)] = (
-        4.5
-    )
+    float_value: Annotated[float, Precision(significant_digits=6, decimal_digits=3)] = 4.5
     str_value: Annotated[str, MaxLength(64)] = "string"
 
 
 @dataclass
 class CompositeDataclass:
-    list_value: List[str] = field(default_factory=list)
-    dict_value: Dict[str, int] = field(default_factory=dict)
-    set_value: Set[int] = field(default_factory=set)
-    tuple_value: Tuple[bool, int, str] = (True, 2, "three")
+    list_value: list[str] = field(default_factory=list)
+    dict_value: dict[str, int] = field(default_factory=dict)
+    set_value: set[int] = field(default_factory=set)
+    tuple_value: tuple[bool, int, str] = (True, 2, "three")
     named_tuple_value: SimpleTypedNamedTuple = SimpleTypedNamedTuple(1, "second")
     optional_value: Optional[str] = None
 
@@ -167,13 +161,11 @@ class ValueExample:
 @dataclass
 class NestedDataclass:
     obj_value: CompositeDataclass
-    list_value: List[ValueExample]
-    dict_value: Dict[str, ValueExample]
+    list_value: list[ValueExample]
+    dict_value: dict[str, ValueExample]
 
     def __init__(self) -> None:
-        self.obj_value = CompositeDataclass(
-            list_value=["a", "b", "c"], dict_value={"key": 42}
-        )
+        self.obj_value = CompositeDataclass(list_value=["a", "b", "c"], dict_value={"key": 42})
         self.list_value = [ValueExample(value=1), ValueExample(value=2)]
         self.dict_value = {
             "a": ValueExample(value=3),
@@ -184,8 +176,8 @@ class NestedDataclass:
 
 @dataclass
 class NestedGenericType:
-    list_of_str: List[str]
-    list_of_dict: List[Dict[str, str]]
+    list_of_str: list[str]
+    list_of_dict: list[dict[str, str]]
 
 
 @dataclass

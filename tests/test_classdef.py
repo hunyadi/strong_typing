@@ -5,17 +5,9 @@ import unittest
 import uuid
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import List, Literal, Optional, Union
+from typing import Annotated, Literal, Optional, Union
 
-from strong_typing.auxiliary import (
-    Annotated,
-    MaxLength,
-    Precision,
-    float64,
-    int16,
-    int32,
-    int64,
-)
+from strong_typing.auxiliary import MaxLength, Precision, float64, int16, int32, int64
 from strong_typing.classdef import (
     JsonSchemaAny,
     SchemaFlatteningOptions,
@@ -25,13 +17,7 @@ from strong_typing.classdef import (
     schema_to_type,
 )
 from strong_typing.core import JsonType, Schema
-from strong_typing.inspection import (
-    TypeLike,
-    create_module,
-    dataclass_fields,
-    is_dataclass_type,
-    is_type_enum,
-)
+from strong_typing.inspection import TypeLike, create_module, dataclass_fields, is_dataclass_type, is_type_enum
 from strong_typing.schema import classdef_to_schema
 from strong_typing.serialization import json_to_generic
 
@@ -39,9 +25,7 @@ empty = create_module("empty")
 
 
 def as_typedef(schema: Schema) -> TypeDef:
-    node = typing.cast(
-        JsonSchemaAny, json_to_generic(JsonSchemaAny, schema, context=empty)
-    )
+    node = typing.cast(JsonSchemaAny, json_to_generic(JsonSchemaAny, schema, context=empty))
     return node_to_typedef(empty, "", node)
 
 
@@ -77,9 +61,7 @@ class TestClassDef(unittest.TestCase):
     def assertTypeEquivalent(self, left: TypeLike, right: TypeLike) -> None:
         if is_dataclass_type(left) and is_dataclass_type(right):
             self.assertEqual(left.__name__, right.__name__)
-            for left_field, right_field in zip(
-                dataclass_fields(left), dataclass_fields(right)
-            ):
+            for left_field, right_field in zip(dataclass_fields(left), dataclass_fields(right)):
                 self.assertEqual(left_field.name, right_field.name)
                 self.assertTypeEquivalent(left_field.type, right_field.type)
         else:
@@ -112,12 +94,8 @@ class TestClassDef(unittest.TestCase):
 
     def test_string(self) -> None:
         self.assertEqual(str, as_type({"type": "string"}))
-        self.assertEqual(
-            Literal["value"], as_type({"type": "string", "const": "value"})
-        )
-        self.assertEqual(
-            Annotated[str, MaxLength(10)], as_type({"type": "string", "maxLength": 10})
-        )
+        self.assertEqual(Literal["value"], as_type({"type": "string", "const": "value"}))
+        self.assertEqual(Annotated[str, MaxLength(10)], as_type({"type": "string", "maxLength": 10}))
 
     def test_integer_enum(self) -> None:
         self.assertEqual(int16, as_type({"type": "integer", "enum": [100, 200]}))
@@ -125,20 +103,14 @@ class TestClassDef(unittest.TestCase):
         self.assertEqual(int64, as_type({"type": "integer", "enum": [-1, 2147483648]}))
 
     def test_string_enum(self) -> None:
-        enum_type = as_type(
-            {"type": "string", "enum": ["first", "second", "_sunder_", "__dunder"]}
-        )
+        enum_type = as_type({"type": "string", "enum": ["first", "second", "_sunder_", "__dunder"]})
         if not is_type_enum(enum_type):
             self.fail()
 
-        self.assertCountEqual(
-            ["first", "second", "_sunder_", "__dunder"], [e.value for e in enum_type]
-        )
+        self.assertCountEqual(["first", "second", "_sunder_", "__dunder"], [e.value for e in enum_type])
 
     def test_date_time(self) -> None:
-        self.assertEqual(
-            datetime.datetime, as_type({"type": "string", "format": "date-time"})
-        )
+        self.assertEqual(datetime.datetime, as_type({"type": "string", "format": "date-time"}))
         self.assertEqual(
             datetime.datetime,
             as_type(
@@ -159,12 +131,8 @@ class TestClassDef(unittest.TestCase):
         self.assertEqual(uuid.UUID, as_type({"type": "string", "format": "uuid"}))
 
     def test_ipaddress(self) -> None:
-        self.assertEqual(
-            ipaddress.IPv4Address, as_type({"type": "string", "format": "ipv4"})
-        )
-        self.assertEqual(
-            ipaddress.IPv6Address, as_type({"type": "string", "format": "ipv6"})
-        )
+        self.assertEqual(ipaddress.IPv4Address, as_type({"type": "string", "format": "ipv4"}))
+        self.assertEqual(ipaddress.IPv6Address, as_type({"type": "string", "format": "ipv6"}))
         self.assertEqual(
             ipaddress.IPv4Address,
             as_type(
@@ -172,7 +140,7 @@ class TestClassDef(unittest.TestCase):
                     "type": "string",
                     "format": "ipv4",
                     "title": "Represent and manipulate single IPv4 Addresses.",
-                    "description": "IPv4 address, according to dotted-quad ABNF syntax as defined in RFC 2673, section 3.2.",
+                    "description": "IPv4 address, according to dotted-quad ABNF syntax as defined in RFC 2673, section 3.2.",  # noqa: E501
                     "examples": ["192.0.2.0", "198.51.100.1", "203.0.113.255"],
                 }
             ),
@@ -182,9 +150,7 @@ class TestClassDef(unittest.TestCase):
         self.assertEqual(JsonType, as_type({"type": "object"}))
 
     def test_array(self) -> None:
-        self.assertEqual(
-            List[str], as_type({"type": "array", "items": {"type": "string"}})
-        )
+        self.assertEqual(list[str], as_type({"type": "array", "items": {"type": "string"}}))
 
     def test_default(self) -> None:
         self.assertEqual(
@@ -215,9 +181,7 @@ class TestClassDef(unittest.TestCase):
 
     def test_dataclass(self) -> None:
         schema = classdef_to_schema(Person)
-        self.assertTypeEquivalent(
-            Person, schema_to_type(schema, module=empty, class_name="Person")
-        )
+        self.assertTypeEquivalent(Person, schema_to_type(schema, module=empty, class_name="Person"))
 
     def test_oneOf(self) -> None:
         self.assertEqual(str, as_type({"oneOf": [{"type": "string"}]}))

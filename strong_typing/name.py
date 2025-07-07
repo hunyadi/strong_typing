@@ -7,7 +7,7 @@ Type-safe data interchange for Python data classes.
 import sys
 import typing
 from types import ModuleType
-from typing import Any, Callable, Literal, Optional, Tuple
+from typing import Any, Callable, Literal, Optional
 
 from .auxiliary import ParamSpec, _auxiliary_types
 from .inspection import (
@@ -62,7 +62,7 @@ class TypeFormatter:
         else:
             return repr(value)
 
-    def union_to_str(self, data_type_args: Tuple[TypeLike, ...]) -> str:
+    def union_to_str(self, data_type_args: tuple[TypeLike, ...]) -> str:
         """
         Emits a union of types as a string.
 
@@ -103,6 +103,10 @@ class TypeFormatter:
             return fwd_arg
         elif isinstance(data_type, str):
             if self.context is None:
+                if data_type.isidentifier():
+                    # don't evaluate expressions that are simple identifiers
+                    return data_type
+
                 raise ValueError("missing context for evaluating types")
 
             return self.python_type_to_str(evaluate_type(data_type, self.context))
@@ -115,15 +119,15 @@ class TypeFormatter:
         if origin is not None:
             data_type_args = typing.get_args(data_type)
 
-            if origin is dict:  # Dict[K, V]
+            if origin is dict:  # dict[K, V]
                 origin_name = "Dict"
-            elif origin is list:  # List[T]
+            elif origin is list:  # list[T]
                 origin_name = "List"
-            elif origin is set:  # Set[T]
+            elif origin is set:  # set[T]
                 origin_name = "Set"
-            elif origin is type:  # Type[T]
+            elif origin is type:  # type[T]
                 args = ", ".join(self.python_type_to_str(t) for t in data_type_args)
-                return f"Type[{args}]"
+                return f"type[{args}]"
             elif origin is Literal:
                 args = ", ".join(self.value_to_str(arg) for arg in data_type_args)
                 return f"Literal[{args}]"
@@ -136,9 +140,7 @@ class TypeFormatter:
             return f"{origin_name}[{args}]"
 
         if not isinstance(data_type, type):
-            raise ValueError(
-                f"not a type, generic type, or type-like object: {data_type} (of type {type(data_type)})"
-            )
+            raise ValueError(f"not a type, generic type, or type-like object: {data_type} (of type {type(data_type)})")
 
         if self.type_transform is not None:
             return self.type_transform(data_type)
@@ -166,7 +168,7 @@ class TypeFormatter:
         metadata = getattr(data_type, "__metadata__", None)
         if metadata is not None:
             # type is Annotated[T, ...]
-            metatuple: Tuple[Any, ...] = metadata
+            metatuple: tuple[Any, ...] = metadata
             arg = typing.get_args(data_type)[0]
 
             # check for auxiliary types with user-defined annotations
@@ -176,17 +178,13 @@ class TypeFormatter:
                 if arg is not auxiliary_arg:
                     continue
 
-                auxiliary_metatuple: Optional[Tuple[Any, ...]] = getattr(
-                    auxiliary_type, "__metadata__", None
-                )
+                auxiliary_metatuple: Optional[tuple[Any, ...]] = getattr(auxiliary_type, "__metadata__", None)
                 if auxiliary_metatuple is None:
                     continue
 
                 if metaset.issuperset(auxiliary_metatuple):
                     # type is an auxiliary type with extra annotations
-                    auxiliary_args = ", ".join(
-                        repr(m) for m in metatuple if m not in auxiliary_metatuple
-                    )
+                    auxiliary_args = ", ".join(repr(m) for m in metatuple if m not in auxiliary_metatuple)
                     return f"Annotated[{auxiliary_name}, {auxiliary_args}]"
 
             # type is an annotated type
@@ -234,20 +232,20 @@ def python_type_to_name(data_type: TypeLike, *, force: bool = False) -> str:
         if origin is not None:
             data_type_args = typing.get_args(data_type)
 
-            if origin is dict:  # Dict[K, V]
+            if origin is dict:  # dict[K, V]
                 (key_type, value_type) = data_type_args
                 key_name = python_type_to_name(key_type)
                 value_name = python_type_to_name(value_type)
                 return f"Dict__{key_name}__{value_name}"
-            elif origin is list:  # List[T]
+            elif origin is list:  # list[T]
                 (list_type,) = data_type_args  # unpack single tuple element
                 item_name = python_type_to_name(list_type)
                 return f"List__{item_name}"
-            elif origin is set:  # Set[T]
+            elif origin is set:  # set[T]
                 (set_type,) = data_type_args  # unpack single tuple element
                 item_name = python_type_to_name(set_type)
                 return f"Set__{item_name}"
-            elif origin is type:  # Type[T]
+            elif origin is type:  # type[T]
                 (type_type,) = data_type_args  # unpack single tuple element
                 item_name = python_type_to_name(type_type)
                 return f"Type__{item_name}"
@@ -256,9 +254,7 @@ def python_type_to_name(data_type: TypeLike, *, force: bool = False) -> str:
                 return f"Optional__{inner_name}"
             elif is_type_union(data_type):
                 member_types = unwrap_union_types(data_type)
-                member_names = "__".join(
-                    python_type_to_name(member_type) for member_type in member_types
-                )
+                member_names = "__".join(python_type_to_name(member_type) for member_type in member_types)
                 return f"Union__{member_names}"
 
     # named system or user-defined type
