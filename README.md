@@ -160,11 +160,11 @@ The following table shows the conversion types the package employs:
 | Enum | *value type* | stores the enumeration value type (typically integer or string) |
 | Optional[**T**] | *depends on inner type* | reads and writes **T** if present |
 | Union[**T1**, **T2**, ...] | *depends on concrete type* | serializes to the appropriate inner type; deserializes from the first matching type |
-| List[**T**] | array | recursive in **T** |
-| Dict[**K**, **V**] | object | recursive in **V**, keys are coerced into string |
-| Dict[Enum, **V**] | object | recursive in **V**, keys are of enumeration value type and coerced into string |
-| Set[**T**] | array | recursive in **T**, container has uniqueness constraint |
-| Tuple[**T1**, **T2**, ...] | array | array has fixed length, each element has specific type |
+| list[**T**] | array | recursive in **T** |
+| dict[**K**, **V**] | object | recursive in **V**, keys are coerced into string |
+| dict[Enum, **V**] | object | recursive in **V**, keys are of enumeration value type and coerced into string |
+| set[**T**] | array | recursive in **T**, container has uniqueness constraint |
+| tuple[**T1**, **T2**, ...] | array | array has fixed length, each element has specific type |
 | Literal[**const**] | *type matching* **const** | export the literal value as a constant value |
 | data class | object | iterates over fields of data class |
 | named tuple | object | iterates over fields of named tuple |
@@ -209,10 +209,10 @@ class Side(enum.Enum):
 
 | Python type | JSON schema |
 | -- | -- |
-| List[int] | `{"type": "array", "items": {"type": "integer"}}` |
-| Dict[str, int] | `{"type": "object", "additionalProperties": {"type": "integer"}}` |
-| Set[int] | `{"type": "array", "items": {"type": "integer"}, "uniqueItems": True}}` |
-| Tuple[int, str] | `{"type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{"type": "integer"}, {"type": "string"}]}` |
+| list[int] | `{"type": "array", "items": {"type": "integer"}}` |
+| dict[str, int] | `{"type": "object", "additionalProperties": {"type": "integer"}}` |
+| set[int] | `{"type": "array", "items": {"type": "integer"}, "uniqueItems": True}}` |
+| tuple[int, str] | `{"type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{"type": "integer"}, {"type": "string"}]}` |
 
 ### Annotated types
 

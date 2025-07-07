@@ -2,7 +2,7 @@ import datetime
 import ipaddress
 import unittest
 import uuid
-from typing import Dict, List, Literal, Optional, Set, Union
+from typing import Literal, Optional, Union
 
 from strong_typing.core import JsonType
 from strong_typing.exception import JsonKeyError, JsonTypeError, JsonValueError
@@ -84,9 +84,7 @@ class TestDeserialization(unittest.TestCase):
             json_to_object(datetime.datetime, "1989-10-23T01:45:50")
 
     def test_deserialization_class(self) -> None:
-        self.assertEqual(
-            json_to_object(SimpleValueWrapper, {"value": 42}), SimpleValueWrapper(42)
-        )
+        self.assertEqual(json_to_object(SimpleValueWrapper, {"value": 42}), SimpleValueWrapper(42))
         self.assertEqual(
             json_to_object(FrozenValueWrapper, {"value": 42}),
             FrozenValueWrapper(42),
@@ -100,19 +98,19 @@ class TestDeserialization(unittest.TestCase):
         )
 
     def test_deserialization_collection(self) -> None:
-        self.assertEqual(json_to_object(List[int], [1, 2, 3]), [1, 2, 3])
+        self.assertEqual(json_to_object(list[int], [1, 2, 3]), [1, 2, 3])
         self.assertEqual(
-            json_to_object(Dict[str, int], {"a": 1, "b": 2, "c": 3}),
+            json_to_object(dict[str, int], {"a": 1, "b": 2, "c": 3}),
             {"a": 1, "b": 2, "c": 3},
         )
-        self.assertEqual(json_to_object(Set[int], [1, 2, 3]), set([1, 2, 3]))
+        self.assertEqual(json_to_object(set[int], [1, 2, 3]), set([1, 2, 3]))
 
         with self.assertRaises(JsonTypeError):
-            json_to_object(List[int], 23)
+            json_to_object(list[int], 23)
         with self.assertRaises(JsonTypeError):
-            json_to_object(Dict[str, int], "string")
+            json_to_object(dict[str, int], "string")
         with self.assertRaises(JsonTypeError):
-            json_to_object(Set[int], 42)
+            json_to_object(set[int], 42)
 
         with self.assertRaises(TypeError):
             json_to_object(list, [1, 2, 3])
@@ -140,24 +138,14 @@ class TestDeserialization(unittest.TestCase):
             json_to_object(OptionalValueWrapper, {"value": 23, "extra": 42})
 
     def test_deserialization_literal(self) -> None:
-        self.assertEqual(
-            json_to_generic(Literal["val1", "val2", "val3"], "val1"), "val1"
-        )
-        self.assertEqual(
-            json_to_generic(Literal["val1", "val2", "val3"], "val3"), "val3"
-        )
+        self.assertEqual(json_to_generic(Literal["val1", "val2", "val3"], "val1"), "val1")
+        self.assertEqual(json_to_generic(Literal["val1", "val2", "val3"], "val3"), "val3")
         self.assertEqual(json_to_generic(Literal[1, 2, 3], 1), 1)
         self.assertEqual(json_to_generic(Literal[1, 2, 3], 3), 3)
 
-        self.assertEqual(
-            json_to_object(LiteralWrapper, {"value": "val1"}), LiteralWrapper("val1")
-        )
-        self.assertEqual(
-            json_to_object(LiteralWrapper, {"value": "val2"}), LiteralWrapper("val2")
-        )
-        self.assertEqual(
-            json_to_object(LiteralWrapper, {"value": "val3"}), LiteralWrapper("val3")
-        )
+        self.assertEqual(json_to_object(LiteralWrapper, {"value": "val1"}), LiteralWrapper("val1"))
+        self.assertEqual(json_to_object(LiteralWrapper, {"value": "val2"}), LiteralWrapper("val2"))
+        self.assertEqual(json_to_object(LiteralWrapper, {"value": "val3"}), LiteralWrapper("val3"))
 
         with self.assertRaises(TypeError):
             json_to_generic(Literal["value", 1], "value")
@@ -202,9 +190,7 @@ class TestDeserialization(unittest.TestCase):
             SimpleValueWrapper(42),
         )
         self.assertEqual(
-            json_to_generic(
-                Union[SimpleDataclass, SimpleValueWrapper], {"int_value": 42}
-            ),
+            json_to_generic(Union[SimpleDataclass, SimpleValueWrapper], {"int_value": 42}),
             SimpleDataclass(int_value=42),
         )
 
@@ -265,9 +251,7 @@ class TestDeserialization(unittest.TestCase):
         self.assertEqual(json_to_object(NestedJson, {"json": []}), NestedJson([]))
         self.assertEqual(json_to_object(NestedJson, {"json": {}}), NestedJson({}))
         self.assertEqual(
-            json_to_object(
-                NestedJson, {"json": [{"key1": "value1"}, {"key2": "value2"}]}
-            ),
+            json_to_object(NestedJson, {"json": [{"key1": "value1"}, {"key2": "value2"}]}),
             NestedJson([{"key1": "value1"}, {"key2": "value2"}]),
         )
 

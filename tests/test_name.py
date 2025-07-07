@@ -1,19 +1,8 @@
 import sys
 import unittest
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Set,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Annotated, Any, Callable, Literal, Optional, TypeVar, Union
 
-from strong_typing.auxiliary import Alias, Annotated, float32, int32
+from strong_typing.auxiliary import Alias, float32, int32
 from strong_typing.mapping import python_field_to_json_property
 from strong_typing.name import TypeFormatter, python_type_to_name, python_type_to_str
 
@@ -40,19 +29,19 @@ class TestName(unittest.TestCase):
             "Optional__str",
         )
         self.assertEqual(
-            python_type_to_name(Dict[str, int], force=True),
+            python_type_to_name(dict[str, int], force=True),
             "Dict__str__int",
         )
         self.assertEqual(
-            python_type_to_name(List[int], force=True),
+            python_type_to_name(list[int], force=True),
             "List__int",
         )
         self.assertEqual(
-            python_type_to_name(Set[int], force=True),
+            python_type_to_name(set[int], force=True),
             "Set__int",
         )
         self.assertEqual(
-            python_type_to_name(Type[str], force=True),
+            python_type_to_name(type[str], force=True),
             "Type__str",
         )
         self.assertEqual(
@@ -63,9 +52,9 @@ class TestName(unittest.TestCase):
         with self.assertRaises(TypeError):
             python_type_to_name(Optional[str])
         with self.assertRaises(TypeError):
-            python_type_to_name(List[int])
+            python_type_to_name(list[int])
         with self.assertRaises(TypeError):
-            python_type_to_name(Dict[str, int])
+            python_type_to_name(dict[str, int])
         with self.assertRaises(TypeError):
             python_type_to_name(Union[str, int, None])
 
@@ -74,9 +63,7 @@ class TestName(unittest.TestCase):
 
     def test_alias(self) -> None:
         self.assertEqual(python_field_to_json_property("id"), "id")
-        self.assertEqual(
-            python_field_to_json_property("id", Annotated[str, Alias("alias")]), "alias"
-        )
+        self.assertEqual(python_field_to_json_property("id", Annotated[str, Alias("alias")]), "alias")
 
     def test_special(self) -> None:
         self.assertEqual(python_type_to_str(None), "None")
@@ -87,12 +74,8 @@ class TestName(unittest.TestCase):
 
     def test_callable(self) -> None:
         self.assertEqual(python_type_to_str(Callable[[], None]), "Callable[[], None]")
-        self.assertEqual(
-            python_type_to_str(Callable[[str], None]), "Callable[[str], None]"
-        )
-        self.assertEqual(
-            python_type_to_str(Callable[[int], str]), "Callable[[int], str]"
-        )
+        self.assertEqual(python_type_to_str(Callable[[str], None]), "Callable[[str], None]")
+        self.assertEqual(python_type_to_str(Callable[[int], str]), "Callable[[int], str]")
         self.assertEqual(
             python_type_to_str(Callable[[bool, int, str], None]),
             "Callable[[bool, int, str], None]",
@@ -102,15 +85,9 @@ class TestName(unittest.TestCase):
         fmt = TypeFormatter(use_union_operator=True)
         self.assertEqual(fmt.python_type_to_str(Optional[str]), "str | None")
         self.assertEqual(fmt.python_type_to_str(Union[str, int]), "str | int")
-        self.assertEqual(
-            fmt.python_type_to_str(Union[str, int, None]), "str | int | None"
-        )
-        self.assertEqual(
-            fmt.python_type_to_str(Union[None, str, int]), "None | str | int"
-        )
-        self.assertEqual(
-            fmt.python_type_to_str(Optional["SampleClass"]), "SampleClass | None"
-        )
+        self.assertEqual(fmt.python_type_to_str(Union[str, int, None]), "str | int | None")
+        self.assertEqual(fmt.python_type_to_str(Union[None, str, int]), "None | str | int")
+        self.assertEqual(fmt.python_type_to_str(Optional["SampleClass"]), "SampleClass | None")
         self.assertEqual(
             fmt.python_type_to_str(Union["SampleClass", "DerivedClass", None]),
             "SampleClass | DerivedClass | None",
@@ -118,15 +95,9 @@ class TestName(unittest.TestCase):
 
         self.assertEqual(python_type_to_str(Optional[str]), "Optional[str]")
         self.assertEqual(python_type_to_str(Union[str, int]), "Union[str, int]")
-        self.assertEqual(
-            python_type_to_str(Union[str, int, None]), "Union[str, int, None]"
-        )
-        self.assertEqual(
-            python_type_to_str(Union[None, str, int]), "Union[None, str, int]"
-        )
-        self.assertEqual(
-            python_type_to_str(Optional["SampleClass"]), "Optional[SampleClass]"
-        )
+        self.assertEqual(python_type_to_str(Union[str, int, None]), "Union[str, int, None]")
+        self.assertEqual(python_type_to_str(Union[None, str, int]), "Union[None, str, int]")
+        self.assertEqual(python_type_to_str(Optional["SampleClass"]), "Optional[SampleClass]")
         self.assertEqual(
             python_type_to_str(Union["SampleClass", "DerivedClass", None]),
             "Union[SampleClass, DerivedClass, None]",
@@ -160,15 +131,9 @@ class TestName(unittest.TestCase):
         )
         self.assertEqual(fmt.python_type_to_str(Optional[str]), "*str* | None")
         self.assertEqual(fmt.python_type_to_str(Union[str, int]), "*str* | *int*")
-        self.assertEqual(
-            fmt.python_type_to_str(Union[str, int, None]), "*str* | *int* | None"
-        )
-        self.assertEqual(
-            fmt.python_type_to_str(Union[None, str, int]), "None | *str* | *int*"
-        )
-        self.assertEqual(
-            fmt.python_type_to_str(Optional["SampleClass"]), "*SampleClass* | None"
-        )
+        self.assertEqual(fmt.python_type_to_str(Union[str, int, None]), "*str* | *int* | None")
+        self.assertEqual(fmt.python_type_to_str(Union[None, str, int]), "None | *str* | *int*")
+        self.assertEqual(fmt.python_type_to_str(Optional["SampleClass"]), "*SampleClass* | None")
         self.assertEqual(
             fmt.python_type_to_str(Union["SampleClass", "DerivedClass", None]),
             "*SampleClass* | *DerivedClass* | None",

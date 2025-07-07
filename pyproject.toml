@@ -1,3 +1,65 @@
 [build-system]
-requires = ["setuptools>=51", "wheel"]
+requires = ["setuptools>=80.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "json_strong_typing"
+description = "Type-safe data interchange for Python data classes"
+readme = { file = "README.md", content-type = "text/markdown" }
+keywords = ["json-schema", "json-parsing", "json-serialization", "docstring-documentation", "type-inspection"]
+license = "MIT"
+authors = [
+    { name = "Levente Hunyadi", email = "hunyadi@gmail.com" }
+]
+maintainers = [
+    { name = "Levente Hunyadi", email = "hunyadi@gmail.com" }
+]
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: File Formats :: JSON",
+    "Topic :: File Formats :: JSON :: JSON Schema",
+    "Topic :: Text Processing :: Markup :: reStructuredText",
+    "Typing :: Typed"
+]
+dependencies = [
+    "jsonschema >= 4.23",
+    "typing_extensions >= 4.12; python_version < '3.11'"
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "mypy >= 1.16",
+    "ruff >= 0.12"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/hunyadi/strong_typing"
+"Source" = "https://github.com/hunyadi/strong_typing"
+
+[tool.setuptools]
+include-package-data = true
+packages = ["strong_typing"]
+zip-safe = true
+
+[tool.setuptools.dynamic]
+version = { attr = "strong_typing.__version__" }
+
+[tool.setuptools.package-data]
+"strong_typing" = ["py.typed"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "Q"]

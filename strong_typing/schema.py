@@ -14,32 +14,12 @@ import json
 import typing
 import uuid
 from copy import deepcopy
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Callable, ClassVar, Literal, Optional, TypeVar, Union, overload
 
 import jsonschema
 
 from . import docstring
-from .auxiliary import (
-    Alias,
-    IntegerRange,
-    MaxLength,
-    MinLength,
-    Precision,
-    get_auxiliary_format,
-)
+from .auxiliary import Alias, IntegerRange, MaxLength, MinLength, Precision, get_auxiliary_format
 from .core import JsonArray, JsonObject, JsonType, Schema, StrictJsonType
 from .inspection import (
     TypeLike,
@@ -56,7 +36,7 @@ from .inspection import (
 from .name import python_type_to_name
 from .serialization import object_to_json
 
-# determines the maximum number of distinct enum members up to which a Dict[EnumType, Any] is converted into a JSON
+# determines the maximum number of distinct enum members up to which a dict[EnumType, Any] is converted into a JSON
 # schema with explicitly listed properties (rather than employing a pattern constraint on property names)
 OBJECT_ENUM_EXPANSION_LIMIT = 4
 
@@ -64,7 +44,7 @@ OBJECT_ENUM_EXPANSION_LIMIT = 4
 T = TypeVar("T")
 
 
-def get_class_docstrings(data_type: type) -> Tuple[Optional[str], Optional[str]]:
+def get_class_docstrings(data_type: type) -> tuple[Optional[str], Optional[str]]:
     docstr = docstring.parse_type(data_type)
 
     # check if class has a doc-string other than the auto-generated string assigned by @dataclass
@@ -76,7 +56,7 @@ def get_class_docstrings(data_type: type) -> Tuple[Optional[str], Optional[str]]
 
 def get_class_property_docstrings(
     data_type: type, transform_fun: Optional[Callable[[type, str, str], str]] = None
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Extracts the documentation strings associated with the properties of a composite type.
 
@@ -123,7 +103,7 @@ def id_from_ref(data_type: Union[typing.ForwardRef, str, type]) -> str:
         return data_type.__name__
 
 
-def type_from_ref(data_type: Union[typing.ForwardRef, str, type]) -> Tuple[str, type]:
+def type_from_ref(data_type: Union[typing.ForwardRef, str, type]) -> tuple[str, type]:
     "Creates a type from a forward reference."
 
     if isinstance(data_type, typing.ForwardRef):
@@ -147,8 +127,8 @@ class TypeCatalogEntry:
 class TypeCatalog:
     "Maintains an association of well-known Python types to their JSON schema."
 
-    _by_type: Dict[TypeLike, TypeCatalogEntry]
-    _by_name: Dict[str, TypeCatalogEntry]
+    _by_type: dict[TypeLike, TypeCatalogEntry]
+    _by_name: dict[str, TypeCatalogEntry]
 
     def __init__(self) -> None:
         self._by_type = {}
@@ -167,7 +147,7 @@ class TypeCatalog:
         data_type: TypeLike,
         schema: Optional[Schema],
         identifier: str,
-        examples: Optional[List[JsonType]] = None,
+        examples: Optional[list[JsonType]] = None,
     ) -> None:
         if isinstance(data_type, typing.ForwardRef):
             raise TypeError("forward references cannot be used to register a type")
@@ -203,7 +183,7 @@ class JsonSchemaGenerator:
     "Creates a JSON schema with user-defined type definitions."
 
     type_catalog: ClassVar[TypeCatalog] = TypeCatalog()
-    types_used: Dict[str, TypeLike]
+    types_used: dict[str, TypeLike]
     options: SchemaOptions
 
     def __init__(self, options: Optional[SchemaOptions] = None):
@@ -238,9 +218,7 @@ class JsonSchemaGenerator:
     def _(self, arg: MaxLength) -> Schema:
         return {"maxLength": arg.value}
 
-    def _with_metadata(
-        self, type_schema: Schema, metadata: Optional[Tuple[Any, ...]]
-    ) -> Schema:
+    def _with_metadata(self, type_schema: Schema, metadata: Optional[tuple[Any, ...]]) -> Schema:
         if metadata:
             for m in metadata:
                 type_schema.update(self._metadata_to_schema(m))
@@ -306,7 +284,8 @@ class JsonSchemaGenerator:
         Returns the JSON schema associated with a type.
 
         :param data_type: The Python type whose JSON schema to return.
-        :param force_expand: Forces a JSON schema to be returned even if the type is registered in the catalog of known types.
+        :param force_expand: Forces a JSON schema to be returned even if the type is registered in the catalog of known
+            types.
         :returns: The JSON schema associated with the type.
         """
 
@@ -357,7 +336,7 @@ class JsonSchemaGenerator:
                 return {"$ref": f"{self.options.definitions_path}{identifier}"}
 
         if is_type_enum(typ):
-            enum_type: Type[enum.Enum] = typ
+            enum_type: type[enum.Enum] = typ
             value_types = enum_value_types(enum_type)
             if len(value_types) != 1:
                 raise ValueError(
@@ -366,12 +345,7 @@ class JsonSchemaGenerator:
             enum_value_type = value_types.pop()
 
             enum_schema: Schema
-            if (
-                enum_value_type is bool
-                or enum_value_type is int
-                or enum_value_type is float
-                or enum_value_type is str
-            ):
+            if enum_value_type is bool or enum_value_type is int or enum_value_type is float or enum_value_type is str:
                 if enum_value_type is bool:
                     enum_schema_type = "boolean"
                 elif enum_value_type is int:
@@ -395,12 +369,7 @@ class JsonSchemaGenerator:
                 return enum_schema
 
         if is_type_union(typ):
-            return {
-                "oneOf": [
-                    self.type_to_schema(union_type)
-                    for union_type in unwrap_union_types(typ)
-                ]
-            }
+            return {"oneOf": [self.type_to_schema(union_type) for union_type in unwrap_union_types(typ)]}
 
         origin_type = typing.get_origin(typ)
         if origin_type is list:
@@ -409,9 +378,7 @@ class JsonSchemaGenerator:
         elif origin_type is dict:
             key_type, value_type = typing.get_args(typ)
             if not (key_type is str or key_type is int or is_type_enum(key_type)):
-                raise ValueError(
-                    "`dict` with key type not coercible to `str` is not supported"
-                )
+                raise ValueError("`dict` with key type not coercible to `str` is not supported")
 
             dict_schema: Schema
             value_schema = self.type_to_schema(value_type)
@@ -419,9 +386,7 @@ class JsonSchemaGenerator:
                 enum_values = [str(e.value) for e in key_type]
                 if len(enum_values) > OBJECT_ENUM_EXPANSION_LIMIT:
                     dict_schema = {
-                        "propertyNames": {
-                            "pattern": "^(" + "|".join(enum_values) + ")$"
-                        },
+                        "propertyNames": {"pattern": "^(" + "|".join(enum_values) + ")$"},
                         "additionalProperties": value_schema,
                     }
                 else:
@@ -448,9 +413,7 @@ class JsonSchemaGenerator:
                 "type": "array",
                 "minItems": len(args),
                 "maxItems": len(args),
-                "prefixItems": [
-                    self.type_to_schema(member_type) for member_type in args
-                ],
+                "prefixItems": [self.type_to_schema(member_type) for member_type in args],
             }
         elif origin_type is Literal:
             (literal_value,) = typing.get_args(typ)  # unpack value of literal type
@@ -464,12 +427,10 @@ class JsonSchemaGenerator:
         # dictionary of class attributes
         members = dict(inspect.getmembers(typ, lambda a: not inspect.isroutine(a)))
 
-        property_docstrings = get_class_property_docstrings(
-            typ, self.options.property_description_fun
-        )
+        property_docstrings = get_class_property_docstrings(typ, self.options.property_description_fun)
 
-        properties: Dict[str, Schema] = {}
-        required: List[str] = []
+        properties: dict[str, Schema] = {}
+        required: list[str] = []
         for property_name, property_type in get_class_properties(typ):
             # rename property if an alias name is specified
             alias = get_annotation(property_type, Alias)
@@ -538,9 +499,7 @@ class JsonSchemaGenerator:
 
         # add descriptive text (if present)
         if self.options.use_descriptions:
-            if isinstance(data_type, type) and not isinstance(
-                data_type, typing.ForwardRef
-            ):
+            if isinstance(data_type, type):
                 type_schema.update(docstring_to_schema(data_type))
 
         # add example (if present)
@@ -549,9 +508,7 @@ class JsonSchemaGenerator:
 
         return type_schema
 
-    def classdef_to_schema(
-        self, data_type: TypeLike, force_expand: bool = False
-    ) -> Tuple[Schema, Dict[str, Schema]]:
+    def classdef_to_schema(self, data_type: TypeLike, force_expand: bool = False) -> tuple[Schema, dict[str, Schema]]:
         """
         Returns the JSON schema associated with a type and any nested types.
 
@@ -568,7 +525,7 @@ class JsonSchemaGenerator:
         try:
             type_schema = self.type_to_schema(data_type, force_expand=force_expand)
 
-            types_defined: Dict[str, Schema] = {}
+            types_defined: dict[str, Schema] = {}
             while len(self.types_used) > len(types_defined):
                 # make a snapshot copy; original collection is going to be modified
                 types_undefined = {
@@ -625,10 +582,8 @@ def classdef_to_schema(
     validator_id = validator.value.META_SCHEMA["$id"]
     try:
         validator.value.check_schema(class_schema)
-    except jsonschema.exceptions.SchemaError:
-        raise TypeError(
-            f"schema does not validate against meta-schema <{validator_id}>"
-        )
+    except jsonschema.exceptions.SchemaError as ex:
+        raise TypeError(f"schema does not validate against meta-schema <{validator_id}>") from ex
 
     schema = {"$schema": validator_id}
     schema.update(class_schema)
@@ -645,9 +600,7 @@ def validate_object(data_type: TypeLike, json_dict: JsonType) -> None:
     """
 
     schema_dict = classdef_to_schema(data_type)
-    jsonschema.validate(
-        json_dict, schema_dict, format_checker=jsonschema.FormatChecker()
-    )
+    jsonschema.validate(json_dict, schema_dict, format_checker=jsonschema.FormatChecker())
 
 
 def print_schema(data_type: type) -> None:
@@ -668,7 +621,7 @@ def register_schema(
     data_type: T,
     schema: Optional[Schema] = None,
     name: Optional[str] = None,
-    examples: Optional[List[JsonType]] = None,
+    examples: Optional[list[JsonType]] = None,
 ) -> T:
     """
     Associates a type with a JSON schema definition.
@@ -689,24 +642,22 @@ def register_schema(
 
 
 @overload
-def json_schema_type(cls: Type[T], /) -> Type[T]: ...
+def json_schema_type(cls: type[T], /) -> type[T]: ...
 
 
 @overload
-def json_schema_type(
-    cls: None, *, schema: Optional[Schema] = None
-) -> Callable[[Type[T]], Type[T]]: ...
+def json_schema_type(cls: None, *, schema: Optional[Schema] = None) -> Callable[[type[T]], type[T]]: ...
 
 
 def json_schema_type(
-    cls: Optional[Type[T]] = None,
+    cls: Optional[type[T]] = None,
     *,
     schema: Optional[Schema] = None,
-    examples: Optional[List[JsonType]] = None,
-) -> Union[Type[T], Callable[[Type[T]], Type[T]]]:
+    examples: Optional[list[JsonType]] = None,
+) -> Union[type[T], Callable[[type[T]], type[T]]]:
     """Decorator to add user-defined schema definition to a class."""
 
-    def wrap(cls: Type[T]) -> Type[T]:
+    def wrap(cls: type[T]) -> type[T]:
         return register_schema(cls, schema, examples=examples)
 
     # see if decorator is used as @json_schema_type or @json_schema_type()

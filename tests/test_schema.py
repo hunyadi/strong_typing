@@ -2,17 +2,11 @@ import datetime
 import decimal
 import unittest
 import uuid
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Annotated, Any, Union
 
-from strong_typing.auxiliary import Annotated, IntegerRange, Precision, int32, uint64
+from strong_typing.auxiliary import IntegerRange, Precision, int32, uint64
 from strong_typing.core import JsonType
-from strong_typing.schema import (
-    JsonSchemaGenerator,
-    SchemaOptions,
-    Validator,
-    classdef_to_schema,
-    get_class_docstrings,
-)
+from strong_typing.schema import JsonSchemaGenerator, SchemaOptions, Validator, classdef_to_schema, get_class_docstrings
 
 from .sample_types import (
     UID,
@@ -70,15 +64,15 @@ class TestSchema(unittest.TestCase):
             },
         )
         self.assertEqual(
-            generator.type_to_schema(List[int]),
+            generator.type_to_schema(list[int]),
             {"type": "array", "items": {"type": "integer"}},
         )
         self.assertEqual(
-            generator.type_to_schema(Dict[str, int]),
+            generator.type_to_schema(dict[str, int]),
             {"type": "object", "additionalProperties": {"type": "integer"}},
         )
         self.assertEqual(
-            generator.type_to_schema(Set[int]),
+            generator.type_to_schema(set[int]),
             {"type": "array", "items": {"type": "integer"}, "uniqueItems": True},
         )
         self.assertEqual(
@@ -86,7 +80,7 @@ class TestSchema(unittest.TestCase):
             {"oneOf": [{"type": "integer"}, {"type": "string"}]},
         )
         self.assertEqual(
-            generator.type_to_schema(Tuple[bool, int, str]),
+            generator.type_to_schema(tuple[bool, int, str]),
             {
                 "type": "array",
                 "minItems": 3,
@@ -209,9 +203,7 @@ class TestSchema(unittest.TestCase):
                             {"type": "string"},
                             {
                                 "type": "object",
-                                "additionalProperties": {
-                                    "$ref": "#/definitions/JsonType"
-                                },
+                                "additionalProperties": {"$ref": "#/definitions/JsonType"},
                             },
                             {
                                 "type": "array",
@@ -295,16 +287,10 @@ class TestSchema(unittest.TestCase):
     def test_fixed_width(self) -> None:
         options = SchemaOptions(use_descriptions=True)
         generator = JsonSchemaGenerator(options)
-        self.assertEqual(
-            generator.type_to_schema(int32), {"format": "int32", "type": "integer"}
-        )
-        self.assertEqual(
-            generator.type_to_schema(uint64), {"format": "uint64", "type": "integer"}
-        )
+        self.assertEqual(generator.type_to_schema(int32), {"format": "int32", "type": "integer"})
+        self.assertEqual(generator.type_to_schema(uint64), {"format": "uint64", "type": "integer"})
 
-    def _assert_docstring_equal(
-        self, generator: JsonSchemaGenerator, typ: type
-    ) -> None:
+    def _assert_docstring_equal(self, generator: JsonSchemaGenerator, typ: type) -> None:
         "Checks if the Python class docstring matches the title and description strings in the generated JSON schema."
 
         short_description, long_description = get_class_docstrings(typ)
@@ -336,9 +322,7 @@ class TestSchema(unittest.TestCase):
             generator.type_to_schema(datetime.time),
             {"type": "string", "format": "time"},
         )
-        self.assertEqual(
-            generator.type_to_schema(uuid.UUID), {"type": "string", "format": "uuid"}
-        )
+        self.assertEqual(generator.type_to_schema(uuid.UUID), {"type": "string", "format": "uuid"})
 
         # parse docstring for complex types
         self._assert_docstring_equal(generator, Suit)

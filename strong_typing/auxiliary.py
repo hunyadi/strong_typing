@@ -8,12 +8,7 @@ import dataclasses
 import sys
 import typing
 from dataclasses import is_dataclass
-from typing import Callable, Dict, Optional, Type, TypeVar, Union, overload
-
-if sys.version_info >= (3, 9):
-    from typing import Annotated as Annotated
-else:
-    from typing_extensions import Annotated as Annotated
+from typing import Annotated, Callable, Optional, TypeVar, Union, overload
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec as ParamSpec
@@ -39,9 +34,7 @@ def _compact_dataclass_repr(obj: object) -> str:
     """
 
     if is_dataclass(obj):
-        arglist = ", ".join(
-            repr(getattr(obj, field.name)) for field in dataclasses.fields(obj)
-        )
+        arglist = ", ".join(repr(getattr(obj, field.name)) for field in dataclasses.fields(obj))
         return f"{obj.__class__.__name__}({arglist})"
     else:
         return obj.__class__.__name__
@@ -55,19 +48,17 @@ class CompactDataClass:
 
 
 @overload
-def typeannotation(cls: Type[T], /) -> Type[T]: ...
+def typeannotation(cls: type[T], /) -> type[T]: ...
 
 
 @overload
-def typeannotation(
-    cls: None, *, eq: bool = True, order: bool = False
-) -> Callable[[Type[T]], Type[T]]: ...
+def typeannotation(cls: None, *, eq: bool = True, order: bool = False) -> Callable[[type[T]], type[T]]: ...
 
 
 @dataclass_transform(eq_default=True, order_default=False)
 def typeannotation(
-    cls: Optional[Type[T]] = None, *, eq: bool = True, order: bool = False
-) -> Union[Type[T], Callable[[Type[T]], Type[T]]]:
+    cls: Optional[type[T]] = None, *, eq: bool = True, order: bool = False
+) -> Union[type[T], Callable[[type[T]], type[T]]]:
     """
     Returns the same class as was passed in, with dunder methods added based on the fields defined in the class.
 
@@ -77,13 +68,13 @@ def typeannotation(
     :returns: A data-class type, or a wrapper for data-class types.
     """
 
-    def wrap(cls: Type[T]) -> Type[T]:
-        setattr(cls, "__repr__", _compact_dataclass_repr)
+    def wrap(cls: type[T]) -> type[T]:
+        cls.__repr__ = _compact_dataclass_repr  # type: ignore[method-assign]
         if dataclasses.is_dataclass(cls):
-            return typing.cast(Type[T], cls)
+            return typing.cast(type[T], cls)
         else:
             return typing.cast(
-                Type[T],
+                type[T],
                 dataclasses.dataclass(  # type: ignore[call-overload]
                     cls,
                     init=True,
@@ -216,7 +207,7 @@ float32: TypeAlias = Annotated[float, Storage(4)]
 float64: TypeAlias = Annotated[float, Storage(8)]
 
 # maps globals of type Annotated[T, ...] defined in this module to their string names
-_auxiliary_types: Dict[object, str] = {}
+_auxiliary_types: dict[object, str] = {}
 module = sys.modules[__name__]
 for var in dir(module):
     typ = getattr(module, var)

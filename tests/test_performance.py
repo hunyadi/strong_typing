@@ -11,14 +11,10 @@ from .timer import Timer
 
 
 def time_today(time_of_day: datetime.time) -> datetime.datetime:
-    return datetime.datetime.combine(
-        datetime.datetime.today(), time_of_day, time_of_day.tzinfo
-    )
+    return datetime.datetime.combine(datetime.datetime.today(), time_of_day, time_of_day.tzinfo)
 
 
-def random_datetime(
-    start: datetime.datetime, end: datetime.datetime
-) -> datetime.datetime:
+def random_datetime(start: datetime.datetime, end: datetime.datetime) -> datetime.datetime:
     """
     Returns a random datetime between two datetime objects.
     """
@@ -92,9 +88,7 @@ class TestPerformance(unittest.TestCase):
             serialized_items = [object_to_json(item) for item in original_items]
 
         with Timer("deserialization"):
-            deserialized_items = [
-                json_to_object(SimpleObjectExample, item) for item in serialized_items
-            ]
+            deserialized_items = [json_to_object(SimpleObjectExample, item) for item in serialized_items]
 
         self.assertListEqual(original_items, deserialized_items)
 
