@@ -647,7 +647,9 @@ class TypeCollector:
         if typ is type(None) or typ is Any:
             return
 
-        if isinstance(typ, type):
+        origin = typing.get_origin(typ)
+
+        if isinstance(typ, type) and origin is None:
             self.graph[cls].add(typ)
 
             if typ in self.graph:
@@ -670,12 +672,11 @@ class TypeCollector:
             return self.run(evaluated_type, cls, module)
 
         # type is a special form
-        origin = typing.get_origin(typ)
         if origin in [list, dict, frozenset, set, tuple, Union]:
             for arg in typing.get_args(typ):
                 self.run(arg, cls, module)
             return
-        elif origin is Literal:
+        if origin is Literal:
             return
 
         # type is optional or a union type
@@ -686,8 +687,12 @@ class TypeCollector:
                 self.run(union_type, cls, module)
             return
 
+        # type is not a recognized generic type
+        if origin is not None:
+            raise TypeError(f"expected: standard generic type; got: {typ}")
+
         # type is a regular type
-        elif is_dataclass_type(typ) or is_type_enum(typ) or isinstance(typ, type):
+        if is_dataclass_type(typ) or is_type_enum(typ) or isinstance(typ, type):
             context = sys.modules[typ.__module__]
             if is_dataclass_type(typ):
                 for field in dataclass_fields(typ):
