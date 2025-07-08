@@ -109,6 +109,10 @@ class TypeFormatter:
 
                 raise ValueError("missing context for evaluating types")
 
+            if data_type.isidentifier() and data_type in self.context.__dict__:
+                # simple type name that is defined in the current context
+                return data_type
+
             return self.python_type_to_str(evaluate_type(data_type, self.context))
         elif isinstance(data_type, ParamSpec):
             return data_type.__name__
