@@ -533,7 +533,11 @@ class RequiredFieldDeserializer(FieldDeserializer[T, T]):
         if self.property_name not in data:
             raise JsonKeyError(f"missing required property `{self.property_name}` from JSON object: {data}")
 
-        return self.parser.parse(data[self.property_name])
+        value = data[self.property_name]
+        if value is None:
+            raise JsonValueError(f"required property `{self.property_name}` received `null`")
+
+        return self.parser.parse(value)
 
 
 class OptionalFieldDeserializer(FieldDeserializer[T, Optional[T]]):
