@@ -5,7 +5,7 @@ Provides auxiliary services for working with Python type annotations, converting
 and generating a JSON schema for a complex type.
 """
 
-__version__ = "0.3.9"
+__version__ = "0.4.0"
 __author__ = "Levente Hunyadi"
 __copyright__ = "Copyright 2021-2025, Levente Hunyadi"
 __license__ = "MIT"
