@@ -75,15 +75,7 @@ def typeannotation(
         else:
             return typing.cast(
                 type[T],
-                dataclasses.dataclass(  # type: ignore[call-overload]
-                    cls,
-                    init=True,
-                    repr=False,
-                    eq=eq,
-                    order=order,
-                    unsafe_hash=False,
-                    frozen=True,
-                ),
+                dataclasses.dataclass(cls, init=True, repr=False, eq=eq, order=order, unsafe_hash=False, frozen=True),
             )
 
     # see if decorator is used as @typeannotation or @typeannotation()

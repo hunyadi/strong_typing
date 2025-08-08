@@ -662,7 +662,7 @@ class DataclassDeserializer(ClassDeserializer[T]):
     def __init__(self, class_type: type[T], options: DeserializerOptions) -> None:
         if not dataclasses.is_dataclass(class_type):
             raise TypeError("expected: data-class type")
-        super().__init__(class_type, options)  # type: ignore[arg-type]
+        super().__init__(typing.cast(type[T], class_type), options)
 
     def build(self, context: Optional[ModuleType]) -> None:
         property_parsers: list[FieldDeserializer] = []

@@ -802,7 +802,7 @@ def create_object(typ: type[T]) -> T:
     if issubclass(typ, Exception):
         # exception types need special treatment
         e = typ.__new__(typ)
-        return typing.cast(T, e)
+        return typing.cast(T, e)  # type: ignore[redundant-cast]
     else:
         return object.__new__(typ)
 
