@@ -24,6 +24,15 @@ class TestName(unittest.TestCase):
         self.assertEqual(python_type_to_name(str), "str")
 
     def test_generic(self) -> None:
+        self.assertEqual(python_type_to_str(dict[str, int]), "dict[str, int]")
+        self.assertEqual(python_type_to_str(list[int]), "list[int]")
+        self.assertEqual(python_type_to_str(set[int]), "set[int]")
+        self.assertEqual(python_type_to_str(frozenset[int]), "frozenset[int]")
+        self.assertEqual(python_type_to_str(tuple[int, str]), "tuple[int, str]")
+        self.assertEqual(python_type_to_str(tuple[int, ...]), "tuple[int, ...]")
+        self.assertEqual(python_type_to_str(type[str]), "type[str]")
+
+    def test_name(self) -> None:
         self.assertEqual(
             python_type_to_name(Optional[str], force=True),
             "Optional__str",
@@ -39,6 +48,14 @@ class TestName(unittest.TestCase):
         self.assertEqual(
             python_type_to_name(set[int], force=True),
             "Set__int",
+        )
+        self.assertEqual(
+            python_type_to_name(frozenset[int], force=True),
+            "FrozenSet__int",
+        )
+        self.assertEqual(
+            python_type_to_name(tuple[int, str], force=True),
+            "Tuple__int__str",
         )
         self.assertEqual(
             python_type_to_name(type[str], force=True),
