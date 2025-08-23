@@ -245,16 +245,16 @@ class JsonSchemaGenerator:
             return {"type": "string", "contentEncoding": "base64"}
         elif typ is datetime.datetime:
             # 2018-11-13T20:20:39+00:00
-            return {
-                "type": "string",
-                "format": "date-time",
-            }
+            return {"type": "string", "format": "date-time"}
         elif typ is datetime.date:
             # 2018-11-13
             return {"type": "string", "format": "date"}
         elif typ is datetime.time:
             # 20:20:39+00:00
             return {"type": "string", "format": "time"}
+        elif typ is datetime.timedelta:
+            # P365DT23H39M59.001S
+            return {"type": "string", "format": "duration"}
         elif typ is decimal.Decimal:
             return {"type": "number"}
         elif typ is uuid.UUID:
@@ -461,6 +461,7 @@ class JsonSchemaGenerator:
                         datetime.datetime,
                         datetime.date,
                         datetime.time,
+                        datetime.timedelta,
                     ),
                 ):
                     property_def["default"] = object_to_json(def_value)

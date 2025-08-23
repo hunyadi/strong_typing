@@ -114,6 +114,7 @@ class SimpleDataclass:
     date_value: datetime.date = datetime.date(1970, 1, 1)
     time_value: datetime.time = datetime.time(6, 15, 30)
     datetime_value: datetime.datetime = datetime.datetime(1989, 10, 23, 1, 45, 50, tzinfo=datetime.timezone.utc)
+    duration_value: datetime.timedelta = datetime.timedelta(days=365, seconds=124, microseconds=1)
     guid_value: uuid.UUID = uuid.UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
 
 

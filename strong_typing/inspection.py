@@ -913,6 +913,7 @@ class RecursiveChecker:
             or typ is datetime.datetime
             or typ is datetime.date
             or typ is datetime.time
+            or typ is datetime.timedelta
             or typ is uuid.UUID
         ):
             return self.pred(typing.cast(type, typ), obj)

@@ -314,14 +314,9 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(generator.type_to_schema(int), {"type": "integer"})
         self.assertEqual(generator.type_to_schema(float), {"type": "number"})
         self.assertEqual(generator.type_to_schema(str), {"type": "string"})
-        self.assertEqual(
-            generator.type_to_schema(datetime.date),
-            {"type": "string", "format": "date"},
-        )
-        self.assertEqual(
-            generator.type_to_schema(datetime.time),
-            {"type": "string", "format": "time"},
-        )
+        self.assertEqual(generator.type_to_schema(datetime.date), {"type": "string", "format": "date"})
+        self.assertEqual(generator.type_to_schema(datetime.time), {"type": "string", "format": "time"})
+        self.assertEqual(generator.type_to_schema(datetime.timedelta), {"type": "string", "format": "duration"})
         self.assertEqual(generator.type_to_schema(uuid.UUID), {"type": "string", "format": "uuid"})
 
         # parse docstring for complex types

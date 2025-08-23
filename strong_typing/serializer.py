@@ -99,6 +99,55 @@ class TimeSerializer(Serializer[datetime.time]):
         return obj.isoformat()
 
 
+class TimeDeltaSerializer(Serializer[datetime.timedelta]):
+    def generate(self, obj: datetime.timedelta) -> str:
+        if obj.days != 0:
+            day_component = f"{obj.days}D"
+        else:
+            day_component = ""
+
+        if obj.seconds != 0 or obj.microseconds != 0:
+            time_component = self.iso8601_time_duration(obj.seconds, obj.microseconds)
+        else:
+            time_component = ""
+
+        if day_component or time_component:
+            return f"P{day_component}{time_component}"
+        else:
+            return "PT0S"
+
+    @staticmethod
+    def iso8601_time_duration(total_seconds: int, microseconds: int) -> str:
+        """
+        Breaks up a total number of seconds representing a duration into components of hours, minutes and seconds.
+
+        The total duration represented by adding up the components equals the duration represented by the input.
+
+        :param total_seconds: Number of seconds in the duration.
+        :param microseconds: Number of microseconds in the sub-second duration.
+        :returns: A time duration string as per ISO 8601.
+        """
+
+        hours = total_seconds // 3600
+        remaining = total_seconds % 3600
+        minutes = remaining // 60
+        seconds = remaining % 60
+
+        if microseconds % 1000 != 0:
+            fractional = f".{microseconds:06d}"
+        elif (millis := microseconds // 1000) != 0:
+            fractional = f".{millis:03d}"
+        else:
+            fractional = ""
+
+        if hours != 0:
+            return f"T{hours}H{minutes}M{seconds}{fractional}S"
+        elif minutes != 0:
+            return f"T{minutes}M{seconds}{fractional}S"
+        else:
+            return f"T{seconds}{fractional}S"
+
+
 class UUIDSerializer(Serializer[uuid.UUID]):
     def generate(self, obj: uuid.UUID) -> str:
         return str(obj)
@@ -396,6 +445,8 @@ def _create_serializer(typ: TypeLike, context: Optional[ModuleType]) -> Serializ
         return DateSerializer()
     elif typ is datetime.time:
         return TimeSerializer()
+    elif typ is datetime.timedelta:
+        return TimeDeltaSerializer()
     elif typ is uuid.UUID:
         return UUIDSerializer()
     elif typ is ipaddress.IPv4Address:

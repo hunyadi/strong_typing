@@ -111,6 +111,9 @@ class TestClassDef(unittest.TestCase):
 
     def test_date_time(self) -> None:
         self.assertEqual(datetime.datetime, as_type({"type": "string", "format": "date-time"}))
+        self.assertEqual(datetime.date, as_type({"type": "string", "format": "date"}))
+        self.assertEqual(datetime.time, as_type({"type": "string", "format": "time"}))
+        self.assertEqual(datetime.timedelta, as_type({"type": "string", "format": "duration"}))
         self.assertEqual(
             datetime.datetime,
             as_type(

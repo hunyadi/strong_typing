@@ -83,6 +83,37 @@ class TestDeserialization(unittest.TestCase):
         with self.assertRaises(JsonValueError):
             json_to_object(datetime.datetime, "1989-10-23T01:45:50")
 
+    def test_deserialization_timedelta(self) -> None:
+        self.assertEqual(json_to_object(datetime.timedelta, "P0D"), datetime.timedelta())
+        self.assertEqual(json_to_object(datetime.timedelta, "PT0S"), datetime.timedelta())
+        self.assertEqual(json_to_object(datetime.timedelta, "P2W"), datetime.timedelta(days=14))
+        self.assertEqual(json_to_object(datetime.timedelta, "P365D"), datetime.timedelta(days=365))
+        self.assertEqual(json_to_object(datetime.timedelta, "P1W3D"), datetime.timedelta(days=10))
+        self.assertEqual(json_to_object(datetime.timedelta, "PT23H"), datetime.timedelta(hours=23))
+        self.assertEqual(json_to_object(datetime.timedelta, "PT23H0M0S"), datetime.timedelta(hours=23))
+        self.assertEqual(json_to_object(datetime.timedelta, "PT59M"), datetime.timedelta(minutes=59))
+        self.assertEqual(json_to_object(datetime.timedelta, "PT59M0S"), datetime.timedelta(minutes=59))
+        self.assertEqual(
+            json_to_object(datetime.timedelta, "PT59.5S"), datetime.timedelta(seconds=59, milliseconds=500)
+        )
+        self.assertEqual(
+            json_to_object(datetime.timedelta, "PT59.123S"), datetime.timedelta(seconds=59, milliseconds=123)
+        )
+        self.assertEqual(
+            json_to_object(datetime.timedelta, "PT59.000123S"), datetime.timedelta(seconds=59, microseconds=123)
+        )
+        self.assertEqual(json_to_object(datetime.timedelta, "P365DT59S"), datetime.timedelta(days=365, seconds=59))
+        self.assertEqual(
+            json_to_object(datetime.timedelta, "P365DT23H39M59S"),
+            datetime.timedelta(days=365, hours=23, minutes=39, seconds=59),
+        )
+        with self.assertRaises(JsonValueError):
+            json_to_object(datetime.timedelta, "PT59.000000001S")
+        with self.assertRaises(JsonValueError):
+            json_to_object(datetime.timedelta, "P1Y")
+        with self.assertRaises(JsonValueError):
+            json_to_object(datetime.timedelta, "P1M")
+
     def test_deserialization_class(self) -> None:
         self.assertEqual(json_to_object(SimpleValueWrapper, {"value": 42}), SimpleValueWrapper(42))
         self.assertEqual(

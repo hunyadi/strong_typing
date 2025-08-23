@@ -280,6 +280,12 @@ def node_to_typedef(module: types.ModuleType, context: str, node: JsonSchemaNode
         string_type: TypeLike
         if node.format == "date-time":
             string_type = datetime.datetime
+        elif node.format == "date":
+            string_type = datetime.date
+        elif node.format == "time":
+            string_type = datetime.time
+        elif node.format == "duration":
+            string_type = datetime.timedelta
         elif node.format == "uuid":
             string_type = uuid.UUID
         elif node.format == "ipv4":

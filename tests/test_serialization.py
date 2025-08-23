@@ -87,6 +87,19 @@ class TestSerialization(unittest.TestCase):
         with self.assertRaises(JsonValueError):
             object_to_json(datetime.datetime(1989, 10, 23, 1, 45, 50))
 
+    def test_serialization_timedelta(self) -> None:
+        self.assertEqual(object_to_json(datetime.timedelta()), "PT0S")
+        self.assertEqual(object_to_json(datetime.timedelta(days=365)), "P365D")
+        self.assertEqual(object_to_json(datetime.timedelta(hours=23)), "PT23H0M0S")
+        self.assertEqual(object_to_json(datetime.timedelta(minutes=59)), "PT59M0S")
+        self.assertEqual(object_to_json(datetime.timedelta(seconds=59, milliseconds=500)), "PT59.500S")
+        self.assertEqual(object_to_json(datetime.timedelta(seconds=59, milliseconds=123)), "PT59.123S")
+        self.assertEqual(object_to_json(datetime.timedelta(seconds=59, microseconds=123)), "PT59.000123S")
+        self.assertEqual(object_to_json(datetime.timedelta(days=365, seconds=59)), "P365DT59S")
+        self.assertEqual(
+            object_to_json(datetime.timedelta(days=365, hours=23, minutes=39, seconds=59)), "P365DT23H39M59S"
+        )
+
     def test_serialization_literal(self) -> None:
         self.assertEqual(object_to_json(LiteralWrapper("val1")), {"value": "val1"})
         self.assertEqual(object_to_json(LiteralWrapper("val2")), {"value": "val2"})
@@ -144,6 +157,7 @@ class TestSerialization(unittest.TestCase):
                 "date_value": "1970-01-01",
                 "time_value": "06:15:30",
                 "datetime_value": "1989-10-23T01:45:50Z",
+                "duration_value": "P365DT2M4.000001S",
                 "guid_value": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
             },
         )
@@ -180,6 +194,7 @@ class TestSerialization(unittest.TestCase):
                 "date_value": "1970-01-01",
                 "time_value": "06:15:30",
                 "datetime_value": "1989-10-23T01:45:50Z",
+                "duration_value": "P365DT2M4.000001S",
                 "guid_value": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
                 "list_value": [],
                 "dict_value": {},

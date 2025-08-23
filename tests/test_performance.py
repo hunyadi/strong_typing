@@ -47,6 +47,14 @@ def random_time(start: datetime.time, end: datetime.time) -> datetime.time:
     return ts.timetz()
 
 
+def random_timedelta(min_seconds: int, max_seconds: int) -> datetime.timedelta:
+    """
+    Returns a random time duration.
+    """
+
+    return datetime.timedelta(seconds=random.randrange(min_seconds, max_seconds))
+
+
 @dataclass
 class SimpleObjectExample:
     "A simple data class with multiple properties."
