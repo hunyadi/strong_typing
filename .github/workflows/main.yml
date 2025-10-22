@@ -29,7 +29,7 @@ jobs:
       - name: Set up build dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip --disable-pip-version-check install -r requirements.txt
+          python -m pip --disable-pip-version-check install build
 
       # Generate and publish PyPI package
       - name: Build PyPI package
@@ -62,7 +62,7 @@ jobs:
       - name: Set up build dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip --disable-pip-version-check install -r requirements.txt
+          python -m pip --disable-pip-version-check install ".[dev]"
       - name: Run static type checks and unit tests
         run: |
           PYTHON=python ./check.sh
