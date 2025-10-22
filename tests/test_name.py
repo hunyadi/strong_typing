@@ -4,7 +4,7 @@ from typing import Annotated, Any, Callable, Literal, Optional, TypeVar, Union
 
 from strong_typing.auxiliary import Alias, float32, int32
 from strong_typing.mapping import python_field_to_json_property
-from strong_typing.name import TypeFormatter, python_type_to_name, python_type_to_str
+from strong_typing.name import Self, TypeFormatter, python_type_to_name, python_type_to_str
 
 T = TypeVar("T")
 
@@ -20,6 +20,7 @@ class DerivedClass(SampleClass):
 class TestName(unittest.TestCase):
     def test_builtin(self) -> None:
         self.assertEqual(python_type_to_name(type(None)), "NoneType")
+        self.assertEqual(python_type_to_name(Self), "Self")
         self.assertEqual(python_type_to_name(int), "int")
         self.assertEqual(python_type_to_name(str), "str")
 

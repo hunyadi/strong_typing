@@ -19,6 +19,11 @@ from .inspection import (
     unwrap_union_types,
 )
 
+if sys.version_info >= (3, 11):
+    from typing import Self as Self
+else:
+    from typing_extensions import Self as Self
+
 
 class TypeFormatter:
     """
@@ -85,8 +90,11 @@ class TypeFormatter:
     def plain_type_to_str(self, data_type: TypeLike) -> str:
         "Returns the string representation of a Python type without metadata."
 
-        # return forward references as the annotation string
-        if isinstance(data_type, typing.ForwardRef):
+        if data_type is Self:
+            return "Self"
+        elif isinstance(data_type, typing.ForwardRef):
+            # return forward references as the annotation string
+
             fwd: typing.ForwardRef = data_type
             fwd_arg = fwd.__forward_arg__
 

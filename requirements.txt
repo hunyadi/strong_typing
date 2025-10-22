@@ -1,8 +1,0 @@
-# production dependencies
-jsonschema >= 4.24
-typing_extensions >= 4.14; python_version<"3.11"
-
-# development dependencies
-build
-mypy
-ruff
