@@ -14,6 +14,7 @@ import functools
 import inspect
 import ipaddress
 import sys
+import types
 import typing
 import uuid
 from types import FunctionType, MethodType, ModuleType
@@ -463,6 +464,9 @@ def _create_serializer(typ: TypeLike, context: Optional[ModuleType]) -> Serializ
         return UntypedSetSerializer()
     elif typ is tuple:
         return UntypedTupleSerializer()
+
+    if sys.version_info >= (3, 10) and isinstance(typ, types.UnionType):
+        return UnionSerializer()
 
     # generic types (e.g. list, dict, set, etc.)
     origin_type = typing.get_origin(typ)

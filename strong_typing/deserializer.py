@@ -15,6 +15,7 @@ import inspect
 import ipaddress
 import re
 import sys
+import types
 import typing
 import uuid
 from dataclasses import dataclass
@@ -916,6 +917,13 @@ def _create_deserializer(typ: TypeLike, options: DeserializerOptions) -> Deseria
         raise TypeError("explicit member type required: use `set[T]` instead of `set`")
     if typ is tuple:
         raise TypeError("explicit item type list required: use `tuple[T, ...]` instead of `tuple`")
+
+    if sys.version_info >= (3, 10) and isinstance(typ, types.UnionType):
+        union_args = typing.get_args(typ)
+        if get_discriminating_properties(union_args):
+            return TaggedUnionDeserializer(union_args, options)
+        else:
+            return UnionDeserializer(union_args, options)
 
     # generic types (e.g. list, dict, set, etc.)
     origin_type = typing.get_origin(typ)

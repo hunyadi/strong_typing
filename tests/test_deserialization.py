@@ -1,5 +1,6 @@
 import datetime
 import ipaddress
+import sys
 import unittest
 import uuid
 from typing import Literal, Optional, Union
@@ -155,6 +156,10 @@ class TestDeserialization(unittest.TestCase):
     def test_deserialization_optional(self) -> None:
         self.assertEqual(json_to_generic(Optional[int], None), None)
         self.assertEqual(json_to_generic(Optional[int], 42), 42)
+
+        if sys.version_info >= (3, 10):
+            self.assertEqual(json_to_generic(int | None, None), None)
+            self.assertEqual(json_to_generic(int | None, 42), 42)
 
         self.assertEqual(
             json_to_object(OptionalValueWrapper, {}),
