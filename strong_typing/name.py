@@ -9,7 +9,7 @@ import typing
 from types import ModuleType
 from typing import Any, Callable, Literal, Optional
 
-from .auxiliary import ParamSpec, _auxiliary_types
+from .auxiliary import ParamSpec, _auxiliary_types  # pyright: ignore[reportPrivateUsage]
 from .inspection import (
     TypeLike,
     evaluate_type,
@@ -20,8 +20,10 @@ from .inspection import (
 )
 
 if sys.version_info >= (3, 11):
+    from typing import LiteralString as LiteralString
     from typing import Self as Self
 else:
+    from typing_extensions import LiteralString as LiteralString
     from typing_extensions import Self as Self
 
 
@@ -92,6 +94,8 @@ class TypeFormatter:
 
         if data_type is Self:
             return "Self"
+        elif data_type is LiteralString:
+            return "LiteralString"
         elif isinstance(data_type, typing.ForwardRef):
             # return forward references as the annotation string
 
@@ -173,7 +177,8 @@ class TypeFormatter:
         elif data_type is Any:
             return "Any"
         elif isinstance(data_type, list):  # e.g. in `Callable[[bool, int], str]`
-            items = ", ".join(self.python_type_to_str(item) for item in data_type)
+            callable_args = typing.cast(list[TypeLike], data_type)
+            items = ", ".join(self.python_type_to_str(item) for item in callable_args)
             return f"[{items}]"
 
         # use compact name for alias types
@@ -282,6 +287,6 @@ def python_type_to_name(data_type: TypeLike, *, force: bool = False) -> str:
 
     # named system or user-defined type
     if hasattr(data_type, "__name__") and not typing.get_args(data_type):
-        return data_type.__name__
+        return data_type.__name__  # pyright: ignore
 
     raise TypeError(f"cannot assign a simple name to type: {data_type}")
