@@ -8,21 +8,18 @@ import builtins
 import dataclasses
 import inspect
 import re
-import sys
 import types
 import typing
+from collections.abc import Callable
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, Callable, Optional, Protocol, TypeVar
+from typing import Any, Protocol, TypeGuard, TypeVar
 
-if sys.version_info >= (3, 10):
-    from typing import TypeGuard
-else:
-    from typing_extensions import TypeGuard
+from typing_extensions import TypeForm
 
 from .inspection import (
     DataclassInstance,
-    TypeLike,
+    evaluate_member_type,
     get_class_properties,
     get_signature,
     is_dataclass_type,
@@ -43,7 +40,7 @@ class DocstringParam:
 
     name: str
     description: str
-    param_type: TypeLike = inspect.Signature.empty
+    param_type: TypeForm[Any] = inspect.Signature.empty
 
     def __str__(self) -> str:
         return f":param {self.name}: {self.description}"
@@ -121,15 +118,15 @@ class Docstring:
     :param returns: The returns declaration extracted from a docstring.
     """
 
-    short_description: Optional[str] = None
-    long_description: Optional[str] = None
-    params: dict[str, DocstringParam] = dataclasses.field(default_factory=dict)
-    returns: Optional[DocstringReturns] = None
-    raises: dict[str, DocstringRaises] = dataclasses.field(default_factory=dict)
-    see_also: list[DocstringSeeAlso] = dataclasses.field(default_factory=list)
+    short_description: str | None = None
+    long_description: str | None = None
+    params: dict[str, DocstringParam] = dataclasses.field(default_factory=dict[str, DocstringParam])
+    returns: DocstringReturns | None = None
+    raises: dict[str, DocstringRaises] = dataclasses.field(default_factory=dict[str, DocstringRaises])
+    see_also: list[DocstringSeeAlso] = dataclasses.field(default_factory=list[DocstringSeeAlso])
 
     @property
-    def full_description(self) -> Optional[str]:
+    def full_description(self) -> str | None:
         if self.short_description and self.long_description:
             return f"{self.short_description}\n\n{self.long_description}"
         elif self.short_description:
@@ -180,11 +177,11 @@ def is_exception(member: object) -> TypeGuard[type[BaseException]]:
 def get_exceptions(module: types.ModuleType) -> dict[str, type[BaseException]]:
     "Returns all exception classes declared in a module."
 
-    return {name: class_type for name, class_type in inspect.getmembers(module, is_exception)}
+    return dict(inspect.getmembers(module, is_exception))
 
 
 class SupportsDoc(Protocol):
-    __doc__: Optional[str]
+    __doc__: str | None
 
 
 def parse_type(typ: SupportsDoc) -> Docstring:
@@ -207,7 +204,7 @@ def parse_type(typ: SupportsDoc) -> Docstring:
         properties = dict(get_class_properties(typing.cast(type, typ)))
 
         for name, param in docstring.params.items():
-            param.param_type = properties[name]
+            param.param_type = evaluate_member_type(properties[name], typ)
 
     elif inspect.isfunction(typ):
         signature = get_signature(typ)
@@ -336,7 +333,7 @@ def has_docstring(typ: SupportsDoc) -> bool:
     return bool(typ.__doc__)
 
 
-def get_docstring(typ: SupportsDoc) -> Optional[str]:
+def get_docstring(typ: SupportsDoc) -> str | None:
     if typ.__doc__ is None:
         return None
 

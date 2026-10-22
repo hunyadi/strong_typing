@@ -51,24 +51,24 @@ class TestTopological(unittest.TestCase):
         graph: dict[int, set[int]] = {
             0: set(),
             1: set(),
-            2: set([3]),
-            3: set([1]),
-            4: set([0, 1]),
-            5: set([0, 2]),
+            2: {3},
+            3: {1},
+            4: {0, 1},
+            5: {0, 2},
         }
         order = topological_sort(graph)
         self.assertEqual(order, [0, 1, 3, 2, 4, 5])
 
     def test_loop(self) -> None:
-        graph: dict[int, set[int]] = {0: set([0])}
+        graph: dict[int, set[int]] = {0: {0}}
         order = topological_sort(graph)
         self.assertEqual(order, [0])
 
     def test_cycle(self) -> None:
         graph: dict[int, set[int]] = {
-            0: set([1, 2]),
-            1: set([2]),
-            2: set([0, 3]),
+            0: {1, 2},
+            1: {2},
+            2: {0, 3},
             3: set(),
         }
         with self.assertRaises(RuntimeError):

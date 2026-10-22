@@ -4,7 +4,8 @@ Type-safe data interchange for Python data classes.
 :see: https://github.com/hunyadi/strong_typing
 """
 
-from typing import Callable, Iterable, Optional, TypeVar
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any, TypeVar
 
 from .inspection import TypeCollector
 
@@ -50,9 +51,9 @@ def topological_sort(graph: dict[T, set[T]]) -> list[T]:
 
 
 def type_topological_sort(
-    types: Iterable[type],
-    dependency_fn: Optional[Callable[[type], Iterable[type]]] = None,
-) -> list[type]:
+    types: Sequence[type[Any]],
+    dependency_fn: Callable[[type[Any]], Iterable[type[Any]]] | None = None,
+) -> list[type[Any]]:
     """
     Performs a topological sort of a list of types.
 
@@ -65,7 +66,7 @@ def type_topological_sort(
     :returns: The list of types in topological order.
     """
 
-    if not all(isinstance(typ, type) for typ in types):
+    if not all(isinstance(typ, type) for typ in types):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError("expected a list of types")
 
     collector = TypeCollector()

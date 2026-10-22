@@ -1,6 +1,7 @@
 import sys
 import unittest
-from typing import Annotated, Any, Callable, Literal, Optional, TypeVar, Union
+from collections.abc import Callable
+from typing import Annotated, Any, Literal, Optional, TypeVar, Union
 
 from strong_typing.auxiliary import Alias, float32, int32
 from strong_typing.mapping import python_field_to_json_property
@@ -64,7 +65,7 @@ class TestName(unittest.TestCase):
             "Type__str",
         )
         self.assertEqual(
-            python_type_to_name(Union[str, int, None], force=True),
+            python_type_to_name(Union[str, int, None], force=True),  # noqa: UP007
             "Union__str__int__NoneType",
         )
 
@@ -75,10 +76,10 @@ class TestName(unittest.TestCase):
         with self.assertRaises(TypeError):
             python_type_to_name(dict[str, int])
         with self.assertRaises(TypeError):
-            python_type_to_name(Union[str, int, None])
+            python_type_to_name(Union[str, int, None])  # noqa: UP007
 
-        self.assertEqual(python_type_to_name(T), "T")
-        self.assertEqual(python_type_to_str(T), "T")
+        self.assertEqual(python_type_to_name(T), "T")  # type: ignore
+        self.assertEqual(python_type_to_str(T), "T")  # type: ignore
 
     def test_alias(self) -> None:
         self.assertEqual(python_field_to_json_property("id"), "id")
@@ -87,7 +88,7 @@ class TestName(unittest.TestCase):
     def test_special(self) -> None:
         self.assertEqual(python_type_to_str(None), "None")
         self.assertEqual(python_type_to_str(type(None)), "None")
-        self.assertEqual(python_type_to_str(...), "...")
+        self.assertEqual(python_type_to_str(...), "...")  # type: ignore
         self.assertEqual(python_type_to_str(type(...)), "...")
         self.assertEqual(python_type_to_str(Any), "Any")
 
@@ -103,9 +104,9 @@ class TestName(unittest.TestCase):
     def test_union(self) -> None:
         fmt = TypeFormatter(use_union_operator=True)
         self.assertEqual(fmt.python_type_to_str(Optional[str]), "str | None")
-        self.assertEqual(fmt.python_type_to_str(Union[str, int]), "str | int")
-        self.assertEqual(fmt.python_type_to_str(Union[str, int, None]), "str | int | None")
-        self.assertEqual(fmt.python_type_to_str(Union[None, str, int]), "None | str | int")
+        self.assertEqual(fmt.python_type_to_str(Union[str, int]), "str | int")  # noqa: UP007
+        self.assertEqual(fmt.python_type_to_str(Union[str, int, None]), "str | int | None")  # noqa: UP007
+        self.assertEqual(fmt.python_type_to_str(Union[None, str, int]), "None | str | int")  # noqa: UP007
         self.assertEqual(fmt.python_type_to_str(Optional["SampleClass"]), "SampleClass | None")
         self.assertEqual(
             fmt.python_type_to_str(Union["SampleClass", "DerivedClass", None]),
@@ -113,9 +114,9 @@ class TestName(unittest.TestCase):
         )
 
         self.assertEqual(python_type_to_str(Optional[str]), "Optional[str]")
-        self.assertEqual(python_type_to_str(Union[str, int]), "Union[str, int]")
-        self.assertEqual(python_type_to_str(Union[str, int, None]), "Union[str, int, None]")
-        self.assertEqual(python_type_to_str(Union[None, str, int]), "Union[None, str, int]")
+        self.assertEqual(python_type_to_str(Union[str, int]), "Union[str, int]")  # noqa: UP007
+        self.assertEqual(python_type_to_str(Union[str, int, None]), "Union[str, int, None]")  # noqa: UP007
+        self.assertEqual(python_type_to_str(Union[None, str, int]), "Union[None, str, int]")  # noqa: UP007
         self.assertEqual(python_type_to_str(Optional["SampleClass"]), "Optional[SampleClass]")
         self.assertEqual(
             python_type_to_str(Union["SampleClass", "DerivedClass", None]),
@@ -149,9 +150,9 @@ class TestName(unittest.TestCase):
             use_union_operator=True,
         )
         self.assertEqual(fmt.python_type_to_str(Optional[str]), "*str* | None")
-        self.assertEqual(fmt.python_type_to_str(Union[str, int]), "*str* | *int*")
-        self.assertEqual(fmt.python_type_to_str(Union[str, int, None]), "*str* | *int* | None")
-        self.assertEqual(fmt.python_type_to_str(Union[None, str, int]), "None | *str* | *int*")
+        self.assertEqual(fmt.python_type_to_str(Union[str, int]), "*str* | *int*")  # noqa: UP007
+        self.assertEqual(fmt.python_type_to_str(Union[str, int, None]), "*str* | *int* | None")  # noqa: UP007
+        self.assertEqual(fmt.python_type_to_str(Union[None, str, int]), "None | *str* | *int*")  # noqa: UP007
         self.assertEqual(fmt.python_type_to_str(Optional["SampleClass"]), "*SampleClass* | None")
         self.assertEqual(
             fmt.python_type_to_str(Union["SampleClass", "DerivedClass", None]),
@@ -188,9 +189,9 @@ class TestName(unittest.TestCase):
 
     def test_illegal(self) -> None:
         with self.assertRaises(ValueError):
-            python_type_to_str(False)
+            python_type_to_str(False)  # type: ignore
         with self.assertRaises(ValueError):
-            python_type_to_str(23)
+            python_type_to_str(23)  # type: ignore
 
 
 if __name__ == "__main__":

@@ -14,7 +14,13 @@
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
+    "mypy-type-checker.importStrategy": "fromEnvironment",
+    "mypy-type-checker.args": [
+        "--enable-incomplete-feature=TypeForm"
+    ],
+    "python.analysis.typeCheckingMode": "strict",
     "cSpell.words": [
+        "docstrings",
         "dunder",
         "errorlevel",
         "jsonschema",
@@ -23,6 +29,7 @@
         "pypa",
         "pypi",
         "setuptools",
-        "sigstore"
+        "sigstore",
+        "typeannotation"
     ]
 }

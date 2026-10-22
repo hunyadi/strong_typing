@@ -9,12 +9,13 @@ import json
 import sys
 import typing
 from types import ModuleType
-from typing import Any, Optional, TextIO, TypeVar
+from typing import Any, TextIO, TypeVar
+
+from typing_extensions import TypeForm
 
 from .core import JsonType
 from .deserializer import DeserializerOptions as DeserializerOptions
 from .deserializer import create_deserializer
-from .inspection import TypeLike
 from .serializer import create_serializer
 
 T = TypeVar("T")
@@ -33,7 +34,7 @@ def object_to_json(obj: Any) -> JsonType:
     * Objects with properties (including data class types) are converted to a dictionaries of key-value pairs.
     """
 
-    typ: type = type(obj)
+    typ: type[Any] = type(obj)  # pyright: ignore[reportUnknownVariableType]
     generator = create_serializer(typ)
     return generator.generate(obj)
 
@@ -42,8 +43,8 @@ def json_to_object(
     typ: type[T],
     data: JsonType,
     *,
-    context: Optional[ModuleType] = None,
-    options: Optional[DeserializerOptions] = None,
+    context: ModuleType | None = None,
+    options: DeserializerOptions | None = None,
 ) -> T:
     """
     Creates an object from a representation that has been de-serialized from JSON.
@@ -69,11 +70,11 @@ def json_to_object(
 
 
 def json_to_generic(
-    typ: TypeLike,
+    typ: TypeForm[Any],
     data: JsonType,
     *,
-    context: Optional[ModuleType] = None,
-    options: Optional[DeserializerOptions] = None,
+    context: ModuleType | None = None,
+    options: DeserializerOptions | None = None,
 ) -> Any:
     """
     Creates an object from a representation that has been de-serialized from JSON.

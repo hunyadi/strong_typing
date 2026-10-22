@@ -35,12 +35,12 @@ def as_type(schema: Schema) -> TypeLike:
 
 @dataclass
 class UnionOfValues:
-    value: Union[None, str, int]
+    value: None | str | int
 
 
 @dataclass
 class UnionOfAddresses:
-    address: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+    address: ipaddress.IPv4Address | ipaddress.IPv6Address
 
 
 @dataclass
@@ -61,7 +61,7 @@ class TestClassDef(unittest.TestCase):
     def assertTypeEquivalent(self, left: TypeLike, right: TypeLike) -> None:
         if is_dataclass_type(left) and is_dataclass_type(right):
             self.assertEqual(left.__name__, right.__name__)
-            for left_field, right_field in zip(dataclass_fields(left), dataclass_fields(right)):
+            for left_field, right_field in zip(dataclass_fields(left), dataclass_fields(right), strict=True):
                 self.assertEqual(left_field.name, right_field.name)
                 self.assertTypeEquivalent(left_field.type, right_field.type)
         else:
@@ -189,7 +189,7 @@ class TestClassDef(unittest.TestCase):
     def test_oneOf(self) -> None:
         self.assertEqual(str, as_type({"oneOf": [{"type": "string"}]}))
         self.assertEqual(
-            Union[str, int],
+            Union[str, int],  # noqa: UP007
             as_type({"oneOf": [{"type": "string"}, {"type": "integer"}]}),
         )
 

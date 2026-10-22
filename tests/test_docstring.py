@@ -40,7 +40,7 @@ class MultiLineShortDescriptionClass:
     """
     A short description that
     spans multiple lines.
-    """
+    """  # noqa: D205
 
 
 class MultiLineLongDescriptionClass:

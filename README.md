@@ -289,8 +289,8 @@ If a composite object has a `from_json` class function (a.k.a. `@classmethod`), 
 It is possible to declare custom types when generating a JSON schema. For example, the following class definition has the annotation `@json_schema_type`, which will register a JSON schema subtype definition under the path `#/definitions/AzureBlob`, which will be referenced later with `$ref`:
 
 ```python
-_regexp_azure_url = re.compile(
-    r"^https?://([^.]+)\.blob\.core\.windows\.net/([^/]+)/(.*)$")
+_regexp_azure_url = re.compile(r"^https?://([^.]+)\.blob\.core\.windows\.net/([^/]+)/(.*)$")
+
 
 @dataclass
 @json_schema_type(
@@ -307,16 +307,15 @@ _regexp_azure_url = re.compile(
         "additionalProperties": False,
     }
 )
-class AzureBlob(Blob):
-    ...
+class AzureBlob(Blob): ...
 ```
 
 You can use `@json_schema_type` without the `schema` parameter to register the type name but have the schema definition automatically derived from the Python type. This is useful if the type is reused across the type hierarchy:
 
 ```python
 @json_schema_type
-class Image:
-    ...
+class Image: ...
+
 
 class Study:
     left: Image

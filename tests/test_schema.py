@@ -76,7 +76,7 @@ class TestSchema(unittest.TestCase):
             {"type": "array", "items": {"type": "integer"}, "uniqueItems": True},
         )
         self.assertEqual(
-            generator.type_to_schema(Union[int, str]),
+            generator.type_to_schema(Union[int, str]),  # noqa: UP007
             {"oneOf": [{"type": "integer"}, {"type": "string"}]},
         )
         self.assertEqual(

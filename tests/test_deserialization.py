@@ -1,6 +1,5 @@
 import datetime
 import ipaddress
-import sys
 import unittest
 import uuid
 from typing import Literal, Optional, Union
@@ -135,7 +134,7 @@ class TestDeserialization(unittest.TestCase):
             json_to_object(dict[str, int], {"a": 1, "b": 2, "c": 3}),
             {"a": 1, "b": 2, "c": 3},
         )
-        self.assertEqual(json_to_object(set[int], [1, 2, 3]), set([1, 2, 3]))
+        self.assertEqual(json_to_object(set[int], [1, 2, 3]), {1, 2, 3})
 
         with self.assertRaises(JsonTypeError):
             json_to_object(list[int], 23)
@@ -157,9 +156,8 @@ class TestDeserialization(unittest.TestCase):
         self.assertEqual(json_to_generic(Optional[int], None), None)
         self.assertEqual(json_to_generic(Optional[int], 42), 42)
 
-        if sys.version_info >= (3, 10):
-            self.assertEqual(json_to_generic(int | None, None), None)
-            self.assertEqual(json_to_generic(int | None, 42), 42)
+        self.assertEqual(json_to_generic(int | None, None), None)
+        self.assertEqual(json_to_generic(int | None, 42), 42)
 
         self.assertEqual(
             json_to_object(OptionalValueWrapper, {}),
@@ -201,53 +199,53 @@ class TestDeserialization(unittest.TestCase):
 
     def test_deserialization_union(self) -> None:
         # built-in types
-        self.assertEqual(json_to_generic(Union[int, str], 42), 42)
-        self.assertEqual(json_to_generic(Union[int, str], "a string"), "a string")
-        self.assertEqual(json_to_generic(Union[str, int], 42), 42)
-        self.assertEqual(json_to_generic(Union[str, int], "a string"), "a string")
+        self.assertEqual(json_to_generic(Union[int, str], 42), 42)  # noqa: UP007
+        self.assertEqual(json_to_generic(Union[int, str], "a string"), "a string")  # noqa: UP007
+        self.assertEqual(json_to_generic(Union[str, int], 42), 42)  # noqa: UP007
+        self.assertEqual(json_to_generic(Union[str, int], "a string"), "a string")  # noqa: UP007
         with self.assertRaises(JsonKeyError):
-            json_to_generic(Union[int, str], 10.23)
+            json_to_generic(Union[int, str], 10.23)  # noqa: UP007
 
         # mixed (built-in and user-defined) types
-        self.assertEqual(json_to_generic(Union[SimpleValueWrapper, int], 42), 42)
-        self.assertEqual(json_to_generic(Union[int, SimpleValueWrapper], 42), 42)
+        self.assertEqual(json_to_generic(Union[SimpleValueWrapper, int], 42), 42)  # noqa: UP007
+        self.assertEqual(json_to_generic(Union[int, SimpleValueWrapper], 42), 42)  # noqa: UP007
         self.assertEqual(
-            json_to_generic(Union[int, SimpleValueWrapper], {"value": 42}),
+            json_to_generic(Union[int, SimpleValueWrapper], {"value": 42}),  # noqa: UP007
             SimpleValueWrapper(42),
         )
         self.assertEqual(
-            json_to_generic(Union[SimpleValueWrapper, int], {"value": 42}),
+            json_to_generic(Union[SimpleValueWrapper, int], {"value": 42}),  # noqa: UP007
             SimpleValueWrapper(42),
         )
 
         # class types with disjoint field names
         self.assertEqual(
-            json_to_generic(Union[SimpleDataclass, SimpleValueWrapper], {"value": 42}),
+            json_to_generic(Union[SimpleDataclass, SimpleValueWrapper], {"value": 42}),  # noqa: UP007
             SimpleValueWrapper(42),
         )
         self.assertEqual(
-            json_to_generic(Union[SimpleDataclass, SimpleValueWrapper], {"int_value": 42}),
+            json_to_generic(Union[SimpleDataclass, SimpleValueWrapper], {"int_value": 42}),  # noqa: UP007
             SimpleDataclass(int_value=42),
         )
 
         # class types with overlapping field names
         self.assertEqual(
             json_to_generic(
-                Union[SimpleDerivedClass, SimpleDataclass],
+                Union[SimpleDerivedClass, SimpleDataclass],  # noqa: UP007
                 {"extra_str_value": "twenty-o-four"},
             ),
             SimpleDerivedClass(extra_str_value="twenty-o-four"),
         )
         self.assertEqual(
             json_to_generic(
-                Union[SimpleDataclass, SimpleDerivedClass],
+                Union[SimpleDataclass, SimpleDerivedClass],  # noqa: UP007
                 {"extra_str_value": "twenty-o-four"},
             ),
             SimpleDerivedClass(extra_str_value="twenty-o-four"),
         )
         self.assertEqual(
             json_to_generic(
-                Union[SimpleDataclass, SimpleDerivedClass],
+                Union[SimpleDataclass, SimpleDerivedClass],  # noqa: UP007
                 {"int_value": 2004},
             ),
             SimpleDataclass(int_value=2004),
@@ -256,28 +254,28 @@ class TestDeserialization(unittest.TestCase):
         # class types with literal-based disambiguation
         self.assertEqual(
             json_to_generic(
-                Union[ClassA, ClassB, ClassC],
+                Union[ClassA, ClassB, ClassC],  # noqa: UP007
                 {"type": "A", "name": "A", "value": "string"},
             ),
             ClassA(name="A", type="A", value="string"),
         )
         self.assertEqual(
             json_to_generic(
-                Union[ClassA, ClassB, ClassC],
+                Union[ClassA, ClassB, ClassC],  # noqa: UP007
                 {"type": "B", "name": "B", "value": "string"},
             ),
             ClassB(name="B", type="B", value="string"),
         )
         self.assertEqual(
             json_to_generic(
-                Union[ClassA, ClassB, ClassC],
+                Union[ClassA, ClassB, ClassC],  # noqa: UP007
                 {"type": "A", "name": "a", "value": "string"},
             ),
             ClassA(name="a", type="A", value="string"),
         )
         self.assertEqual(
             json_to_generic(
-                Union[ClassA, ClassB, ClassC],
+                Union[ClassA, ClassB, ClassC],  # noqa: UP007
                 {"type": "B", "name": "b", "value": "string"},
             ),
             ClassB(name="b", type="B", value="string"),

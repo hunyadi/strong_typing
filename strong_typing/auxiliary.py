@@ -7,15 +7,11 @@ Type-safe data interchange for Python data classes.
 import dataclasses
 import sys
 import typing
+from collections.abc import Callable
 from dataclasses import is_dataclass
-from typing import Annotated, Callable, Optional, TypeVar, Union, overload
-
-if sys.version_info >= (3, 10):
-    from typing import ParamSpec as ParamSpec
-    from typing import TypeAlias as TypeAlias
-else:
-    from typing_extensions import ParamSpec as ParamSpec  # noqa: F401
-    from typing_extensions import TypeAlias as TypeAlias
+from typing import Annotated, TypeVar, overload
+from typing import ParamSpec as ParamSpec
+from typing import TypeAlias as TypeAlias
 
 if sys.version_info >= (3, 11):
     from typing import dataclass_transform as dataclass_transform
@@ -35,7 +31,7 @@ def _compact_dataclass_repr(obj: object) -> str:
 
     if is_dataclass(obj):
         arglist = ", ".join(repr(getattr(obj, field.name)) for field in dataclasses.fields(obj))
-        return f"{obj.__class__.__name__}({arglist})"
+        return f"{obj.__class__.__name__}({arglist})"  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
     else:
         return obj.__class__.__name__
 
@@ -57,8 +53,8 @@ def typeannotation(cls: None, *, eq: bool = True, order: bool = False) -> Callab
 
 @dataclass_transform(eq_default=True, order_default=False)
 def typeannotation(
-    cls: Optional[type[T]] = None, *, eq: bool = True, order: bool = False
-) -> Union[type[T], Callable[[type[T]], type[T]]]:
+    cls: type[T] | None = None, *, eq: bool = True, order: bool = False
+) -> type[T] | Callable[[type[T]], type[T]]:
     """
     Returns the same class as was passed in, with dunder methods added based on the fields defined in the class.
 
@@ -75,7 +71,15 @@ def typeannotation(
         else:
             return typing.cast(
                 type[T],
-                dataclasses.dataclass(cls, init=True, repr=False, eq=eq, order=order, unsafe_hash=False, frozen=True),
+                dataclasses.dataclass(
+                    cls,
+                    init=True,
+                    repr=False,
+                    eq=eq,
+                    order=order,
+                    unsafe_hash=False,
+                    frozen=True,
+                ),
             )
 
     # see if decorator is used as @typeannotation or @typeannotation()
@@ -96,7 +100,7 @@ class Alias:
 
 @typeannotation
 class Signed:
-    "Signedness of an integer type."
+    "Signed vs. unsigned property of an integer type."
 
     is_signed: bool
 
@@ -208,7 +212,7 @@ for var in dir(module):
         _auxiliary_types[typ] = var
 
 
-def get_auxiliary_format(data_type: object) -> Optional[str]:
+def get_auxiliary_format(data_type: object) -> str | None:
     "Returns the JSON format string corresponding to an auxiliary type."
 
     return _auxiliary_types.get(data_type)

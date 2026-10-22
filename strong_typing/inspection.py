@@ -18,32 +18,37 @@ import sys
 import types
 import typing
 import uuid
+from collections.abc import Callable, Iterable
 from typing import (
     Annotated,
     Any,
-    Callable,
-    Iterable,
+    ForwardRef,
     Literal,
     NamedTuple,
-    Optional,
     Protocol,
+    TypeAlias,
+    TypeGuard,
     TypeVar,
     Union,
+    cast,
+    get_args,
+    get_origin,
+    get_type_hints,
+    overload,
     runtime_checkable,
 )
 
-if sys.version_info >= (3, 10):
-    from typing import TypeGuard
-else:
-    from typing_extensions import TypeGuard
+from typing_extensions import TypeForm
 
 S = TypeVar("S")
 T = TypeVar("T")
 K = TypeVar("K")
 V = TypeVar("V")
 
+TypeLike: TypeAlias = TypeForm[Any] | ForwardRef | str | Any
 
-def _is_type_like(data_type: object) -> bool:
+
+def _is_type_like(data_type: Any) -> TypeGuard[TypeLike]:
     """
     Checks if the object is a type or type-like object (e.g. generic type).
 
@@ -54,7 +59,7 @@ def _is_type_like(data_type: object) -> bool:
     if isinstance(data_type, type):
         # a standard type
         return True
-    elif typing.get_origin(data_type) is not None:
+    elif get_origin(data_type) is not None:
         # a generic type such as `list`, `dict` or `set`
         return True
     elif hasattr(data_type, "__forward_arg__"):
@@ -65,9 +70,6 @@ def _is_type_like(data_type: object) -> bool:
         return True
     else:
         return False
-
-
-TypeLike = Union[type, types.GenericAlias, typing.ForwardRef, Any]
 
 
 def is_type_like(
@@ -83,7 +85,15 @@ def is_type_like(
     return _is_type_like(data_type)
 
 
-def evaluate_member_type(typ: Any, cls: type) -> Any:
+@overload
+def evaluate_member_type(typ: ForwardRef | str, cls: type[Any]) -> TypeForm[Any]: ...
+
+
+@overload
+def evaluate_member_type(typ: TypeForm[T], cls: type[Any]) -> TypeForm[T]: ...
+
+
+def evaluate_member_type(typ: TypeForm[T] | ForwardRef | str, cls: type[Any]) -> TypeForm[T]:
     """
     Evaluates a forward reference type in a dataclass member.
 
@@ -95,7 +105,15 @@ def evaluate_member_type(typ: Any, cls: type) -> Any:
     return evaluate_type(typ, sys.modules[cls.__module__])
 
 
-def evaluate_type(typ: Any, module: types.ModuleType) -> Any:
+@overload
+def evaluate_type(typ: ForwardRef | str, module: types.ModuleType) -> TypeForm[Any]: ...
+
+
+@overload
+def evaluate_type(typ: TypeForm[T], module: types.ModuleType) -> TypeForm[T]: ...
+
+
+def evaluate_type(typ: TypeForm[T] | ForwardRef | str, module: types.ModuleType) -> TypeForm[T]:
     """
     Evaluates a forward reference type.
 
@@ -104,32 +122,34 @@ def evaluate_type(typ: Any, module: types.ModuleType) -> Any:
     :returns: The evaluated type.
     """
 
+    result: TypeForm[T]
     if isinstance(typ, str):
         # evaluate data-class field whose type annotation is a string
-        return eval(typ, module.__dict__, locals())
-    if isinstance(typ, typing.ForwardRef):
+        result = eval(typ, module.__dict__, locals())
+    elif isinstance(typ, ForwardRef):
         if sys.version_info >= (3, 14):
-            return typing.evaluate_forward_ref(typ, owner=module)
+            result = typing.evaluate_forward_ref(typ, owner=module)
         elif sys.version_info >= (3, 13):
-            return typ._evaluate(
+            result = typ._evaluate(  # type: ignore[assignment]
                 module.__dict__,
                 locals(),
                 type_params=(),
                 recursive_guard=frozenset(),
             )
         else:
-            return typ._evaluate(
+            result = typ._evaluate(
                 module.__dict__,
                 locals(),
                 recursive_guard=frozenset(),
             )
     else:
-        return typ
+        result = typ
+    return result
 
 
 @runtime_checkable
 class DataclassInstance(Protocol):
-    __dataclass_fields__: typing.ClassVar[dict[str, dataclasses.Field]]
+    __dataclass_fields__: typing.ClassVar[dict[str, dataclasses.Field[Any]]]
 
 
 def is_dataclass_type(typ: Any) -> TypeGuard[type[DataclassInstance]]:
@@ -169,7 +189,7 @@ def dataclass_field_by_name(cls: type[DataclassInstance], name: str) -> Dataclas
 
     for field in dataclasses.fields(cls):
         if field.name == name:
-            return DataclassField(field.name, evaluate_member_type(field.type, cls))
+            return DataclassField(field.name, evaluate_member_type(field.type, cls), field.default)
 
     raise LookupError(f"field `{name}` missing from class `{cls.__name__}`")
 
@@ -204,7 +224,7 @@ def is_named_tuple_type(typ: Any) -> TypeGuard[type[NamedTuple]]:
     if not isinstance(f, tuple):
         return False
 
-    return all(isinstance(n, str) for n in f)
+    return all(isinstance(n, str) for n in f)  # pyright: ignore[reportUnknownVariableType]
 
 
 if sys.version_info >= (3, 11):
@@ -232,7 +252,7 @@ def enum_value_types(enum_type: type[enum.Enum]) -> list[type]:
     """
 
     # filter unique enumeration value types by keeping definition order
-    return list(dict.fromkeys(type(e.value) for e in enum_type))
+    return list(dict.fromkeys(type(e.value) for e in enum_type))  # pyright: ignore[reportUnknownArgumentType]
 
 
 def extend_enum(
@@ -262,22 +282,13 @@ def extend_enum(
     return wrap
 
 
-if sys.version_info >= (3, 10):
+def _is_union_like(typ: TypeForm[Any]) -> bool:
+    "True if type is a union such as `Union[T1, T2, ...]` or a union type `T1 | T2`."
 
-    def _is_union_like(typ: object) -> bool:
-        "True if type is a union such as `Union[T1, T2, ...]` or a union type `T1 | T2`."
-
-        return typing.get_origin(typ) is Union or isinstance(typ, types.UnionType)
-
-else:
-
-    def _is_union_like(typ: object) -> bool:
-        "True if type is a union such as `Union[T1, T2, ...]` or a union type `T1 | T2`."
-
-        return typing.get_origin(typ) is Union
+    return get_origin(typ) is Union or isinstance(typ, types.UnionType)
 
 
-def is_type_optional(typ: object, strict: bool = False) -> TypeGuard[type[Optional[Any]]]:
+def is_type_optional(typ: TypeForm[Any], strict: bool = False) -> TypeGuard[type[Any | None]]:
     """
     True if the type annotation corresponds to an optional type (e.g. `Optional[T]` or `Union[T1,T2,None]`).
 
@@ -289,7 +300,7 @@ def is_type_optional(typ: object, strict: bool = False) -> TypeGuard[type[Option
     typ = unwrap_annotated_type(typ)
 
     if _is_union_like(typ):
-        args = typing.get_args(typ)
+        args = get_args(typ)
         if strict and len(args) != 2:
             return False
 
@@ -298,7 +309,7 @@ def is_type_optional(typ: object, strict: bool = False) -> TypeGuard[type[Option
     return False
 
 
-def unwrap_optional_type(typ: type[Optional[T]]) -> type[T]:
+def unwrap_optional_type(typ: type[T | None]) -> type[T]:
     """
     Extracts the inner type of an optional type.
 
@@ -309,7 +320,7 @@ def unwrap_optional_type(typ: type[Optional[T]]) -> type[T]:
     return rewrap_annotated_type(_unwrap_optional_type, typ)
 
 
-def _unwrap_optional_type(typ: type[Optional[T]]) -> type[T]:
+def _unwrap_optional_type(typ: type[T | None]) -> type[T]:
     "Extracts the type qualified as optional (e.g. returns `T` for `Optional[T]`)."
 
     # Optional[T] is represented internally as Union[T, None]
@@ -317,24 +328,24 @@ def _unwrap_optional_type(typ: type[Optional[T]]) -> type[T]:
         raise TypeError("optional type must have un-subscripted type of Union")
 
     # will automatically unwrap Union[T] into T
-    return Union[
-        tuple(filter(lambda item: item is not type(None), typing.get_args(typ)))  # type: ignore
+    return Union[  # noqa: UP007
+        tuple(filter(lambda item: item is not type(None), get_args(typ)))  # type: ignore
     ]
 
 
-def is_type_union(typ: object) -> bool:
+def is_type_union(typ: TypeForm[Any]) -> bool:
     "True if the type annotation corresponds to a union type (e.g. `Union[T1,T2,T3]`)."
 
     typ = unwrap_annotated_type(typ)
 
     if _is_union_like(typ):
-        args = typing.get_args(typ)
+        args = get_args(typ)
         return len(args) > 2 or type(None) not in args
 
     return False
 
 
-def unwrap_union_types(typ: object) -> tuple[object, ...]:
+def unwrap_union_types(typ: TypeForm[Any]) -> tuple[TypeForm[Any], ...]:
     """
     Extracts the inner types of a union type.
 
@@ -345,23 +356,23 @@ def unwrap_union_types(typ: object) -> tuple[object, ...]:
     return _unwrap_union_types(typ)
 
 
-def _unwrap_union_types(typ: object) -> tuple[object, ...]:
+def _unwrap_union_types(typ: TypeForm[Any]) -> tuple[TypeForm[Any], ...]:
     "Extracts the types in a union (e.g. returns a tuple of types `T1` and `T2` for `Union[T1, T2]`)."
 
     if not _is_union_like(typ):
         raise TypeError("union type must have un-subscripted type of Union")
 
-    return typing.get_args(typ)
+    return get_args(typ)
 
 
-def is_type_literal(typ: object) -> bool:
+def is_type_literal(typ: TypeForm[Any]) -> bool:
     "True if the specified type is a literal of one or more constant values, e.g. `Literal['string']` or `Literal[42]`."
 
     typ = unwrap_annotated_type(typ)
-    return typing.get_origin(typ) is Literal
+    return get_origin(typ) is Literal
 
 
-def unwrap_literal_value(typ: object) -> Any:
+def unwrap_literal_value(typ: TypeForm[Any]) -> Any:
     """
     Extracts the single constant value captured by a literal type.
 
@@ -376,7 +387,7 @@ def unwrap_literal_value(typ: object) -> Any:
     return args[0]
 
 
-def unwrap_literal_values(typ: object) -> tuple[Any, ...]:
+def unwrap_literal_values(typ: TypeForm[Any]) -> tuple[Any, ...]:
     """
     Extracts the constant values captured by a literal type.
 
@@ -385,10 +396,10 @@ def unwrap_literal_values(typ: object) -> tuple[Any, ...]:
     """
 
     typ = unwrap_annotated_type(typ)
-    return typing.get_args(typ)
+    return get_args(typ)
 
 
-def unwrap_literal_types(typ: object) -> tuple[type, ...]:
+def unwrap_literal_types(typ: TypeForm[Any]) -> tuple[type, ...]:
     """
     Extracts the types of the constant values captured by a literal type.
 
@@ -396,14 +407,14 @@ def unwrap_literal_types(typ: object) -> tuple[type, ...]:
     :returns: A tuple of item types `T` such that `type(value) == T`.
     """
 
-    return tuple(type(t) for t in unwrap_literal_values(typ))
+    return tuple(type(t) for t in unwrap_literal_values(typ))  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
 
 
-def is_generic_list(typ: object) -> TypeGuard[type[list]]:
+def is_generic_list(typ: TypeForm[Any]) -> TypeGuard[type[list[Any]]]:
     "True if the specified type is a generic list, i.e. `list[T]`."
 
     typ = unwrap_annotated_type(typ)
-    return typing.get_origin(typ) is list
+    return get_origin(typ) is list
 
 
 def unwrap_generic_list(typ: type[list[T]]) -> type[T]:
@@ -420,15 +431,15 @@ def unwrap_generic_list(typ: type[list[T]]) -> type[T]:
 def _unwrap_generic_list(typ: type[list[T]]) -> type[T]:
     "Extracts the item type of a list type (e.g. returns `T` for `list[T]`)."
 
-    (list_type,) = typing.get_args(typ)  # unpack single tuple element
-    return typing.cast(type[T], list_type)
+    (list_type,) = get_args(typ)  # unpack single tuple element
+    return cast(type[T], list_type)
 
 
-def is_generic_set(typ: object) -> TypeGuard[type[set]]:
+def is_generic_set(typ: TypeForm[Any]) -> TypeGuard[type[set[Any]]]:
     "True if the specified type is a generic set, i.e. `set[T]`."
 
     typ = unwrap_annotated_type(typ)
-    return typing.get_origin(typ) is set
+    return get_origin(typ) is set
 
 
 def unwrap_generic_set(typ: type[set[T]]) -> type[T]:
@@ -445,15 +456,15 @@ def unwrap_generic_set(typ: type[set[T]]) -> type[T]:
 def _unwrap_generic_set(typ: type[set[T]]) -> type[T]:
     "Extracts the item type of a set type (e.g. returns `T` for `set[T]`)."
 
-    (set_type,) = typing.get_args(typ)  # unpack single tuple element
-    return typing.cast(type[T], set_type)
+    (set_type,) = get_args(typ)  # unpack single tuple element
+    return cast(type[T], set_type)
 
 
-def is_generic_dict(typ: object) -> TypeGuard[type[dict]]:
+def is_generic_dict(typ: TypeForm[Any]) -> TypeGuard[type[dict[Any, Any]]]:
     "True if the specified type is a generic dictionary, i.e. `dict[KeyType, ValueType]`."
 
     typ = unwrap_annotated_type(typ)
-    return typing.get_origin(typ) is dict
+    return get_origin(typ) is dict
 
 
 def unwrap_generic_dict(typ: type[dict[K, V]]) -> tuple[type[K], type[V]]:
@@ -470,7 +481,7 @@ def unwrap_generic_dict(typ: type[dict[K, V]]) -> tuple[type[K], type[V]]:
 def _unwrap_generic_dict(typ: type[dict[K, V]]) -> tuple[type[K], type[V]]:
     "Extracts the key and value types of a dict type (e.g. returns (`K`, `V`) for `dict[K, V]`)."
 
-    key_type, value_type = typing.get_args(typ)
+    key_type, value_type = get_args(typ)
     return key_type, value_type
 
 
@@ -480,7 +491,7 @@ def is_type_annotated(typ: TypeLike) -> bool:
     return getattr(typ, "__metadata__", None) is not None
 
 
-def get_annotation(data_type: TypeLike, annotation_type: type[T]) -> Optional[T]:
+def get_annotation(data_type: TypeLike, annotation_type: type[T]) -> T | None:
     """
     Returns the first annotation on a data type that matches the expected annotation type.
 
@@ -503,7 +514,7 @@ def unwrap_annotated_type(typ: T) -> T:
 
     if is_type_annotated(typ):
         # type is Annotated[T, ...]
-        return typing.cast(T, typing.get_args(typ)[0])
+        return cast(T, get_args(typ)[0])
     else:
         # type is a regular type
         return typ
@@ -520,7 +531,7 @@ def rewrap_annotated_type(transform: Callable[[type[S]], type[T]], typ: type[S])
     metadata = getattr(typ, "__metadata__", None)
     if metadata is not None:
         # type is Annotated[T, ...]
-        inner_type = typing.get_args(typ)[0]
+        inner_type = get_args(typ)[0]
     else:
         # type is a regular type
         inner_type = typ
@@ -551,11 +562,11 @@ def get_module_functions(module: types.ModuleType) -> list[types.FunctionType]:
     return [func_type for _, func_type in inspect.getmembers(module, is_function_member)]
 
 
-def get_resolved_hints(typ: type) -> dict[str, type]:
-    return typing.get_type_hints(typ, include_extras=True)
+def get_resolved_hints(typ: type[Any]) -> dict[str, type[Any]]:
+    return get_type_hints(typ, include_extras=True)
 
 
-def get_class_properties(typ: type) -> Iterable[tuple[str, TypeLike]]:
+def get_class_properties(typ: type[Any]) -> Iterable[tuple[str, TypeForm[Any] | ForwardRef | str]]:
     "Returns all properties of a class."
 
     if is_dataclass_type(typ):
@@ -565,7 +576,7 @@ def get_class_properties(typ: type) -> Iterable[tuple[str, TypeLike]]:
         return resolved_hints.items()
 
 
-def get_class_property(typ: type, name: str) -> Optional[TypeLike]:
+def get_class_property(typ: type, name: str) -> TypeForm[Any] | ForwardRef | str | None:
     "Looks up the annotated type of a property in a class by its property name."
 
     for property_name, property_type in get_class_properties(typ):
@@ -579,7 +590,7 @@ class _ROOT:
     pass
 
 
-def get_referenced_types(typ: TypeLike, module: Optional[types.ModuleType] = None) -> set[type]:
+def get_referenced_types(typ: TypeForm[Any], module: types.ModuleType | None = None) -> set[type]:
     """
     Extracts types directly or indirectly referenced by this type.
 
@@ -603,13 +614,13 @@ class TypeCollector:
     :param graph: The type dependency graph, linking types to types they depend on.
     """
 
-    graph: dict[type, set[type]]
+    graph: dict[type[Any], set[type[Any]]]
 
     @property
-    def references(self) -> set[type]:
+    def references(self) -> set[type[Any]]:
         "Types collected by the type collector."
 
-        dependencies = set()
+        dependencies: set[type[Any]] = set()
         for edges in self.graph.values():
             dependencies.update(edges)
         return dependencies
@@ -617,12 +628,12 @@ class TypeCollector:
     def __init__(self) -> None:
         self.graph = {_ROOT: set()}
 
-    def traverse(self, typ: type) -> None:
+    def traverse(self, typ: type[Any]) -> None:
         "Finds all dependent types of a type."
 
         self.run(typ, _ROOT, sys.modules[typ.__module__])
 
-    def traverse_all(self, types: Iterable[type]) -> None:
+    def traverse_all(self, types: Iterable[type[Any]]) -> None:
         "Finds all dependent types of a list of types."
 
         for typ in types:
@@ -630,9 +641,9 @@ class TypeCollector:
 
     def run(
         self,
-        typ: TypeLike,
-        cls: type[DataclassInstance],
-        module: Optional[types.ModuleType],
+        typ: TypeForm[Any] | ForwardRef | str,
+        cls: type[Any],
+        module: types.ModuleType | None,
     ) -> None:
         """
         Extracts types indirectly referenced by this type.
@@ -649,7 +660,7 @@ class TypeCollector:
         if typ is type(None) or typ is Any:
             return
 
-        origin = typing.get_origin(typ)
+        origin = get_origin(typ)
 
         if isinstance(typ, type) and origin is None:
             self.graph[cls].add(typ)
@@ -662,11 +673,11 @@ class TypeCollector:
         metadata = getattr(typ, "__metadata__", None)
         if metadata is not None:
             # type is Annotated[T, ...]
-            arg = typing.get_args(typ)[0]
+            arg = get_args(typ)[0]
             return self.run(arg, cls, module)
 
         # type is a forward reference
-        if isinstance(typ, str) or isinstance(typ, typing.ForwardRef):
+        if isinstance(typ, str) or isinstance(typ, ForwardRef):
             if module is None:
                 raise ValueError("missing context for evaluating types")
 
@@ -675,7 +686,7 @@ class TypeCollector:
 
         # type is a special form
         if origin in [list, dict, frozenset, set, tuple, Union]:
-            for arg in typing.get_args(typ):
+            for arg in get_args(typ):
                 self.run(arg, cls, module)
             return
         if origin is Literal:
@@ -700,26 +711,17 @@ class TypeCollector:
                 for field in dataclass_fields(typ):
                     self.run(field.type, typ, context)
             else:
-                for _, field_type in get_resolved_hints(typ).items():
+                for field_type in get_resolved_hints(typ).values():
                     self.run(field_type, typ, context)
             return
 
         raise TypeError(f"expected: type-like; got: {typ}")
 
 
-if sys.version_info >= (3, 10):
+def get_signature(fn: Callable[..., Any]) -> inspect.Signature:
+    "Extracts the signature of a function."
 
-    def get_signature(fn: Callable[..., Any]) -> inspect.Signature:
-        "Extracts the signature of a function."
-
-        return inspect.signature(fn, eval_str=True)
-
-else:
-
-    def get_signature(fn: Callable[..., Any]) -> inspect.Signature:
-        "Extracts the signature of a function."
-
-        return inspect.signature(fn)
+    return inspect.signature(fn, eval_str=True)
 
 
 def is_reserved_property(name: str) -> bool:
@@ -754,48 +756,17 @@ def create_module(name: str) -> types.ModuleType:
     return module
 
 
-if sys.version_info >= (3, 10):
+def create_data_type(class_name: str, fields: list[tuple[str, type]]) -> type:
+    """
+    Creates a new data-class type dynamically.
 
-    def create_data_type(class_name: str, fields: list[tuple[str, type]]) -> type:
-        """
-        Creates a new data-class type dynamically.
+    :param class_name: The name of new data-class type.
+    :param fields: A list of fields (and their type) that the new data-class type is expected to have.
+    :returns: The newly created data-class type.
+    """
 
-        :param class_name: The name of new data-class type.
-        :param fields: A list of fields (and their type) that the new data-class type is expected to have.
-        :returns: The newly created data-class type.
-        """
-
-        # has the `slots` parameter
-        return dataclasses.make_dataclass(class_name, fields, slots=True)
-
-else:
-
-    def create_data_type(class_name: str, fields: list[tuple[str, type]]) -> type:
-        """
-        Creates a new data-class type dynamically.
-
-        :param class_name: The name of new data-class type.
-        :param fields: A list of fields (and their type) that the new data-class type is expected to have.
-        :returns: The newly created data-class type.
-        """
-
-        cls = dataclasses.make_dataclass(class_name, fields)
-
-        cls_dict = dict(cls.__dict__)
-        field_names = tuple(field.name for field in dataclasses.fields(cls))
-
-        cls_dict["__slots__"] = field_names
-
-        for field_name in field_names:
-            cls_dict.pop(field_name, None)
-        cls_dict.pop("__dict__", None)
-
-        qualname = getattr(cls, "__qualname__", None)
-        cls = type(cls)(cls.__name__, (), cls_dict)
-        if qualname is not None:
-            cls.__qualname__ = qualname
-
-        return cls
+    # has the `slots` parameter
+    return dataclasses.make_dataclass(class_name, fields, slots=True)
 
 
 def create_object(typ: type[T]) -> T:
@@ -804,15 +775,15 @@ def create_object(typ: type[T]) -> T:
     if issubclass(typ, Exception):
         # exception types need special treatment
         e = typ.__new__(typ)
-        return typing.cast(T, e)  # type: ignore[redundant-cast]
+        return cast(T, e)
     else:
         return object.__new__(typ)
 
 
-TypeOrGeneric = Union[type, types.GenericAlias]
+TypeOrGeneric = type | types.GenericAlias
 
 
-def is_generic_instance(obj: Any, typ: TypeLike) -> bool:
+def is_generic_instance(obj: Any, typ: TypeForm[Any] | ForwardRef) -> bool:
     """
     Returns whether an object is an instance of a generic class, a standard class or of a subclass thereof.
 
@@ -827,8 +798,8 @@ def is_generic_instance(obj: Any, typ: TypeLike) -> bool:
     :param typ: The expected type of the object.
     """
 
-    if isinstance(typ, typing.ForwardRef):
-        fwd: typing.ForwardRef = typ
+    if isinstance(typ, ForwardRef):
+        fwd: ForwardRef = typ
         identifier = fwd.__forward_arg__
         typ = eval(identifier)
         if isinstance(typ, type):
@@ -837,18 +808,18 @@ def is_generic_instance(obj: Any, typ: TypeLike) -> bool:
             return False
 
     # generic types (e.g. list, dict, set, etc.)
-    origin_type = typing.get_origin(typ)
+    origin_type = get_origin(typ)
     if origin_type is list:
         if not isinstance(obj, list):
             return False
-        (list_item_type,) = typing.get_args(typ)  # unpack single tuple element
-        list_obj: list = obj
+        (list_item_type,) = get_args(typ)  # unpack single tuple element
+        list_obj: list[Any] = obj  # pyright: ignore[reportUnknownVariableType]
         return all(is_generic_instance(item, list_item_type) for item in list_obj)
     elif origin_type is dict:
         if not isinstance(obj, dict):
             return False
-        key_type, value_type = typing.get_args(typ)
-        dict_obj: dict = obj
+        key_type, value_type = get_args(typ)
+        dict_obj: dict[Any, Any] = obj  # pyright: ignore[reportUnknownVariableType]
         return all(
             is_generic_instance(key, key_type) and is_generic_instance(value, value_type)
             for key, value in dict_obj.items()
@@ -856,21 +827,22 @@ def is_generic_instance(obj: Any, typ: TypeLike) -> bool:
     elif origin_type is set:
         if not isinstance(obj, set):
             return False
-        (set_member_type,) = typing.get_args(typ)  # unpack single tuple element
-        set_obj: set = obj
+        (set_member_type,) = get_args(typ)  # unpack single tuple element
+        set_obj: set[Any] = obj  # pyright: ignore[reportUnknownVariableType]
         return all(is_generic_instance(item, set_member_type) for item in set_obj)
     elif origin_type is tuple:
         if not isinstance(obj, tuple):
             return False
         return all(
             is_generic_instance(item, tuple_item_type)
-            for tuple_item_type, item in zip(
-                (tuple_item_type for tuple_item_type in typing.get_args(typ)),
-                (item for item in obj),
+            for tuple_item_type, item in zip(  # pyright: ignore[reportUnknownVariableType]
+                (tuple_item_type for tuple_item_type in get_args(typ)),
+                obj,  # pyright: ignore[reportUnknownArgumentType]
+                strict=True,
             )
         )
     elif origin_type is Union:
-        return any(is_generic_instance(obj, member_type) for member_type in typing.get_args(typ))
+        return any(is_generic_instance(obj, member_type) for member_type in get_args(typ))
     elif isinstance(typ, type):
         return isinstance(obj, typ)
     else:
@@ -878,7 +850,7 @@ def is_generic_instance(obj: Any, typ: TypeLike) -> bool:
 
 
 class RecursiveChecker:
-    _pred: Optional[Callable[[type, Any], bool]]
+    _pred: Callable[[type, Any], bool] | None
 
     def __init__(self, pred: Callable[[type, Any], bool]) -> None:
         """
@@ -918,36 +890,37 @@ class RecursiveChecker:
             or typ is datetime.timedelta
             or typ is uuid.UUID
         ):
-            return self.pred(typing.cast(type, typ), obj)
+            return self.pred(cast(type, typ), obj)
 
         # generic types (e.g. list, dict, set, etc.)
-        origin_type = typing.get_origin(typ)
+        origin_type = get_origin(typ)
         if origin_type is list:
             if not isinstance(obj, list):
                 raise TypeError(f"expected `list` but got: {obj}")
-            (list_item_type,) = typing.get_args(typ)  # unpack single tuple element
-            list_obj: list = obj
+            (list_item_type,) = get_args(typ)  # unpack single tuple element
+            list_obj: list[Any] = obj  # pyright: ignore[reportUnknownVariableType]
             return all(self.check(list_item_type, item) for item in list_obj)
         elif origin_type is dict:
             if not isinstance(obj, dict):
                 raise TypeError(f"expected `dict` but got: {obj}")
-            key_type, value_type = typing.get_args(typ)
-            dict_obj: dict = obj
+            _, value_type = get_args(typ)
+            dict_obj: dict[Any, Any] = obj  # pyright: ignore[reportUnknownVariableType]
             return all(self.check(value_type, item) for item in dict_obj.values())
         elif origin_type is set:
             if not isinstance(obj, set):
                 raise TypeError(f"expected `set` but got: {obj}")
-            (set_member_type,) = typing.get_args(typ)  # unpack single tuple element
-            set_obj: set = obj
+            (set_member_type,) = get_args(typ)  # unpack single tuple element
+            set_obj: set[Any] = obj  # pyright: ignore[reportUnknownVariableType]
             return all(self.check(set_member_type, item) for item in set_obj)
         elif origin_type is tuple:
             if not isinstance(obj, tuple):
                 raise TypeError(f"expected `tuple` but got: {obj}")
             return all(
                 self.check(tuple_item_type, item)
-                for tuple_item_type, item in zip(
-                    (tuple_item_type for tuple_item_type in typing.get_args(typ)),
-                    (item for item in obj),
+                for tuple_item_type, item in zip(  # pyright: ignore[reportUnknownVariableType]
+                    (tuple_item_type for tuple_item_type in get_args(typ)),
+                    obj,  # pyright: ignore[reportUnknownArgumentType]
+                    strict=True,
                 )
             )
         elif origin_type is Union:
@@ -967,8 +940,8 @@ class RecursiveChecker:
             if not isinstance(obj, tuple):
                 raise TypeError(f"expected `NamedTuple` but got: {obj}")
             return all(
-                self.check(field_type, getattr(obj, field_name))
-                for field_name, field_type in typing.get_type_hints(typ).items()
+                self.check(field_type, getattr(obj, field_name))  # pyright: ignore[reportUnknownArgumentType]
+                for field_name, field_type in get_type_hints(typ).items()
             )
         elif is_dataclass_type(typ):
             if not isinstance(obj, typ):
@@ -990,9 +963,9 @@ def check_recursive(
     obj: object,
     /,
     *,
-    pred: Optional[Callable[[type, Any], bool]] = None,
-    type_pred: Optional[Callable[[type], bool]] = None,
-    value_pred: Optional[Callable[[Any], bool]] = None,
+    pred: Callable[[type[Any], Any], bool] | None = None,
+    type_pred: Callable[[type[Any]], bool] | None = None,
+    value_pred: Callable[[Any], bool] | None = None,
 ) -> bool:
     """
     Checks if a predicate applies to all nested member properties of an object recursively.
@@ -1009,15 +982,15 @@ def check_recursive(
         if pred is not None:
             raise TypeError("filter predicate not permitted when type and value predicates are present")
 
-        type_p: Callable[[type[T]], bool] = type_pred
-        value_p: Callable[[T], bool] = value_pred
+        type_p: Callable[[type[Any]], bool] = type_pred
+        value_p: Callable[[Any], bool] = value_pred
         pred = lambda typ, obj: not type_p(typ) or value_p(obj)  # noqa: E731
 
     elif value_pred is not None:
         if pred is not None:
             raise TypeError("filter predicate not permitted when value predicate is present")
 
-        value_only_p: Callable[[T], bool] = value_pred
+        value_only_p: Callable[[Any], bool] = value_pred
         pred = lambda typ, obj: value_only_p(obj)  # noqa: E731
 
     elif type_pred is not None:

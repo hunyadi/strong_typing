@@ -1,20 +1,40 @@
 @echo off
+setlocal
+
+set PYTHON_310="C:\Program Files\Python310\python.exe"
+set PYTHON_311="C:\Program Files\Python311\python.exe"
+set PYTHON_312="C:\Program Files\Python312\python.exe"
+set PYTHON_313="C:\Program Files\Python313\python.exe"
+set PYTHON_314="C:\Program Files\Python314\python.exe"
+set PYTHON=python3
 
 rem Run static type checker and verify formatting guidelines
-python -m ruff check
+%PYTHON% -m ruff check
 if errorlevel 1 goto error
-python -m ruff format --check
+%PYTHON% -m ruff format --check
 if errorlevel 1 goto error
-python -m mypy strong_typing
+%PYTHON% -m mypy strong_typing
 if errorlevel 1 goto error
-python -m mypy tests
+%PYTHON% -m mypy tests
 if errorlevel 1 goto error
 
 rem Run unit tests
-python -m unittest discover
+if exist %PYTHON_310% %PYTHON_310% -m unittest discover
+if errorlevel 1 goto error
+if exist %PYTHON_311% %PYTHON_311% -m unittest discover
+if errorlevel 1 goto error
+if exist %PYTHON_312% %PYTHON_312% -m unittest discover
+if errorlevel 1 goto error
+if exist %PYTHON_313% %PYTHON_313% -m unittest discover
+if errorlevel 1 goto error
+if exist %PYTHON_314% %PYTHON_314% -m unittest discover
+if errorlevel 1 goto error
+%PYTHON% -m unittest discover
 if errorlevel 1 goto error
 
-goto :EOF
+goto EOF
 
 :error
-exit /b 1
+exit /b %errorlevel%
+
+:EOF

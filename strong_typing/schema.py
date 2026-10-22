@@ -13,17 +13,19 @@ import inspect
 import json
 import typing
 import uuid
+from collections.abc import Callable
 from copy import deepcopy
-from typing import Any, Callable, ClassVar, Literal, Optional, TypeVar, Union, overload
+from typing import Any, ClassVar, ForwardRef, Literal, TypeVar, overload
 
 import jsonschema
+from typing_extensions import TypeForm
 
 from . import docstring
 from .auxiliary import Alias, IntegerRange, MaxLength, MinLength, Precision, get_auxiliary_format
 from .core import JsonArray, JsonObject, JsonType, Schema, StrictJsonType
 from .inspection import (
-    TypeLike,
     enum_value_types,
+    evaluate_member_type,
     get_annotation,
     get_class_properties,
     is_type_enum,
@@ -44,7 +46,7 @@ OBJECT_ENUM_EXPANSION_LIMIT = 4
 T = TypeVar("T")
 
 
-def get_class_docstrings(data_type: type) -> tuple[Optional[str], Optional[str]]:
+def get_class_docstrings(data_type: type) -> tuple[str | None, str | None]:
     docstr = docstring.parse_type(data_type)
 
     # check if class has a doc-string other than the auto-generated string assigned by @dataclass
@@ -55,7 +57,7 @@ def get_class_docstrings(data_type: type) -> tuple[Optional[str], Optional[str]]
 
 
 def get_class_property_docstrings(
-    data_type: type, transform_fun: Optional[Callable[[type, str, str], str]] = None
+    data_type: type, transform_fun: Callable[[type, str, str], str] | None = None
 ) -> dict[str, str]:
     """
     Extracts the documentation strings associated with the properties of a composite type.
@@ -65,7 +67,7 @@ def get_class_property_docstrings(
     :returns: A dictionary mapping property names to descriptions.
     """
 
-    result = {}
+    result: dict[str, str] = {}
     for base in inspect.getmro(data_type):
         docstr = docstring.parse_type(base)
         for param in docstr.params.values():
@@ -91,7 +93,7 @@ def docstring_to_schema(data_type: type) -> Schema:
     return schema
 
 
-def id_from_ref(data_type: Union[typing.ForwardRef, str, type]) -> str:
+def id_from_ref(data_type: typing.ForwardRef | str | type) -> str:
     "Extracts the name of a possibly forward-referenced type."
 
     if isinstance(data_type, typing.ForwardRef):
@@ -103,7 +105,7 @@ def id_from_ref(data_type: Union[typing.ForwardRef, str, type]) -> str:
         return data_type.__name__
 
 
-def type_from_ref(data_type: Union[typing.ForwardRef, str, type]) -> tuple[str, type]:
+def type_from_ref(data_type: typing.ForwardRef | str | type) -> tuple[str, type]:
     "Creates a type from a forward reference."
 
     if isinstance(data_type, typing.ForwardRef):
@@ -119,24 +121,24 @@ def type_from_ref(data_type: Union[typing.ForwardRef, str, type]) -> tuple[str, 
 
 @dataclasses.dataclass
 class TypeCatalogEntry:
-    schema: Optional[Schema]
+    schema: Schema | None
     identifier: str
-    examples: Optional[JsonType] = None
+    examples: JsonType | None = None
 
 
 class TypeCatalog:
     "Maintains an association of well-known Python types to their JSON schema."
 
-    _by_type: dict[TypeLike, TypeCatalogEntry]
+    _by_type: dict[TypeForm[Any] | ForwardRef | str, TypeCatalogEntry]
     _by_name: dict[str, TypeCatalogEntry]
 
     def __init__(self) -> None:
         self._by_type = {}
         self._by_name = {}
 
-    def __contains__(self, data_type: TypeLike) -> bool:
-        if isinstance(data_type, typing.ForwardRef):
-            fwd: typing.ForwardRef = data_type
+    def __contains__(self, data_type: TypeForm[Any] | ForwardRef | str) -> bool:
+        if isinstance(data_type, ForwardRef):
+            fwd: ForwardRef = data_type
             name = fwd.__forward_arg__
             return name in self._by_name
         else:
@@ -144,12 +146,12 @@ class TypeCatalog:
 
     def add(
         self,
-        data_type: TypeLike,
-        schema: Optional[Schema],
+        data_type: TypeForm[Any] | ForwardRef | str,
+        schema: Schema | None,
         identifier: str,
-        examples: Optional[list[JsonType]] = None,
+        examples: list[JsonType] | None = None,
     ) -> None:
-        if isinstance(data_type, typing.ForwardRef):
+        if isinstance(data_type, ForwardRef):
             raise TypeError("forward references cannot be used to register a type")
 
         if data_type in self._by_type:
@@ -159,9 +161,9 @@ class TypeCatalog:
         self._by_type[data_type] = entry
         self._by_name[identifier] = entry
 
-    def get(self, data_type: TypeLike) -> TypeCatalogEntry:
-        if isinstance(data_type, typing.ForwardRef):
-            fwd: typing.ForwardRef = data_type
+    def get(self, data_type: TypeForm[Any] | ForwardRef | str) -> TypeCatalogEntry:
+        if isinstance(data_type, ForwardRef):
+            fwd: ForwardRef = data_type
             name = fwd.__forward_arg__
             return self._by_name[name]
         else:
@@ -176,17 +178,17 @@ class SchemaOptions:
     definitions_path: str = "#/definitions/"
     use_descriptions: bool = True
     use_examples: bool = True
-    property_description_fun: Optional[Callable[[type, str, str], str]] = None
+    property_description_fun: Callable[[type, str, str], str] | None = None
 
 
 class JsonSchemaGenerator:
     "Creates a JSON schema with user-defined type definitions."
 
     type_catalog: ClassVar[TypeCatalog] = TypeCatalog()
-    types_used: dict[str, TypeLike]
+    types_used: dict[str, TypeForm[Any] | ForwardRef | str]
     options: SchemaOptions
 
-    def __init__(self, options: Optional[SchemaOptions] = None):
+    def __init__(self, options: SchemaOptions | None = None):
         if options is None:
             self.options = SchemaOptions()
         else:
@@ -218,13 +220,13 @@ class JsonSchemaGenerator:
     def _(self, arg: MaxLength) -> Schema:
         return {"maxLength": arg.value}
 
-    def _with_metadata(self, type_schema: Schema, metadata: Optional[tuple[Any, ...]]) -> Schema:
+    def _with_metadata(self, type_schema: Schema, metadata: tuple[Any, ...] | None) -> Schema:
         if metadata:
             for m in metadata:
                 type_schema.update(self._metadata_to_schema(m))
         return type_schema
 
-    def _simple_type_to_schema(self, typ: TypeLike) -> Optional[Schema]:
+    def _simple_type_to_schema(self, typ: TypeForm[Any] | ForwardRef | str) -> Schema | None:
         """
         Returns the JSON schema associated with a simple, unrestricted type.
 
@@ -279,7 +281,7 @@ class JsonSchemaGenerator:
             # not a simple type
             return None
 
-    def type_to_schema(self, data_type: TypeLike, force_expand: bool = False) -> Schema:
+    def type_to_schema(self, data_type: TypeForm[Any] | ForwardRef | str, force_expand: bool = False) -> Schema:
         """
         Returns the JSON schema associated with a type.
 
@@ -288,6 +290,8 @@ class JsonSchemaGenerator:
             types.
         :returns: The JSON schema associated with the type.
         """
+
+        typ: TypeForm[Any] | ForwardRef | str
 
         # short-circuit for common simple types
         schema = self._simple_type_to_schema(data_type)
@@ -356,7 +360,7 @@ class JsonSchemaGenerator:
                     enum_schema_type = "string"
 
                 enum_schema = {
-                    "type": enum_schema_type,
+                    "type": enum_schema_type,  # pyright: ignore[reportPossiblyUnboundVariable]
                     "enum": [object_to_json(e.value) for e in enum_type],
                 }
                 if self.options.use_descriptions:
@@ -391,15 +395,15 @@ class JsonSchemaGenerator:
                     }
                 else:
                     dict_schema = {
-                        "properties": {value: value_schema for value in enum_values},
+                        "properties": dict.fromkeys(enum_values, value_schema),
                         "additionalProperties": False,
                     }
             else:
                 dict_schema = {"additionalProperties": value_schema}
 
-            schema = {"type": "object"}
-            schema.update(dict_schema)
-            return schema
+            typed_dict_schema: Schema = {"type": "object"}
+            typed_dict_schema.update(dict_schema)
+            return typed_dict_schema
         elif origin_type is set:
             (set_type,) = typing.get_args(typ)  # unpack single tuple element
             return {
@@ -417,12 +421,15 @@ class JsonSchemaGenerator:
             }
         elif origin_type is Literal:
             (literal_value,) = typing.get_args(typ)  # unpack value of literal type
-            schema = self.type_to_schema(type(literal_value))
+            schema = self.type_to_schema(type(literal_value))  # pyright: ignore[reportUnknownArgumentType]
             schema["const"] = literal_value
             return schema
         elif origin_type is type:
             (concrete_type,) = typing.get_args(typ)  # unpack single tuple element
             return {"const": self.type_to_schema(concrete_type, force_expand=True)}
+
+        if not isinstance(typ, type):
+            raise TypeError(f"expected: a class type for inspecting its properties; got: {typ!r}")
 
         # dictionary of class attributes
         members = dict(inspect.getmembers(typ, lambda a: not inspect.isroutine(a)))
@@ -439,11 +446,13 @@ class JsonSchemaGenerator:
             else:
                 output_name = property_name
 
-            if is_type_optional(property_type):
-                optional_type: type = unwrap_optional_type(property_type)
+            evaluated_property_type = evaluate_member_type(property_type, typ)
+
+            if is_type_optional(evaluated_property_type):
+                optional_type: type = unwrap_optional_type(evaluated_property_type)
                 property_def = self.type_to_schema(optional_type)
             else:
-                property_def = self.type_to_schema(property_type)
+                property_def = self.type_to_schema(evaluated_property_type)
                 required.append(output_name)
 
             # check if attribute has a default value initializer
@@ -474,17 +483,17 @@ class JsonSchemaGenerator:
 
             properties[output_name] = property_def
 
-        schema = {"type": "object"}
+        object_schema: Schema = {"type": "object"}
         if len(properties) > 0:
-            schema["properties"] = typing.cast(JsonType, properties)
-            schema["additionalProperties"] = False
+            object_schema["properties"] = typing.cast(JsonType, properties)
+            object_schema["additionalProperties"] = False
         if len(required) > 0:
-            schema["required"] = typing.cast(JsonType, required)
+            object_schema["required"] = typing.cast(JsonType, required)
         if self.options.use_descriptions:
-            schema.update(docstring_to_schema(typ))
-        return schema
+            object_schema.update(docstring_to_schema(typ))
+        return object_schema
 
-    def _type_to_schema_with_lookup(self, data_type: TypeLike) -> Schema:
+    def _type_to_schema_with_lookup(self, data_type: TypeForm[Any] | ForwardRef | str) -> Schema:
         """
         Returns the JSON schema associated with a type that may be registered in the catalog of known types.
 
@@ -509,7 +518,9 @@ class JsonSchemaGenerator:
 
         return type_schema
 
-    def classdef_to_schema(self, data_type: TypeLike, force_expand: bool = False) -> tuple[Schema, dict[str, Schema]]:
+    def classdef_to_schema(
+        self, data_type: TypeForm[Any] | ForwardRef | str, force_expand: bool = False
+    ) -> tuple[Schema, dict[str, Schema]]:
         """
         Returns the JSON schema associated with a type and any nested types.
 
@@ -556,8 +567,8 @@ class Validator(enum.Enum):
 
 
 def classdef_to_schema(
-    data_type: TypeLike,
-    options: Optional[SchemaOptions] = None,
+    data_type: TypeForm[Any] | ForwardRef | str,
+    options: SchemaOptions | None = None,
     validator: Validator = Validator.Latest,
 ) -> Schema:
     """
@@ -583,7 +594,7 @@ def classdef_to_schema(
     validator_id = validator.value.META_SCHEMA["$id"]
     try:
         validator.value.check_schema(class_schema)
-    except jsonschema.exceptions.SchemaError as ex:
+    except jsonschema.SchemaError as ex:
         raise TypeError(f"schema does not validate against meta-schema <{validator_id}>") from ex
 
     schema = {"$schema": validator_id}
@@ -591,7 +602,7 @@ def classdef_to_schema(
     return schema
 
 
-def validate_object(data_type: TypeLike, json_dict: JsonType) -> None:
+def validate_object(data_type: TypeForm[Any], json_dict: JsonType) -> None:
     """
     Validates if the JSON dictionary object conforms to the expected type.
 
@@ -604,26 +615,44 @@ def validate_object(data_type: TypeLike, json_dict: JsonType) -> None:
     jsonschema.validate(json_dict, schema_dict, format_checker=jsonschema.FormatChecker())
 
 
-def print_schema(data_type: type) -> None:
+def print_schema(data_type: TypeForm[Any]) -> None:
     """Pretty-prints the JSON schema corresponding to the type."""
 
     s = classdef_to_schema(data_type)
     print(json.dumps(s, indent=4))
 
 
-def get_schema_identifier(data_type: type) -> Optional[str]:
+def get_schema_identifier(data_type: TypeForm[Any]) -> str | None:
     if data_type in JsonSchemaGenerator.type_catalog:
         return JsonSchemaGenerator.type_catalog.get(data_type).identifier
     else:
         return None
 
 
+@overload
 def register_schema(
-    data_type: T,
-    schema: Optional[Schema] = None,
-    name: Optional[str] = None,
-    examples: Optional[list[JsonType]] = None,
-) -> T:
+    data_type: type[T],
+    schema: Schema | None = None,
+    name: str | None = None,
+    examples: list[JsonType] | None = None,
+) -> type[T]: ...
+
+
+@overload
+def register_schema(
+    data_type: TypeForm[T],
+    schema: Schema | None = None,
+    name: str | None = None,
+    examples: list[JsonType] | None = None,
+) -> TypeForm[T]: ...
+
+
+def register_schema(
+    data_type: TypeForm[T],
+    schema: Schema | None = None,
+    name: str | None = None,
+    examples: list[JsonType] | None = None,
+) -> TypeForm[T]:
     """
     Associates a type with a JSON schema definition.
 
@@ -647,15 +676,15 @@ def json_schema_type(cls: type[T], /) -> type[T]: ...
 
 
 @overload
-def json_schema_type(cls: None, *, schema: Optional[Schema] = None) -> Callable[[type[T]], type[T]]: ...
+def json_schema_type(cls: None, *, schema: Schema | None = None) -> Callable[[type[T]], type[T]]: ...
 
 
 def json_schema_type(
-    cls: Optional[type[T]] = None,
+    cls: type[T] | None = None,
     *,
-    schema: Optional[Schema] = None,
-    examples: Optional[list[JsonType]] = None,
-) -> Union[type[T], Callable[[type[T]], type[T]]]:
+    schema: Schema | None = None,
+    examples: list[JsonType] | None = None,
+) -> type[T] | Callable[[type[T]], type[T]]:
     """Decorator to add user-defined schema definition to a class."""
 
     def wrap(cls: type[T]) -> type[T]:

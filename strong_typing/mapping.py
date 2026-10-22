@@ -5,13 +5,15 @@ Type-safe data interchange for Python data classes.
 """
 
 import keyword
-from typing import Optional
+from typing import Any
+
+from typing_extensions import TypeForm
 
 from .auxiliary import Alias
 from .inspection import get_annotation
 
 
-def python_field_to_json_property(python_id: str, python_type: Optional[object] = None) -> str:
+def python_field_to_json_property(python_id: str, python_type: TypeForm[Any] | None = None) -> str:
     """
     Map a Python field identifier to a JSON property name.
 

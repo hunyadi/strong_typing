@@ -130,8 +130,8 @@ class TestSerialization(unittest.TestCase):
     def test_serialization_collection(self) -> None:
         self.assertEqual(object_to_json([1, 2, 3]), [1, 2, 3])
         self.assertEqual(object_to_json({"a": 1, "b": 2, "c": 3}), {"a": 1, "b": 2, "c": 3})
-        self.assertEqual(object_to_json(set([1, 2, 3])), [1, 2, 3])
-        self.assertEqual(object_to_json(tuple([1, "two"])), [1, "two"])
+        self.assertEqual(object_to_json({1, 2, 3}), [1, 2, 3])
+        self.assertEqual(object_to_json((1, "two")), [1, "two"])
 
     def test_serialization_composite(self) -> None:
         self.assertEqual(object_to_json(UID("1.2.3.4567.8900")), "1.2.3.4567.8900")
@@ -168,7 +168,7 @@ class TestSerialization(unittest.TestCase):
                 CompositeDataclass(
                     list_value=["a", "b", "c"],
                     dict_value={"key": 42},
-                    set_value=set(i for i in range(0, 4)),
+                    set_value=set(range(0, 4)),
                 )
             ),
         )

@@ -71,16 +71,16 @@ class TestInspection(unittest.TestCase):
         module = sys.modules[self.__module__]
         self.assertSetEqual(get_referenced_types(type(None), module), set())
         self.assertSetEqual(get_referenced_types(Any, module), set())
-        self.assertSetEqual(get_referenced_types(int, module), set([int]))
-        self.assertSetEqual(get_referenced_types(Optional[str], module), set([str]))
-        self.assertSetEqual(get_referenced_types(list[str], module), set([str]))
-        self.assertSetEqual(get_referenced_types(list[list[str]], module), set([str]))
-        self.assertSetEqual(get_referenced_types(list[Optional[str]], module), set([str]))
-        self.assertSetEqual(get_referenced_types(dict[int, bool], module), set([int, bool]))
-        self.assertSetEqual(get_referenced_types(Union[int, bool, str], module), set([int, bool, str]))
+        self.assertSetEqual(get_referenced_types(int, module), {int})
+        self.assertSetEqual(get_referenced_types(Optional[str], module), {str})
+        self.assertSetEqual(get_referenced_types(list[str], module), {str})
+        self.assertSetEqual(get_referenced_types(list[list[str]], module), {str})
+        self.assertSetEqual(get_referenced_types(list[Optional[str]], module), {str})
+        self.assertSetEqual(get_referenced_types(dict[int, bool], module), {int, bool})
+        self.assertSetEqual(get_referenced_types(Union[int, bool, str], module), {int, bool, str})  # noqa: UP007
         self.assertSetEqual(
-            get_referenced_types(Union[None, int, datetime.datetime], module),
-            set([int, datetime.datetime]),
+            get_referenced_types(Union[None, int, datetime.datetime], module),  # noqa: UP007
+            {int, datetime.datetime},
         )
 
     def test_enum(self) -> None:
@@ -94,50 +94,48 @@ class TestInspection(unittest.TestCase):
 
     def test_optional(self) -> None:
         self.assertTrue(is_type_optional(Optional[int]))
-        self.assertTrue(is_type_optional(Union[None, int]))
-        self.assertTrue(is_type_optional(Union[int, None]))
+        self.assertTrue(is_type_optional(Union[None, int]))  # noqa: UP007
+        self.assertTrue(is_type_optional(Union[int, None]))  # noqa: UP007
 
-        if sys.version_info >= (3, 10):
-            self.assertTrue(is_type_optional(None | int))
-            self.assertTrue(is_type_optional(int | None))
+        self.assertTrue(is_type_optional(None | int))
+        self.assertTrue(is_type_optional(int | None))
 
         self.assertFalse(is_type_optional(int))
-        self.assertFalse(is_type_optional(Union[int, str]))
+        self.assertFalse(is_type_optional(Union[int, str]))  # noqa: UP007
 
     def test_strict_optional(self) -> None:
-        self.assertTrue(is_type_optional(Union[None, int], strict=True))
-        self.assertTrue(is_type_optional(Union[int, None], strict=True))
-        self.assertTrue(is_type_optional(Union[None, int, str]))
-        self.assertTrue(is_type_optional(Union[int, None, str]))
-        self.assertFalse(is_type_optional(Union[None, int, str], strict=True))
-        self.assertFalse(is_type_optional(Union[int, None, str], strict=True))
+        self.assertTrue(is_type_optional(Union[None, int], strict=True))  # noqa: UP007
+        self.assertTrue(is_type_optional(Union[int, None], strict=True))  # noqa: UP007
+        self.assertTrue(is_type_optional(Union[None, int, str]))  # noqa: UP007
+        self.assertTrue(is_type_optional(Union[int, None, str]))  # noqa: UP007
+        self.assertFalse(is_type_optional(Union[None, int, str], strict=True))  # noqa: UP007
+        self.assertFalse(is_type_optional(Union[int, None, str], strict=True))  # noqa: UP007
 
     def test_union(self) -> None:
-        self.assertTrue(is_type_union(Union[int, str]))
-        self.assertTrue(is_type_union(Union[bool, int, str]))
-        self.assertTrue(is_type_union(Union[int, str, None]))
-        self.assertTrue(is_type_union(Union[bool, int, str, None]))
+        self.assertTrue(is_type_union(Union[int, str]))  # noqa: UP007
+        self.assertTrue(is_type_union(Union[bool, int, str]))  # noqa: UP007
+        self.assertTrue(is_type_union(Union[int, str, None]))  # noqa: UP007
+        self.assertTrue(is_type_union(Union[bool, int, str, None]))  # noqa: UP007
 
-        if sys.version_info >= (3, 10):
-            self.assertTrue(is_type_union(int | str))
-            self.assertTrue(is_type_union(bool | int | str))
-            self.assertTrue(is_type_union(int | str | None))
-            self.assertTrue(is_type_union(bool | int | str | None))
+        self.assertTrue(is_type_union(int | str))
+        self.assertTrue(is_type_union(bool | int | str))
+        self.assertTrue(is_type_union(int | str | None))
+        self.assertTrue(is_type_union(bool | int | str | None))
 
         self.assertFalse(is_type_union(int))
 
-        self.assertEqual(unwrap_union_types(Union[int, str]), (int, str))
-        self.assertEqual(unwrap_union_types(Union[int, str, None]), (int, str, type(None)))
-        if sys.version_info >= (3, 10):
-            self.assertEqual(unwrap_union_types(int | str), (int, str))
-            self.assertEqual(unwrap_union_types(int | str | None), (int, str, type(None)))
+        self.assertEqual(unwrap_union_types(Union[int, str]), (int, str))  # noqa: UP007
+        self.assertEqual(unwrap_union_types(Union[int, str, None]), (int, str, type(None)))  # noqa: UP007
+
+        self.assertEqual(unwrap_union_types(int | str), (int, str))
+        self.assertEqual(unwrap_union_types(int | str | None), (int, str, type(None)))
 
     def test_list(self) -> None:
         self.assertTrue(is_generic_list(list[int]))
         self.assertTrue(is_generic_list(list[str]))
         self.assertTrue(is_generic_list(list[SimpleObject]))
-        self.assertFalse(is_generic_list(list))
-        self.assertFalse(is_generic_list([]))
+        self.assertFalse(is_generic_list(list))  # pyright: ignore[reportUnknownArgumentType]
+        self.assertFalse(is_generic_list([]))  # type: ignore
 
         self.assertEqual(unwrap_generic_list(list[int]), int)
         self.assertEqual(unwrap_generic_list(list[str]), str)
@@ -146,8 +144,8 @@ class TestInspection(unittest.TestCase):
     def test_dict(self) -> None:
         self.assertTrue(is_generic_dict(dict[int, str]))
         self.assertTrue(is_generic_dict(dict[str, SimpleObject]))
-        self.assertFalse(is_generic_dict(dict))
-        self.assertFalse(is_generic_dict({}))
+        self.assertFalse(is_generic_dict(dict))  # pyright: ignore[reportUnknownArgumentType]
+        self.assertFalse(is_generic_dict({}))  # type: ignore
 
         self.assertEqual(unwrap_generic_dict(dict[int, str]), (int, str))
         self.assertEqual(unwrap_generic_dict(dict[str, SimpleObject]), (str, SimpleObject))
@@ -207,16 +205,16 @@ class TestInspection(unittest.TestCase):
         self.assertFalse(is_generic_instance("string", dict[str, int]))
 
         self.assertTrue(is_generic_instance(set(), set[int]))
-        self.assertTrue(is_generic_instance(set([1, 2, 3]), set[int]))
+        self.assertTrue(is_generic_instance({1, 2, 3}, set[int]))
         self.assertFalse(is_generic_instance(None, set[int]))
         self.assertFalse(is_generic_instance(42, set[int]))
 
         self.assertTrue(is_generic_instance(("a", 42), tuple[str, int]))
         self.assertFalse(is_generic_instance(None, tuple[str, int]))
 
-        self.assertTrue(is_generic_instance("string", Union[str, int]))
-        self.assertTrue(is_generic_instance(42, Union[str, int]))
-        self.assertFalse(is_generic_instance(None, Union[str, int]))
+        self.assertTrue(is_generic_instance("string", Union[str, int]))  # noqa: UP007
+        self.assertTrue(is_generic_instance(42, Union[str, int]))  # noqa: UP007
+        self.assertFalse(is_generic_instance(None, Union[str, int]))  # noqa: UP007
 
         self.assertTrue(is_generic_instance(None, Optional[str]))
         self.assertTrue(is_generic_instance("string", Optional[str]))
