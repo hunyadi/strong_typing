@@ -128,9 +128,7 @@ class TypeFormatter:
                 return data_type
 
             return self.python_type_to_str(evaluate_type(data_type, self.context))
-        elif isinstance(data_type, ParamSpec):
-            return data_type.__name__  # type: ignore[unreachable]
-        elif isinstance(data_type, typing.TypeVar):
+        elif isinstance(data_type, ParamSpec) or isinstance(data_type, typing.TypeVar):
             return data_type.__name__  # type: ignore[unreachable]
 
         origin = typing.get_origin(data_type)
@@ -169,7 +167,7 @@ class TypeFormatter:
         else:
             return data_type.__name__
 
-    def python_type_to_str(self, data_type: TypeForm[Any] | None) -> str:
+    def python_type_to_str(self, data_type: TypeForm[Any] | str | None) -> str:
         "Returns the string representation of a Python type."
 
         if data_type is None or data_type is type(None):
@@ -188,37 +186,37 @@ class TypeFormatter:
         if name is not None:
             return name
 
-        metadata = getattr(data_type, "__metadata__", None)
-        if metadata is not None:
+        meta_data = getattr(data_type, "__metadata__", None)
+        if meta_data is not None:
             # type is Annotated[T, ...]
-            metatuple: tuple[Any, ...] = metadata
+            meta_tuple: tuple[Any, ...] = meta_data
             arg = typing.get_args(data_type)[0]
 
             # check for auxiliary types with user-defined annotations
-            metaset = set(metatuple)
+            meta_set = set(meta_tuple)
             for auxiliary_type, auxiliary_name in _auxiliary_types.items():
                 auxiliary_arg = typing.get_args(auxiliary_type)[0]
                 if arg is not auxiliary_arg:
                     continue
 
-                auxiliary_metatuple: tuple[Any, ...] | None = getattr(auxiliary_type, "__metadata__", None)
-                if auxiliary_metatuple is None:
+                auxiliary_meta_tuple: tuple[Any, ...] | None = getattr(auxiliary_type, "__metadata__", None)
+                if auxiliary_meta_tuple is None:
                     continue
 
-                if metaset.issuperset(auxiliary_metatuple):
+                if meta_set.issuperset(auxiliary_meta_tuple):
                     # type is an auxiliary type with extra annotations
-                    auxiliary_args = ", ".join(repr(m) for m in metatuple if m not in auxiliary_metatuple)
+                    auxiliary_args = ", ".join(repr(m) for m in meta_tuple if m not in auxiliary_meta_tuple)
                     return f"Annotated[{auxiliary_name}, {auxiliary_args}]"
 
             # type is an annotated type
-            args = ", ".join(repr(m) for m in metatuple)
+            args = ", ".join(repr(m) for m in meta_tuple)
             return f"Annotated[{self.plain_type_to_str(arg)}, {args}]"
         else:
             # type is a regular type
             return self.plain_type_to_str(data_type)
 
 
-def python_type_to_str(data_type: TypeForm[Any], *, use_union_operator: bool = False) -> str:
+def python_type_to_str(data_type: TypeForm[Any] | str | None, *, use_union_operator: bool = False) -> str:
     """
     Returns the string representation of a Python type.
 
@@ -230,12 +228,15 @@ def python_type_to_str(data_type: TypeForm[Any], *, use_union_operator: bool = F
     return fmt.python_type_to_str(data_type)
 
 
-def python_type_to_name(data_type: TypeForm[Any], *, force: bool = False) -> str:
+def python_type_to_name(data_type: TypeForm[Any] | None, *, force: bool = False) -> str:
     """
     Returns the short name of a Python type.
 
     :param force: Whether to produce a name for composite types such as generics.
     """
+
+    if data_type is None:
+        return "None"
 
     # use compact name for alias types
     name = _auxiliary_types.get(data_type)

@@ -95,10 +95,10 @@ def evaluate_member_type(typ: TypeForm[T], cls: type[Any]) -> TypeForm[T]: ...
 
 def evaluate_member_type(typ: TypeForm[T] | ForwardRef | str, cls: type[Any]) -> TypeForm[T]:
     """
-    Evaluates a forward reference type in a dataclass member.
+    Evaluates a forward reference type in a data class member.
 
-    :param typ: The dataclass member type to convert.
-    :param cls: The dataclass in which the member is defined.
+    :param typ: The data class member type to convert.
+    :param cls: The data class in which the member is defined.
     :returns: The evaluated type.
     """
 
@@ -117,7 +117,7 @@ def evaluate_type(typ: TypeForm[T] | ForwardRef | str, module: types.ModuleType)
     """
     Evaluates a forward reference type.
 
-    :param typ: The type to convert, typically a dataclass member type.
+    :param typ: The type to convert, typically a data class member type.
     :param module: The context for the type, i.e. the module in which the member is defined.
     :returns: The evaluated type.
     """
@@ -137,7 +137,7 @@ def evaluate_type(typ: TypeForm[T] | ForwardRef | str, module: types.ModuleType)
                 recursive_guard=frozenset(),
             )
         else:
-            result = typ._evaluate(
+            result = typ._evaluate(  # type: ignore[assignment]
                 module.__dict__,
                 locals(),
                 recursive_guard=frozenset(),
@@ -345,7 +345,7 @@ def is_type_union(typ: TypeForm[Any]) -> bool:
     return False
 
 
-def unwrap_union_types(typ: TypeForm[Any]) -> tuple[TypeForm[Any], ...]:
+def unwrap_union_types(typ: TypeForm[Any]) -> tuple[TypeForm[Any] | None, ...]:
     """
     Extracts the inner types of a union type.
 
@@ -356,7 +356,7 @@ def unwrap_union_types(typ: TypeForm[Any]) -> tuple[TypeForm[Any], ...]:
     return _unwrap_union_types(typ)
 
 
-def _unwrap_union_types(typ: TypeForm[Any]) -> tuple[TypeForm[Any], ...]:
+def _unwrap_union_types(typ: TypeForm[Any]) -> tuple[TypeForm[Any] | None, ...]:
     "Extracts the types in a union (e.g. returns a tuple of types `T1` and `T2` for `Union[T1, T2]`)."
 
     if not _is_union_like(typ):
@@ -539,15 +539,15 @@ def rewrap_annotated_type(transform: Callable[[type[S]], type[T]], typ: type[S])
     transformed_type = transform(inner_type)
 
     if metadata is not None:
-        return Annotated[(transformed_type, *metadata)]  # type: ignore
+        return Annotated[(transformed_type,) + metadata]  # type: ignore[return-value]
     else:
         return transformed_type
 
 
-def get_module_classes(module: types.ModuleType) -> list[type]:
+def get_module_classes(module: types.ModuleType) -> list[type[Any]]:
     "Returns all classes declared directly in a module."
 
-    def is_class_member(member: object) -> TypeGuard[type]:
+    def is_class_member(member: object) -> TypeGuard[type[Any]]:
         return inspect.isclass(member) and member.__module__ == module.__name__
 
     return [class_type for _, class_type in inspect.getmembers(module, is_class_member)]
@@ -566,7 +566,9 @@ def get_resolved_hints(typ: type[Any]) -> dict[str, type[Any]]:
     return get_type_hints(typ, include_extras=True)
 
 
-def get_class_properties(typ: type[Any]) -> Iterable[tuple[str, TypeForm[Any] | ForwardRef | str]]:
+def get_class_properties(
+    typ: type[Any],
+) -> Iterable[tuple[str, TypeForm[Any] | ForwardRef | str]]:
     "Returns all properties of a class."
 
     if is_dataclass_type(typ):
@@ -697,6 +699,8 @@ class TypeCollector:
             return self.run(unwrap_optional_type(typ), cls, module)
         if is_type_union(typ):
             for union_type in unwrap_union_types(typ):
+                if union_type is None:
+                    continue
                 self.run(union_type, cls, module)
             return
 

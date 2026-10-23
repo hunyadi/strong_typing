@@ -373,7 +373,12 @@ class JsonSchemaGenerator:
                 return enum_schema
 
         if is_type_union(typ):
-            return {"oneOf": [self.type_to_schema(union_type) for union_type in unwrap_union_types(typ)]}
+            return {
+                "oneOf": [
+                    self.type_to_schema(union_type if union_type is not None else type(None))
+                    for union_type in unwrap_union_types(typ)
+                ]
+            }
 
         origin_type = typing.get_origin(typ)
         if origin_type is list:

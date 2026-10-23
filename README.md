@@ -2,7 +2,7 @@
 
 JSON is a popular message interchange format employed in API design for its simplicity, readability, flexibility and wide support. However, `json.dump` and `json.load` offer no direct support when working with Python data classes employing type annotations. This package offers services for working with strongly-typed Python classes: serializing objects to JSON, deserializing JSON to objects, and producing a JSON schema that matches the data class, e.g. to be used in an OpenAPI specification.
 
-Unlike [orjson](https://github.com/ijl/orjson), this package supports both serializing and deserializing complex types such as data classes, UUIDs, decimals, etc., and allows specifying custom serialization and deserialization hooks. It doesn't require introducing custom classes in your class inheritance chain (such as `BaseModel` in [pydantic dataclasses](https://pydantic-docs.helpmanual.io/usage/dataclasses/)), making it suitable for operating on classes defined in third-party modules.
+Unlike [orjson](https://github.com/ijl/orjson), this package supports both serializing and deserializing complex types such as data classes, UUIDs, decimals, etc., and allows specifying custom serialization and deserialization hooks. It doesn't require introducing custom classes in your class inheritance chain (such as `BaseModel` in [Pydantic data classes](https://pydantic-docs.helpmanual.io/usage/dataclasses/)), making it suitable for operating on classes defined in third-party modules.
 
 ## Features
 
@@ -280,7 +280,7 @@ uint64 = Annotated[int, Signed(False), Storage(8), IntegerRange(0, 1844674407370
 
 ## Custom serialization and de-serialization
 
-If a composite object (e.g. a dataclass or a plain Python class) has a `to_json` member function, then this function is invoked to produce a JSON object representation from an instance.
+If a composite object (e.g. a data class or a plain Python class) has a `to_json` member function, then this function is invoked to produce a JSON object representation from an instance.
 
 If a composite object has a `from_json` class function (a.k.a. `@classmethod`), then this function is invoked, passing the JSON object as an argument, to produce an instance of the corresponding type.
 

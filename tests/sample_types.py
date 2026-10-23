@@ -93,7 +93,7 @@ class UID:
         return UID(value)
 
 
-SimpleUntypedNamedTuple = namedtuple("SimpleUntypedNamedTuple", ["int_value", "str_value"])
+SimpleUntypedNamedTuple = namedtuple("SimpleUntypedNamedTuple", ("int_value", "str_value"))  # pyright: ignore[reportUntypedNamedTuple]
 
 
 class SimpleTypedNamedTuple(NamedTuple):
@@ -129,9 +129,9 @@ class AnnotatedSimpleDataclass:
 
 @dataclass
 class CompositeDataclass:
-    list_value: list[str] = field(default_factory=list)
-    dict_value: dict[str, int] = field(default_factory=dict)
-    set_value: set[int] = field(default_factory=set)
+    list_value: list[str] = field(default_factory=list[str])
+    dict_value: dict[str, int] = field(default_factory=dict[str, int])
+    set_value: set[int] = field(default_factory=set[int])
     tuple_value: tuple[bool, int, str] = (True, 2, "three")
     named_tuple_value: SimpleTypedNamedTuple = SimpleTypedNamedTuple(1, "second")
     optional_value: Optional[str] = None

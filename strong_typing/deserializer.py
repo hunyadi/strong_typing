@@ -967,7 +967,7 @@ def _create_deserializer(typ: TypeForm[T], options: DeserializerOptions) -> Dese
 
     if not inspect.isclass(typ):
         if is_dataclass_instance(typ):
-            raise TypeError(f"dataclass type expected but got instance: {typ}")
+            raise TypeError(f"data class type expected but got instance: {typ}")
         else:
             raise TypeError(f"unable to de-serialize unrecognized type: {typ}")
 

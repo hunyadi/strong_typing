@@ -20,6 +20,8 @@
     ],
     "python.analysis.typeCheckingMode": "strict",
     "cSpell.words": [
+        "classmethod",
+        "dataclass",
         "docstrings",
         "dunder",
         "errorlevel",
