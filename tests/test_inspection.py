@@ -86,8 +86,8 @@ class TestInspection(unittest.TestCase):
     def test_enum(self) -> None:
         self.assertTrue(is_type_enum(Side))
         self.assertTrue(is_type_enum(Suit))
-        self.assertFalse(is_type_enum(Side.LEFT))
-        self.assertFalse(is_type_enum(Suit.Diamonds))
+        self.assertFalse(is_type_enum(Side.LEFT))  # type: ignore
+        self.assertFalse(is_type_enum(Suit.Diamonds))  # type: ignore
         self.assertFalse(is_type_enum(int))
         self.assertFalse(is_type_enum(str))
         self.assertFalse(is_type_enum(SimpleObject))

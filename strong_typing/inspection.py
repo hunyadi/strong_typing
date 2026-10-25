@@ -4,8 +4,6 @@ Type-safe data interchange for Python data classes.
 :see: https://github.com/hunyadi/strong_typing
 """
 
-# mypy: disable-error-code="type-arg"
-
 import dataclasses
 import datetime
 import enum
@@ -48,7 +46,7 @@ V = TypeVar("V")
 TypeLike: TypeAlias = TypeForm[Any] | ForwardRef | str | Any
 
 
-def _is_type_like(data_type: Any) -> TypeGuard[TypeLike]:
+def is_type_like(data_type: Any) -> TypeGuard[TypeLike]:
     """
     Checks if the object is a type or type-like object (e.g. generic type).
 
@@ -70,19 +68,6 @@ def _is_type_like(data_type: Any) -> TypeGuard[TypeLike]:
         return True
     else:
         return False
-
-
-def is_type_like(
-    data_type: object,
-) -> TypeGuard[TypeLike]:
-    """
-    Checks if the object is a type or type-like object (e.g. generic type).
-
-    :param data_type: The object to validate.
-    :returns: True if the object is a type or type-like object.
-    """
-
-    return _is_type_like(data_type)
 
 
 @overload
@@ -229,7 +214,7 @@ def is_named_tuple_type(typ: Any) -> TypeGuard[type[NamedTuple]]:
 
 if sys.version_info >= (3, 11):
 
-    def is_type_enum(typ: object) -> TypeGuard[type[enum.Enum]]:
+    def is_type_enum(typ: TypeForm[Any]) -> TypeGuard[type[enum.Enum]]:
         "True if the specified type is an enumeration type."
 
         typ = unwrap_annotated_type(typ)
@@ -237,7 +222,7 @@ if sys.version_info >= (3, 11):
 
 else:
 
-    def is_type_enum(typ: object) -> TypeGuard[type[enum.Enum]]:
+    def is_type_enum(typ: TypeForm[Any]) -> TypeGuard[type[enum.Enum]]:
         "True if the specified type is an enumeration type."
 
         typ = unwrap_annotated_type(typ)
@@ -309,7 +294,7 @@ def is_type_optional(typ: TypeForm[Any], strict: bool = False) -> TypeGuard[type
     return False
 
 
-def unwrap_optional_type(typ: type[T | None]) -> type[T]:
+def unwrap_optional_type(typ: TypeForm[T | None]) -> TypeForm[T]:
     """
     Extracts the inner type of an optional type.
 
@@ -320,7 +305,7 @@ def unwrap_optional_type(typ: type[T | None]) -> type[T]:
     return rewrap_annotated_type(_unwrap_optional_type, typ)
 
 
-def _unwrap_optional_type(typ: type[T | None]) -> type[T]:
+def _unwrap_optional_type(typ: TypeForm[T | None]) -> TypeForm[T]:
     "Extracts the type qualified as optional (e.g. returns `T` for `Optional[T]`)."
 
     # Optional[T] is represented internally as Union[T, None]
@@ -399,7 +384,7 @@ def unwrap_literal_values(typ: TypeForm[Any]) -> tuple[Any, ...]:
     return get_args(typ)
 
 
-def unwrap_literal_types(typ: TypeForm[Any]) -> tuple[type, ...]:
+def unwrap_literal_types(typ: TypeForm[Any]) -> tuple[type[Any], ...]:
     """
     Extracts the types of the constant values captured by a literal type.
 
@@ -417,7 +402,7 @@ def is_generic_list(typ: TypeForm[Any]) -> TypeGuard[type[list[Any]]]:
     return get_origin(typ) is list
 
 
-def unwrap_generic_list(typ: type[list[T]]) -> type[T]:
+def unwrap_generic_list(typ: type[list[T]]) -> TypeForm[T]:
     """
     Extracts the item type of a list type.
 
@@ -428,11 +413,11 @@ def unwrap_generic_list(typ: type[list[T]]) -> type[T]:
     return rewrap_annotated_type(_unwrap_generic_list, typ)
 
 
-def _unwrap_generic_list(typ: type[list[T]]) -> type[T]:
+def _unwrap_generic_list(typ: TypeForm[list[T]]) -> TypeForm[T]:
     "Extracts the item type of a list type (e.g. returns `T` for `list[T]`)."
 
     (list_type,) = get_args(typ)  # unpack single tuple element
-    return cast(type[T], list_type)
+    return cast(TypeForm[T], list_type)
 
 
 def is_generic_set(typ: TypeForm[Any]) -> TypeGuard[type[set[Any]]]:
@@ -442,7 +427,7 @@ def is_generic_set(typ: TypeForm[Any]) -> TypeGuard[type[set[Any]]]:
     return get_origin(typ) is set
 
 
-def unwrap_generic_set(typ: type[set[T]]) -> type[T]:
+def unwrap_generic_set(typ: type[set[T]]) -> TypeForm[T]:
     """
     Extracts the item type of a set type.
 
@@ -453,11 +438,11 @@ def unwrap_generic_set(typ: type[set[T]]) -> type[T]:
     return rewrap_annotated_type(_unwrap_generic_set, typ)
 
 
-def _unwrap_generic_set(typ: type[set[T]]) -> type[T]:
+def _unwrap_generic_set(typ: TypeForm[set[T]]) -> TypeForm[T]:
     "Extracts the item type of a set type (e.g. returns `T` for `set[T]`)."
 
     (set_type,) = get_args(typ)  # unpack single tuple element
-    return cast(type[T], set_type)
+    return cast(TypeForm[T], set_type)
 
 
 def is_generic_dict(typ: TypeForm[Any]) -> TypeGuard[type[dict[Any, Any]]]:
@@ -467,7 +452,7 @@ def is_generic_dict(typ: TypeForm[Any]) -> TypeGuard[type[dict[Any, Any]]]:
     return get_origin(typ) is dict
 
 
-def unwrap_generic_dict(typ: type[dict[K, V]]) -> tuple[type[K], type[V]]:
+def unwrap_generic_dict(typ: type[dict[K, V]]) -> tuple[TypeForm[K], TypeForm[V]]:
     """
     Extracts the key and value types of a dictionary type as a tuple.
 
@@ -478,20 +463,20 @@ def unwrap_generic_dict(typ: type[dict[K, V]]) -> tuple[type[K], type[V]]:
     return _unwrap_generic_dict(unwrap_annotated_type(typ))
 
 
-def _unwrap_generic_dict(typ: type[dict[K, V]]) -> tuple[type[K], type[V]]:
+def _unwrap_generic_dict(typ: TypeForm[dict[K, V]]) -> tuple[TypeForm[K], TypeForm[V]]:
     "Extracts the key and value types of a dict type (e.g. returns (`K`, `V`) for `dict[K, V]`)."
 
     key_type, value_type = get_args(typ)
     return key_type, value_type
 
 
-def is_type_annotated(typ: TypeLike) -> bool:
+def is_type_annotated(typ: TypeForm[Any]) -> bool:
     "True if the type annotation corresponds to an annotated type (i.e. `Annotated[T, ...]`)."
 
     return getattr(typ, "__metadata__", None) is not None
 
 
-def get_annotation(data_type: TypeLike, annotation_type: type[T]) -> T | None:
+def get_annotation(data_type: TypeForm[Any], annotation_type: type[T]) -> T | None:
     """
     Returns the first annotation on a data type that matches the expected annotation type.
 
@@ -509,18 +494,18 @@ def get_annotation(data_type: TypeLike, annotation_type: type[T]) -> T | None:
     return None
 
 
-def unwrap_annotated_type(typ: T) -> T:
+def unwrap_annotated_type(typ: TypeForm[T]) -> TypeForm[T]:
     "Extracts the wrapped type from an annotated type (e.g. returns `T` for `Annotated[T, ...]`)."
 
     if is_type_annotated(typ):
         # type is Annotated[T, ...]
-        return cast(T, get_args(typ)[0])
+        return cast(TypeForm[T], get_args(typ)[0])
     else:
         # type is a regular type
         return typ
 
 
-def rewrap_annotated_type(transform: Callable[[type[S]], type[T]], typ: type[S]) -> type[T]:
+def rewrap_annotated_type(transform: Callable[[TypeForm[S]], TypeForm[T]], typ: TypeForm[S]) -> TypeForm[T]:
     """
     Un-boxes, transforms and re-boxes an optionally annotated type.
 
@@ -578,7 +563,7 @@ def get_class_properties(
         return resolved_hints.items()
 
 
-def get_class_property(typ: type, name: str) -> TypeForm[Any] | ForwardRef | str | None:
+def get_class_property(typ: type[Any], name: str) -> TypeForm[Any] | ForwardRef | str | None:
     "Looks up the annotated type of a property in a class by its property name."
 
     for property_name, property_type in get_class_properties(typ):
@@ -784,9 +769,6 @@ def create_object(typ: type[T]) -> T:
         return object.__new__(typ)
 
 
-TypeOrGeneric = type | types.GenericAlias
-
-
 def is_generic_instance(obj: Any, typ: TypeForm[Any] | ForwardRef) -> bool:
     """
     Returns whether an object is an instance of a generic class, a standard class or of a subclass thereof.
@@ -854,9 +836,9 @@ def is_generic_instance(obj: Any, typ: TypeForm[Any] | ForwardRef) -> bool:
 
 
 class RecursiveChecker:
-    _pred: Callable[[type, Any], bool] | None
+    _pred: Callable[[type[Any], Any], bool] | None
 
-    def __init__(self, pred: Callable[[type, Any], bool]) -> None:
+    def __init__(self, pred: Callable[[type[Any], Any], bool]) -> None:
         """
         Creates a checker to verify if a predicate applies to all nested member properties of an object recursively.
 
@@ -865,13 +847,13 @@ class RecursiveChecker:
 
         self._pred = pred
 
-    def pred(self, typ: type, obj: Any) -> bool:
+    def pred(self, typ: type[Any], obj: Any) -> bool:
         "Acts as a workaround for the type checker mypy."
 
         assert self._pred is not None
         return self._pred(typ, obj)
 
-    def check(self, typ: TypeLike, obj: Any) -> bool:
+    def check(self, typ: TypeForm[Any], obj: Any) -> bool:
         """
         Checks if a predicate applies to all nested member properties of an object recursively.
 
@@ -894,7 +876,7 @@ class RecursiveChecker:
             or typ is datetime.timedelta
             or typ is uuid.UUID
         ):
-            return self.pred(cast(type, typ), obj)
+            return self.pred(cast(type[Any], typ), obj)
 
         # generic types (e.g. list, dict, set, etc.)
         origin_type = get_origin(typ)
@@ -958,7 +940,7 @@ class RecursiveChecker:
             if not isinstance(obj, typ):
                 raise TypeError(f"expected `{typ}` but got: {obj}")
             return all(
-                self.check(property_type, getattr(obj, property_name))
+                self.check(evaluate_member_type(property_type, typ), getattr(obj, property_name))
                 for property_name, property_type in get_class_properties(typ)
             )
 

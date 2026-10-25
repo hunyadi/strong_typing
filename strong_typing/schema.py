@@ -47,17 +47,17 @@ T = TypeVar("T")
 
 
 def get_class_docstrings(data_type: type) -> tuple[str | None, str | None]:
-    docstr = docstring.parse_type(data_type)
+    ds = docstring.parse_type(data_type)
 
     # check if class has a doc-string other than the auto-generated string assigned by @dataclass
     if docstring.has_default_docstring(data_type):
         return None, None
 
-    return docstr.short_description, docstr.long_description
+    return ds.short_description, ds.long_description
 
 
 def get_class_property_docstrings(
-    data_type: type, transform_fun: Callable[[type, str, str], str] | None = None
+    data_type: type[Any], transform_fun: Callable[[type[Any], str, str], str] | None = None
 ) -> dict[str, str]:
     """
     Extracts the documentation strings associated with the properties of a composite type.
@@ -69,8 +69,8 @@ def get_class_property_docstrings(
 
     result: dict[str, str] = {}
     for base in inspect.getmro(data_type):
-        docstr = docstring.parse_type(base)
-        for param in docstr.params.values():
+        ds = docstring.parse_type(base)
+        for param in ds.params.values():
             if param.name in result:
                 continue
 
@@ -83,7 +83,7 @@ def get_class_property_docstrings(
     return result
 
 
-def docstring_to_schema(data_type: type) -> Schema:
+def docstring_to_schema(data_type: type[Any]) -> Schema:
     short_description, long_description = get_class_docstrings(data_type)
     schema: Schema = {}
     if short_description:
@@ -178,7 +178,7 @@ class SchemaOptions:
     definitions_path: str = "#/definitions/"
     use_descriptions: bool = True
     use_examples: bool = True
-    property_description_fun: Callable[[type, str, str], str] | None = None
+    property_description_fun: Callable[[type[Any], str, str], str] | None = None
 
 
 class JsonSchemaGenerator:
@@ -445,7 +445,7 @@ class JsonSchemaGenerator:
         required: list[str] = []
         for property_name, property_type in get_class_properties(typ):
             # rename property if an alias name is specified
-            alias = get_annotation(property_type, Alias)
+            alias = get_annotation(evaluate_member_type(property_type, typ), Alias)
             if alias:
                 output_name = alias.name
             else:
@@ -454,7 +454,7 @@ class JsonSchemaGenerator:
             evaluated_property_type = evaluate_member_type(property_type, typ)
 
             if is_type_optional(evaluated_property_type):
-                optional_type: type = unwrap_optional_type(evaluated_property_type)
+                optional_type = unwrap_optional_type(evaluated_property_type)
                 property_def = self.type_to_schema(optional_type)
             else:
                 property_def = self.type_to_schema(evaluated_property_type)

@@ -170,7 +170,7 @@ class Docstring:
         return s
 
 
-def is_exception(member: object) -> TypeGuard[type[BaseException]]:
+def is_exception(member: Any) -> TypeGuard[type[BaseException]]:
     return isinstance(member, type) and issubclass(member, BaseException)
 
 
@@ -201,7 +201,7 @@ def parse_type(typ: SupportsDoc) -> Docstring:
 
     # assign parameter and return types
     if is_dataclass_type(typ):
-        properties = dict(get_class_properties(typing.cast(type, typ)))
+        properties = dict(get_class_properties(typing.cast(type[Any], typ)))
 
         for name, param in docstring.params.items():
             param.param_type = evaluate_member_type(properties[name], typ)

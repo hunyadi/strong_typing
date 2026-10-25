@@ -5,7 +5,9 @@ import unittest
 import uuid
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Optional, Union
+
+from typing_extensions import TypeForm
 
 from strong_typing.auxiliary import MaxLength, Precision, float64, int16, int32, int64
 from strong_typing.classdef import (
@@ -17,7 +19,7 @@ from strong_typing.classdef import (
     schema_to_type,
 )
 from strong_typing.core import JsonType, Schema
-from strong_typing.inspection import TypeLike, create_module, dataclass_fields, is_dataclass_type, is_type_enum
+from strong_typing.inspection import create_module, dataclass_fields, is_dataclass_type, is_type_enum
 from strong_typing.schema import classdef_to_schema
 from strong_typing.serialization import json_to_generic
 
@@ -29,7 +31,7 @@ def as_typedef(schema: Schema) -> TypeDef:
     return node_to_typedef(empty, "", node)
 
 
-def as_type(schema: Schema) -> TypeLike:
+def as_type(schema: Schema) -> TypeForm[Any]:
     return as_typedef(schema).type
 
 
@@ -58,7 +60,7 @@ class Person:
 
 
 class TestClassDef(unittest.TestCase):
-    def assertTypeEquivalent(self, left: TypeLike, right: TypeLike) -> None:
+    def assertTypeEquivalent(self, left: TypeForm[Any], right: TypeForm[Any]) -> None:
         if is_dataclass_type(left) and is_dataclass_type(right):
             self.assertEqual(left.__name__, right.__name__)
             for left_field, right_field in zip(dataclass_fields(left), dataclass_fields(right), strict=True):

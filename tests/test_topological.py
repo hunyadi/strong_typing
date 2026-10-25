@@ -3,7 +3,7 @@ import decimal
 import unittest
 import uuid
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from strong_typing.inspection import is_dataclass_type
 from strong_typing.topological import topological_sort, type_topological_sort
@@ -92,7 +92,7 @@ class TestTopological(unittest.TestCase):
         order = type_topological_sort([NestedDataClass])
         self.assertNotIn(decimal.Decimal, order)
 
-        def fn(cls: type) -> list[type]:
+        def fn(cls: type[Any]) -> list[type[Any]]:
             return [decimal.Decimal] if is_dataclass_type(cls) else []
 
         order = type_topological_sort([NestedDataClass], fn)

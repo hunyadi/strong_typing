@@ -46,12 +46,6 @@ from .inspection import (
 from .mapping import python_field_to_json_property
 from .name import python_type_to_str
 
-if sys.version_info >= (3, 11):
-    from typing import LiteralString as LiteralString
-else:
-    from typing_extensions import LiteralString as LiteralString
-
-
 E = TypeVar("E", bound=enum.Enum)
 T = TypeVar("T")
 R = TypeVar("R")
@@ -515,7 +509,7 @@ class TaggedUnionDeserializer(RecursiveDeserializer[Any]):
         )
 
 
-class LiteralDeserializer(RecursiveDeserializer[LiteralString]):
+class LiteralDeserializer(RecursiveDeserializer[Any]):
     "De-serializes a JSON value into a Python literal type."
 
     values: tuple[Any, ...]
@@ -741,7 +735,7 @@ class DataclassDeserializer(ClassDeserializer[T]):
             has_default_factory = field.default_factory is not dataclasses.MISSING
 
             if is_optional:
-                required_type: type[T] = unwrap_optional_type(field_type)
+                required_type = unwrap_optional_type(field_type)
             else:
                 required_type = field_type
 
@@ -789,7 +783,7 @@ class TypedClassDeserializer(ClassDeserializer[T]):
             is_optional = is_type_optional(field_type)
 
             if is_optional:
-                required_type: type[T] = unwrap_optional_type(field_type)
+                required_type = unwrap_optional_type(field_type)
             else:
                 required_type = field_type
 
@@ -963,7 +957,7 @@ def _create_deserializer(typ: TypeForm[T], options: DeserializerOptions) -> Dese
         else:
             return UnionDeserializer(union_args, options)
     elif origin_type is Literal:
-        return LiteralDeserializer(typing.get_args(typ), options)  # type: ignore[return-value]
+        return LiteralDeserializer(typing.get_args(typ), options)
 
     if not inspect.isclass(typ):
         if is_dataclass_instance(typ):

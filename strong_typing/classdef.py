@@ -14,10 +14,11 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal, TypeVar, Union
 
+from typing_extensions import TypeForm
+
 from .auxiliary import Alias, MaxLength, Precision, float32, float64, int16, int32, int64
 from .core import JsonType, Schema
 from .docstring import Docstring, DocstringParam
-from .inspection import TypeLike
 from .serialization import json_to_object, object_to_json
 
 T = TypeVar("T")
@@ -165,7 +166,7 @@ def enum_values_to_type(
     return enum.unique(enum_class)
 
 
-def schema_to_type(schema: Schema, *, module: types.ModuleType, class_name: str) -> TypeLike:
+def schema_to_type(schema: Schema, *, module: types.ModuleType, class_name: str) -> TypeForm[Any]:
     """
     Creates a Python type from a JSON schema.
 
@@ -189,7 +190,7 @@ def schema_to_type(schema: Schema, *, module: types.ModuleType, class_name: str)
 
 @dataclass
 class TypeDef:
-    type: TypeLike
+    type: TypeForm[Any]
     default: Any = dataclasses.MISSING
 
 
@@ -211,14 +212,14 @@ def node_to_typedef(module: types.ModuleType, context: str, node: JsonSchemaNode
 
     elif isinstance(node, JsonSchemaBoolean):
         if node.const is not None:
-            return TypeDef(Literal[node.const], dataclasses.MISSING)
+            return TypeDef(Literal[node.const], dataclasses.MISSING)  # type: ignore[arg-type]
 
         default = json_to_value(bool, node.default)
         return TypeDef(bool, default)
 
     elif isinstance(node, JsonSchemaInteger):
         if node.const is not None:
-            return TypeDef(Literal[node.const], dataclasses.MISSING)
+            return TypeDef(Literal[node.const], dataclasses.MISSING)  # type: ignore[arg-type]
 
         integer_type: type[Any] | Annotated[Any, ...]
         if node.format == "int16":
@@ -240,7 +241,7 @@ def node_to_typedef(module: types.ModuleType, context: str, node: JsonSchemaNode
 
     elif isinstance(node, JsonSchemaNumber):
         if node.const is not None:
-            return TypeDef(Literal[node.const], dataclasses.MISSING)
+            return TypeDef(Literal[node.const], dataclasses.MISSING)  # type: ignore[arg-type]
 
         number_type: type[Any] | Annotated[Any, ...]
         if node.format == "float32":
@@ -276,7 +277,7 @@ def node_to_typedef(module: types.ModuleType, context: str, node: JsonSchemaNode
 
     elif isinstance(node, JsonSchemaString):
         if node.const is not None:
-            return TypeDef(Literal[node.const], dataclasses.MISSING)
+            return TypeDef(Literal[node.const], dataclasses.MISSING)  # type: ignore[arg-type]
 
         string_type: type[Any] | Annotated[Any, ...]
         if node.format == "date-time":
@@ -337,7 +338,7 @@ def node_to_typedef(module: types.ModuleType, context: str, node: JsonSchemaNode
             if prop_name in required:
                 prop_type = type_def.type
             else:
-                prop_type = Union[(None, type_def.type)]  # noqa: UP007
+                prop_type = Union[(None, type_def.type)]  # type: ignore[assignment]  # noqa: UP007
             fields.append((prop_name, prop_type, dataclasses.field(default=type_def.default)))
             prop_desc = prop_node.title or prop_node.description
             if prop_desc is not None:
@@ -363,7 +364,7 @@ def node_to_typedef(module: types.ModuleType, context: str, node: JsonSchemaNode
         if any(d.default is not dataclasses.MISSING for d in union_defs):
             raise TypeError("disallowed: `default` for union member type")
         union_types = tuple(d.type for d in union_defs)
-        return TypeDef(Union[union_types], dataclasses.MISSING)  # noqa: UP007
+        return TypeDef(Union[union_types], dataclasses.MISSING)  # type: ignore[arg-type]  # noqa: UP007
 
     raise NotImplementedError()
 

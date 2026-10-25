@@ -290,7 +290,7 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(generator.type_to_schema(int32), {"format": "int32", "type": "integer"})
         self.assertEqual(generator.type_to_schema(uint64), {"format": "uint64", "type": "integer"})
 
-    def _assert_docstring_equal(self, generator: JsonSchemaGenerator, typ: type) -> None:
+    def _assert_docstring_equal(self, generator: JsonSchemaGenerator, typ: type[Any]) -> None:
         "Checks if the Python class docstring matches the title and description strings in the generated JSON schema."
 
         short_description, long_description = get_class_docstrings(typ)
