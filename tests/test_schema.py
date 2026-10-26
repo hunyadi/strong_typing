@@ -128,7 +128,7 @@ class TestSchema(unittest.TestCase):
                         "type": "string",
                         "pattern": "^(0|[1-9][0-9]*)(\\.(0|[1-9][0-9]*))*$",
                         "maxLength": 64,
-                        "title": "A unique identifier in DICOM.",
+                        "title": "A unique identifier in DICOM.",  # spellchecker: disable-line
                     }
                 },
                 "$ref": "#/definitions/UID",
@@ -143,7 +143,7 @@ class TestSchema(unittest.TestCase):
                         "type": "string",
                         "pattern": "^(0|[1-9][0-9]*)(\\.(0|[1-9][0-9]*))*$",
                         "maxLength": 64,
-                        "title": "A unique identifier in DICOM.",
+                        "title": "A unique identifier in DICOM.",  # spellchecker: disable-line
                     }
                 },
                 "$ref": "#/definitions/UID",

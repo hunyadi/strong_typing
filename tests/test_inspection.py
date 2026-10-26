@@ -102,6 +102,7 @@ class TestInspection(unittest.TestCase):
 
         self.assertFalse(is_type_optional(int))
         self.assertFalse(is_type_optional(Union[int, str]))  # noqa: UP007
+        self.assertFalse(is_type_optional(int | str))
 
     def test_strict_optional(self) -> None:
         self.assertTrue(is_type_optional(Union[None, int], strict=True))  # noqa: UP007

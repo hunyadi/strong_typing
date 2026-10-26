@@ -7,7 +7,6 @@ Type-safe data interchange for Python data classes.
 import inspect
 import json
 import sys
-import typing
 from types import ModuleType
 from typing import Any, TextIO, TypeVar
 
@@ -40,7 +39,7 @@ def object_to_json(obj: Any) -> JsonType:
 
 
 def json_to_object(
-    typ: type[T],
+    typ: TypeForm[T],
     data: JsonType,
     *,
     context: ModuleType | None = None,
@@ -66,23 +65,6 @@ def json_to_object(
     :raises JsonTypeError: Deserialization for data has failed due to a type mismatch.
     """
 
-    return typing.cast(T, json_to_generic(typ, data, context=context, options=options))
-
-
-def json_to_generic(
-    typ: TypeForm[Any],
-    data: JsonType,
-    *,
-    context: ModuleType | None = None,
-    options: DeserializerOptions | None = None,
-) -> Any:
-    """
-    Creates an object from a representation that has been de-serialized from JSON.
-
-    Equivalent to `json_to_object` but has a more permissive type signature. Accepts typing special forms such as
-    `Optional[T]`, `Literal[...]` or `Union[...]`.
-    """
-
     # use caller context for evaluating types if no context is supplied
     if context is None:
         this_frame = inspect.currentframe()
@@ -98,6 +80,10 @@ def json_to_generic(
 
     parser = create_deserializer(typ, context, options=options)
     return parser.parse(data)
+
+
+# kept as an alias for backward compatibility
+json_to_generic = json_to_object
 
 
 def json_dump_string(json_object: JsonType) -> str:

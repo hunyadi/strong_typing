@@ -90,7 +90,7 @@ def create_randomized_object() -> SimpleObjectExample:
 
 class TestPerformance(unittest.TestCase):
     def test_serialization(self) -> None:
-        original_items = [create_randomized_object() for k in range(100000)]
+        original_items = [create_randomized_object() for _ in range(100000)]
 
         with Timer("serialization"):
             serialized_items = [object_to_json(item) for item in original_items]

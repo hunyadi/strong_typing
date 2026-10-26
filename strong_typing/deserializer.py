@@ -467,10 +467,7 @@ class TaggedUnionDeserializer(RecursiveDeserializer[Any]):
                 if not literal_type:
                     continue
 
-                if isinstance(literal_type, str) or isinstance(literal_type, ForwardRef):
-                    raise ValueError(f"required: fully evaluated literal type; got: {literal_type}")
-
-                for literal_value in unwrap_literal_values(literal_type):
+                for literal_value in unwrap_literal_values(evaluate_member_type(literal_type, member_type)):
                     tpl = (property_name, literal_value)
                     if tpl in self.member_parsers:
                         raise JsonTypeError(
