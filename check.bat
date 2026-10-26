@@ -1,4 +1,6 @@
 @echo off
+rem Type-safe data interchange for Python data classes.
+rem https://github.com/hunyadi/strong_typing
 setlocal
 
 set PYTHON_310="C:\Program Files\Python310\python.exe"

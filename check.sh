@@ -1,3 +1,8 @@
+#!/bin/sh
+#
+# Type-safe data interchange for Python data classes.
+# https://github.com/hunyadi/strong_typing
+
 set -e
 
 PYTHON_EXECUTABLE=${PYTHON:-python3}
